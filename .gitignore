@@ -1,0 +1,11 @@
+# Ignorar credenciais e arquivos de configuração sensíveis
+config.php
+
+# Ignorar pastas de ambiente virtual do Python
+venv/
+.env
+__pycache__/
+
+# Ignorar arquivos temporários do sistema
+.DS_Store
+Thumbs.db

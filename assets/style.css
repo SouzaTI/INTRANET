@@ -1,0 +1,320 @@
+/* PALETA DE CORES NAVE-NET */
+:root {
+    --navy-900: #0f172a;
+    --navy-800: #1e293b;
+    --navy-700: #334155;
+    --corporate-blue: #2563eb;
+    --corporate-blue-dark: #1d4ed8;
+    --status-online: #22c55e;
+    --bg-slate: #f1f5f9;
+}
+
+/* RESET E BASE */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body { 
+    font-family: 'Inter', 'Segoe UI', sans-serif; 
+    background: var(--bg-slate); 
+    color: var(--navy-800);
+    line-height: 1.5;
+}
+
+/* HEADER FIXO */
+.top-header {
+    background: var(--navy-900);
+    color: white;
+    height: 64px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 24px;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    /* CORREÇÃO: border-bottom em vez de border-b */
+    border-bottom: 1px solid var(--navy-700); 
+}
+
+/* LOGO E AVATAR */
+.logo-box {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: linear-gradient(to bottom right, #2563eb, #1d4ed8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.avatar-circle {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(to bottom right, #10b981, #059669);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+/* WRAPPER E COLUNAS */
+.wrapper { 
+    display: flex; 
+    min-height: calc(100vh - 64px); 
+    width: 100%;
+}
+
+/* SIDEBAR DARK */
+#sidebar {
+    width: 260px;
+    min-width: 260px; /* Garante que a sidebar não encolha */
+    background: var(--navy-900);
+    color: #cbd5e1;
+    border-right: 1px solid var(--navy-700);
+}
+
+.sidebar-section-title {
+    /* CORREÇÃO: Adicionado font-size: 10px */
+    font-size: 10px; 
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 12px;
+    padding: 0 24px;
+}
+
+.sidebar-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 24px;
+    text-decoration: none;
+    color: inherit;
+    font-size: 14px;
+    transition: all 0.2s;
+    border-left: 3px solid transparent;
+}
+
+.sidebar-item:hover {
+    background: rgba(37, 99, 235, 0.1);
+    color: white;
+    border-left: 3px solid var(--corporate-blue);
+}
+
+.setor-label-new {
+    font-size: 11px;
+    color: #475569;
+    padding: 15px 24px 5px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+/* CONTEÚDO CENTRAL */
+#content {
+    flex: 1;
+    padding: 32px;
+    max-width: 1100px;
+    margin: 0 auto;
+    min-width: 0; /* Previne quebra de layout flex */
+}
+
+/* CONTAINER DO DOCUMENTO (MARKDOWN) */
+.doc-container {
+    background: white;
+    border-radius: 16px;
+    padding: 40px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e2e8f0;
+}
+
+/* IMAGENS E GIFS (PROTEÇÃO TOTAL) */
+.markdown-body img {
+    max-width: 100% !important;
+    height: auto !important;
+    display: block;
+    margin: 24px 0;
+    border-radius: 12px;
+}
+
+/* ALERTAS ESTILIZADOS */
+.alert {
+    padding: 16px;
+    border-radius: 12px;
+    margin: 24px 0;
+    font-size: 14px;
+}
+.alert-info { background: #eff6ff; color: #1e40af; border-left: 4px solid var(--corporate-blue); }
+.alert-danger { background: #fef2f2; color: #991b1b; border-left: 4px solid #ef4444; }
+
+/* WIDGETS DIREITA */
+.right-widgets {
+    width: 320px;
+    min-width: 320px;
+    padding: 32px;
+}
+
+/* Efeito de link ativo na sidebar */
+.bg-corporate-blue {
+    background-color: #2563eb !important;
+    position: relative;
+}
+
+.bg-corporate-blue::before {
+    content: '';
+    position: absolute;
+    left: -16px; /* Ajuste conforme o padding da sua sidebar */
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background-color: #3b82f6;
+    border-radius: 0 4px 4px 0;
+}
+
+/* Customizações para a Home Dinâmica */
+
+/* Garante que as imagens do Marketing cubram o espaço sem distorcer */
+.marketing-banner {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s ease;
+}
+
+.marketing-banner:hover {
+    transform: scale(1.03); /* Leve zoom ao passar o mouse */
+}
+
+.card-destaque-img {
+    background-size: cover;
+    background-position: center;
+    position: relative;
+    transition: all 0.5s ease;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Removemos o efeito de zoom que estava incomodando */
+.card-destaque-img:hover {
+    filter: brightness(1.1);
+    transform: translateY(-5px); /* Ele apenas "levanta" levemente */
+}
+
+#ticker-aniversariante {
+    transition: all 0.5s ease-in-out;
+}
+
+/* Camada de brilho/contraste para o texto não sumir */
+.card-destaque-img::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 60%);
+    z-index: 1;
+}
+
+.card-destaque-img > div {
+    position: relative;
+    z-index: 2;
+}
+
+
+/* O restante do seu scroll customizado continua igual */
+.custom-scroll::-webkit-scrollbar { width: 6px; }
+.custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; }
+.custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+#nome-aniv {
+    /* Garante que nomes muito longos não quebrem o card, diminuindo levemente a fonte se necessário */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+
+#data-aniv {
+    font-family: 'Inter', sans-serif; /* Ou uma fonte sans-serif forte que você já use */
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.card-destaque-img:hover #nome-aniv {
+    color: #fbbf24; /* Amber-400 ao passar o mouse */
+    transition: color 0.3s ease;
+}
+
+
+/* --- Animações do Banner de Boas-Vindas --- */
+
+/* 1. Zoom Lento (Ken Burns) */
+@keyframes kenburns {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+.animate-ken-burns {
+    animation: kenburns 20s ease-in-out infinite;
+}
+
+/* 2. Brilho Passante (Shimmer) */
+@keyframes shimmer {
+    0% { transform: translateX(-150%); }
+    50% { transform: translateX(150%); }
+    100% { transform: translateX(150%); }
+}
+.animate-shimmer-effect {
+    animation: shimmer 6s infinite;
+}
+
+/* 3. Entrada do Texto (Slide Up) */
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-up {
+    animation: slideUp 1s ease-out forwards;
+}
+
+/* 4. Mãozinha acenando */
+@keyframes wave {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-15deg); }
+    75% { transform: rotate(15deg); }
+}
+.animate-wave {
+    animation: wave 2s infinite;
+    transform-origin: bottom right;
+}
+
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+
+/* Scrollbar fina e escura para o modal */
+.custom-scrollbar-dark::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar-dark::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+.custom-scrollbar-dark::-webkit-scrollbar-thumb { background: rgba(59, 130, 246, 0.5); border-radius: 10px; }
+
+.badge-sidebar { 
+    position: absolute; 
+    right: 8px; 
+    top: 50%; 
+    transform: translateY(-50%); 
+    background: #2563eb; 
+    color: white; 
+    font-size: 10px; 
+    font-weight: 900; 
+    min-width: 18px; 
+    height: 18px; 
+    padding: 0 4px;
+    border-radius: 10px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
