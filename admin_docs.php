@@ -14,11 +14,19 @@ $diretorio_docs = __DIR__ . '/docs/';
 $diretorio_img  = __DIR__ . '/img/';
 $mensagem = "";
 
-// --- LÓGICA DE EXCLUSÃO E MANUTENÇÃO (ORIGINAL MANTIDA) ---
+// Variáveis para Log
+$user_id = $_SESSION['user_id'] ?? 0;
+$user_name = $_SESSION['user_name'] ?? 'Sistema';
+$ip_address = $_SERVER['REMOTE_ADDR'];
+
+// --- LÓGICA DE EXCLUSÃO E MANUTENÇÃO (COM RASTREABILIDADE) ---
 if (isset($_GET['excluir_arq'])) {
     $caminho = base64_decode($_GET['excluir_arq']);
     if (file_exists($caminho) && strpos($caminho, 'docs') !== false) {
+        $nome_arquivo_log = basename($caminho);
         unlink($caminho);
+        // Registro de Auditoria
+        registrarLog($pdo_intra, 'EXCLUIR DOC', "Usuário $user_name excluiu o documento: $nome_arquivo_log", $user_id, $ip_address);
         $mensagem = "🗑️ Arquivo excluído com sucesso!";
     }
 }
@@ -26,17 +34,24 @@ if (isset($_GET['excluir_arq'])) {
 if (isset($_GET['excluir_img'])) {
     $caminho = base64_decode($_GET['excluir_img']);
     if (file_exists($caminho) && strpos($caminho, 'img') !== false) {
+        $nome_img_log = basename($caminho);
         unlink($caminho);
+        // Registro de Auditoria
+        registrarLog($pdo_intra, 'EXCLUIR MÍDIA', "Usuário $user_name removeu a imagem: $nome_img_log da biblioteca", $user_id, $ip_address);
         $mensagem = "🗑️ Imagem removida da biblioteca!";
     }
 }
 
 if (isset($_GET['acao']) && $_GET['acao'] == 'renomear') {
-    $antigo = $diretorio_img . basename($_GET['antigo']);
-    $novo = $diretorio_img . basename($_GET['novo']);
+    $antigo_nome = basename($_GET['antigo']);
+    $novo_nome = basename($_GET['novo']);
+    $antigo = $diretorio_img . $antigo_nome;
+    $novo = $diretorio_img . $novo_nome;
     
     if (file_exists($antigo) && !file_exists($novo)) {
         rename($antigo, $novo);
+        // Registro de Auditoria
+        registrarLog($pdo_intra, 'RENOMEAR MÍDIA', "Usuário $user_name renomeou $antigo_nome para $novo_nome", $user_id, $ip_address);
         header("Location: admin_docs.php?msg=Arquivo renomeado!");
         exit;
     }
@@ -56,7 +71,7 @@ if (isset($_GET['editar'])) {
     }
 }
 
-// --- 2. LÓGICA: SALVAR OU CRIAR ARQUIVO .MD ---
+// --- 2. LÓGICA: SALVAR OU CRIAR ARQUIVO .MD (COM RASTREABILIDADE) ---
 if (isset($_POST['salvar_documento'])) {
     $setor = $_POST['setor_destino'];
     $nome_arquivo = trim($_POST['nome_arquivo']);
@@ -66,6 +81,10 @@ if (isset($_POST['salvar_documento'])) {
     $caminho = $diretorio_docs . $setor . '/' . $nome_arquivo;
 
     if (file_put_contents($caminho, $conteudo)) {
+        // Registro de Auditoria
+        $acao_log = isset($_GET['editar']) ? 'EDITAR DOC' : 'CRIAR DOC';
+        registrarLog($pdo_intra, $acao_log, "Usuário $user_name salvou o documento: $nome_arquivo no setor $setor", $user_id, $ip_address);
+        
         $mensagem = "✅ Documento '$nome_arquivo' salvo com sucesso!";
         $conteudo_editar = $conteudo;
         $nome_editar = $nome_arquivo;
@@ -75,22 +94,26 @@ if (isset($_POST['salvar_documento'])) {
     }
 }
 
-// --- 3. LÓGICA: CRIAR NOVA PASTA ---
+// --- 3. LÓGICA: CRIAR NOVA PASTA (COM RASTREABILIDADE) ---
 if (isset($_POST['nova_pasta']) && !empty($_POST['nome_pasta'])) {
     $nova = strtoupper(trim($_POST['nome_pasta']));
     if (!is_dir($diretorio_docs . $nova)) {
         mkdir($diretorio_docs . $nova, 0777, true);
+        // Registro de Auditoria
+        registrarLog($pdo_intra, 'CRIAR PASTA', "Usuário $user_name criou o setor: $nova", $user_id, $ip_address);
         $mensagem = "✅ Pasta '$nova' criada!";
     }
 }
 
-// --- 4. LÓGICA: UPLOAD DE IMAGEM (VIA FORM OU AJAX) ---
+// --- 4. LÓGICA: UPLOAD DE IMAGEM (VIA FORM OU AJAX COM RASTREABILIDADE) ---
 if (isset($_FILES['arquivo_img'])) {
     $nome = $_FILES['arquivo_img']['name'];
-    // Limpeza simples de nome para evitar pontos duplos
     $nome = str_replace(['..', ' '], ['.', '_'], $nome);
     
     if (move_uploaded_file($_FILES['arquivo_img']['tmp_name'], $diretorio_img . $nome)) {
+        // Registro de Auditoria
+        registrarLog($pdo_intra, 'UPLOAD MÍDIA', "Usuário $user_name subiu a imagem: $nome", $user_id, $ip_address);
+        
         if(isset($_POST['ajax_upload'])) { echo "success"; exit; }
         $mensagem = "🖼️ Imagem '$nome' enviada!";
     }
@@ -116,7 +139,6 @@ usort($pastas, function($a, $b) { return strcasecmp($a, $b); });
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         
-        /* Estilização do Preview idêntica ao view.php */
         #preview_md h1 { font-size: 1.75rem; font-weight: 900; color: #0f172a; margin: 1.5rem 0 1rem; border-bottom: 2px solid #f1f5f9; }
         #preview_md h2 { font-size: 1.4rem; font-weight: 800; color: #1e293b; margin: 1.2rem 0 0.8rem; }
         #preview_md h3 { font-size: 1.1rem; font-weight: 700; color: #334155; margin: 1rem 0 0.5rem; }
@@ -143,7 +165,7 @@ usort($pastas, function($a, $b) { return strcasecmp($a, $b); });
         </div>
         <div class="flex gap-3">
             <button onclick="toggleModalMidia()" class="bg-orange-500 hover:bg-orange-600 px-5 py-2.5 rounded-xl text-[10px] font-black transition-all shadow-lg shadow-orange-500/20 uppercase tracking-widest">Biblioteca de Mídia</button>
-            <a href="admin_docs.php" class="bg-white/5 hover:bg-white/10 px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all border border-white/5">LIMPAR / NOVO</a>
+            <a href="admin_docs.php" onclick="localStorage.removeItem('rascunho_navi_novo'); localStorage.removeItem('rascunho_navi_' + document.getElementById('nome_arquivo').value);" class="bg-white/5 hover:bg-white/10 px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all border border-white/5">LIMPAR / NOVO</a>
             <a href="index.php" class="bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white px-4 py-2.5 rounded-xl text-[10px] font-bold transition-all border border-red-500/20 uppercase">Sair</a>
         </div>
     </header>
@@ -153,7 +175,6 @@ usort($pastas, function($a, $b) { return strcasecmp($a, $b); });
     <?php endif; ?>
 
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        
         <div class="lg:col-span-2 space-y-4">
             <section class="bg-white p-5 rounded-3xl shadow-sm border border-slate-200">
                 <h3 class="text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest">Documentos Atuais</h3>
@@ -227,10 +248,10 @@ usort($pastas, function($a, $b) { return strcasecmp($a, $b); });
                     </div>
 
                     <div id="preview_md" class="w-full h-full bg-white p-10 rounded-[2.5rem] border-4 border-slate-50 overflow-y-auto custom-scrollbar shadow-inner prose prose-slate max-w-none">
-                        </div>
+                    </div>
                 </div>
 
-                <input type="hidden" id="user_sessao" value="<?= $_SESSION['user_name'] ?>">
+                <input type="hidden" id="user_sessao" value="<?= $user_name ?>">
 
                 <button type="submit" name="salvar_documento" class="w-full bg-blue-600 text-white py-5 rounded-3xl font-black text-xs tracking-[0.2em] uppercase shadow-xl hover:bg-blue-700 hover:scale-[1.005] transition-all flex items-center justify-center gap-3">
                     Publicar Documentação Agora 🚀
@@ -273,22 +294,29 @@ usort($pastas, function($a, $b) { return strcasecmp($a, $b); });
                     <table class="w-full text-left">
                         <tbody id="lista-midia-modal">
                             <?php 
-                            // Re-listando para garantir que o modal sempre tenha os dados
                             foreach($imagens_biblioteca as $img): 
                                 $n = basename($img); 
+                                $link_del = "admin_docs.php?excluir_img=" . base64_encode($img);
                             ?>
-                            <tr class="border-b border-slate-50 hover:bg-blue-50 transition-all cursor-pointer group" onclick="inserirNoEditor('<?= $n ?>')">
-                                <td class="p-4 w-20">
-                                    <div class="w-12 h-12 rounded-xl bg-white border border-slate-100 flex items-center justify-center overflow-hidden shadow-sm">
+                            <tr class="border-b border-slate-50 hover:bg-blue-50 transition-all group" data-nome="<?= strtolower($n) ?>">
+                                <td class="p-4 w-16" onclick="inserirNoEditor('<?= $n ?>')">
+                                    <div class="w-10 h-10 rounded-lg bg-white border border-slate-100 flex items-center justify-center overflow-hidden shadow-sm cursor-pointer">
                                         <img src="img/<?= $n ?>" class="max-w-full max-h-full object-contain">
                                     </div>
                                 </td>
-                                <td class="p-4">
+                                <td class="p-4 cursor-pointer" onclick="inserirNoEditor('<?= $n ?>')">
                                     <p class="text-[11px] font-bold text-slate-700 truncate"><?= $n ?></p>
-                                    <p class="text-[8px] text-slate-400 font-black uppercase mt-1"><?= strtoupper(pathinfo($n, PATHINFO_EXTENSION)) ?> • <?= round(filesize($img)/1024, 1) ?> KB</p>
+                                    <p class="text-[8px] text-slate-400 font-black uppercase mt-1 tracking-widest"><?= round(filesize($img)/1024, 1) ?> KB</p>
                                 </td>
                                 <td class="p-4 text-right">
-                                    <span class="px-4 py-2 bg-blue-600 text-white rounded-lg text-[9px] font-black uppercase opacity-0 group-hover:opacity-100 transition-all">Inserir +</span>
+                                    <div class="flex items-center justify-end gap-2">
+                                        <button onclick="event.stopPropagation(); renomearArquivo('<?= $n ?>')" title="Renomear" class="p-2 rounded-lg bg-orange-50 text-orange-600 hover:bg-orange-500 hover:text-white transition-all">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M15.414 2.414a2 2 0 012.828 0L21 5.586a2 2 0 010 2.828l-7 7-4 1 1-4 7-7z" /></svg>
+                                        </button>
+                                        <a href="<?= $link_del ?>" onclick="event.stopPropagation(); return confirm('Excluir permanentemente?')" title="Excluir" class="p-2 rounded-lg bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                        </a>
+                                    </div>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -301,17 +329,16 @@ usort($pastas, function($a, $b) { return strcasecmp($a, $b); });
 </div>
 
 <script>
-    // Configurações do Marked para aceitar HTML e quebras de linha
     marked.setOptions({ gfm: true, breaks: true, sanitize: false });
 
     function atualizarPreview() {
         const rawText = document.getElementById('editor_md').value;
         const nomeArq = document.getElementById('nome_arquivo').value;
         
-        // Persistência local individual por arquivo
-        if(nomeArq) localStorage.setItem('rascunho_navi_' + nomeArq, rawText);
+        // Se tem nome, salva específico. Se não, salva no rascunho temporário.
+        const chave = nomeArq ? 'rascunho_navi_' + nomeArq : 'rascunho_navi_novo';
+        localStorage.setItem(chave, rawText);
 
-        // Renderização de Cards e Alertas Customizados
         let formattedText = rawText
             .replace(/:::info([\s\S]*?):::/g, '<div class="alert-info">$1</div>')
             .replace(/:::danger([\s\S]*?):::/g, '<div class="alert-danger">$1</div>');
@@ -319,15 +346,24 @@ usort($pastas, function($a, $b) { return strcasecmp($a, $b); });
         document.getElementById('preview_md').innerHTML = marked.parse(formattedText);
     }
 
-    // Carregamento inicial do rascunho
     window.onload = function() {
         const nomeArq = document.getElementById('nome_arquivo').value;
-        const salvo = localStorage.getItem('rascunho_navi_' + nomeArq);
+        // Tenta carregar rascunho específico ou o temporário de "novo"
+        const chave = nomeArq ? 'rascunho_navi_' + nomeArq : 'rascunho_navi_novo';
+        const salvo = localStorage.getItem(chave);
+        
         if (salvo && !document.getElementById('editor_md').value) {
             document.getElementById('editor_md').value = salvo;
         }
         atualizarPreview();
     };
+
+    // LIMPEZA AUTOMÁTICA APÓS SALVAR [Pilastra da Lógica]
+    <?php if ($mensagem && strpos($mensagem, '✅') !== false): ?>
+        const nomeAtual = document.getElementById('nome_arquivo').value;
+        localStorage.removeItem('rascunho_navi_' + nomeAtual);
+        localStorage.removeItem('rascunho_navi_novo');
+    <?php endif; ?>
 
     function inserirFormato(inicio, fim) {
         const editor = document.getElementById('editor_md');
@@ -369,7 +405,6 @@ usort($pastas, function($a, $b) { return strcasecmp($a, $b); });
         editor.focus();
     }
 
-    // Upload AJAX sem Refresh
     document.getElementById('input_img_ajax').addEventListener('change', function() {
         const fd = new FormData();
         fd.append('arquivo_img', this.files[0]);
@@ -377,7 +412,7 @@ usort($pastas, function($a, $b) { return strcasecmp($a, $b); });
         document.getElementById('upload_status').classList.remove('hidden');
 
         fetch('admin_docs.php', { method: 'POST', body: fd })
-        .then(() => { location.reload(); }); // O reload é necessário para o PHP atualizar a variável de glob no próximo render
+        .then(() => { location.reload(); }); 
     });
 
     document.getElementById('filtro_midia').addEventListener('input', function(e) {
@@ -386,6 +421,13 @@ usort($pastas, function($a, $b) { return strcasecmp($a, $b); });
             tr.style.display = tr.innerText.toLowerCase().includes(t) ? 'table-row' : 'none';
         });
     });
+
+    function renomearArquivo(antigo) {
+        const novo = prompt("Novo nome para o arquivo (mantenha a extensão):", antigo);
+        if(novo && novo !== antigo) {
+            window.location.href = `admin_docs.php?acao=renomear&antigo=${encodeURIComponent(antigo)}&novo=${encodeURIComponent(novo)}`;
+        }
+    }
 </script>
 </body>
 </html>

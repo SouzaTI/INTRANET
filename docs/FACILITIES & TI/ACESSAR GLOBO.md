@@ -1,6 +1,6 @@
 :::info Informações do Manual
 **Setor:** T.I  
-**Assinado por:** Matheus Cabral  
+**Assinado por:** Matheus Cabral de Souza  
 **Data da Publicação:** 16/02/2026
 :::
 
