@@ -14,6 +14,16 @@
                 </div>
                 <p class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Canais e Setores</p>
             </header>
+
+            <div class="p-3 border-b border-slate-200 bg-slate-100">
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    </span>
+                    <input type="text" id="busca-pessoas-chat" oninput="filtrarPessoasChat()" placeholder="Buscar contato..." autocomplete="off" class="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs outline-none focus:border-blue-500 transition-colors shadow-sm text-navy-900 font-medium">
+                </div>
+            </div>
+
             <nav id="lista-grupos-chat" class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2"></nav>
         </aside>
 
@@ -118,52 +128,87 @@
 // CONFIGURAÇÕES INICIAIS
 let chatAberto = false;
 let destinoId = 1; // Começa no GERAL
+let tipoDestinoAtual = 'grupo'; // NOVO: Controla se a conversa é grupo ou 1x1
 let meuId = <?= $_SESSION['user_id'] ?>;
 let ultimoIdRecebido = 0;
 const somNotificacao = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
 
-// 0. O PING SILENCIOSO (Avisa o banco que você leu a sala)
-function avisarLeituraBanco(destinoId) {
+// 0. O PING SILENCIOSO (Avisa o banco que você leu a sala ou pessoa)
+function avisarLeituraBanco(destinoId, tipo = 'grupo') {
     const fd = new FormData();
     fd.append('destino_id', destinoId);
+    fd.append('tipo', tipo); // NOVO: Passa o tipo pro banco
 
     fetch('api/chat_engine.php?acao=marcar_lido', {
         method: 'POST',
         body: fd
     })
-    .then(() => carregarListaGrupos()) // Atualiza a lateral na mesma hora para a bolinha sumir
+    .then(() => carregarListaGrupos()) 
     .catch(err => console.error(err));
 }
 
-// 1. CARREGAR LISTA DE CANAIS (LATERAL)
+// FILTRO DE BUSCA LATERAL
+function filtrarPessoasChat() {
+    const termo = document.getElementById('busca-pessoas-chat').value.toLowerCase();
+    document.querySelectorAll('.chat-user-item').forEach(el => {
+        // Pega o nome do canal ou da pessoa e compara com o que foi digitado
+        const nome = el.querySelector('p.truncate').innerText.toLowerCase();
+        el.style.display = nome.includes(termo) ? 'flex' : 'none';
+    });
+}
+
+// 1. CARREGAR LISTA DE CANAIS E PESSOAS (LATERAL)
 function carregarListaGrupos() {
     fetch('api/chat_engine.php?acao=listar_grupos')
     .then(res => res.json())
-    .then(grupos => {
-        // CORREÇÃO: Agora aponta para o ID correto do HTML
+    .then(data => {
         const container = document.getElementById('lista-grupos-chat'); 
         if(!container) return;
-        container.innerHTML = ''; 
-
-        grupos.forEach(g => {
-            const btn = document.createElement('div');
-            const ativo = (g.id == destinoId);
-            btn.onclick = () => selecionarChat(g.id, g.nome);
-            btn.className = `chat-user-item ${ativo ? 'active' : ''}`;
+        
+        // --- 1. RENDERIZA OS CANAIS ---
+        let htmlLateral = '<div class="px-4 py-2 mt-1 text-[10px] font-black text-slate-400 uppercase tracking-widest">Canais</div>';
+        
+        data.grupos.forEach(g => {
+            const ativo = (g.id == destinoId && tipoDestinoAtual === 'grupo');
             const bolinha = g.nao_lidas > 0 
                 ? `<span class="absolute top-1/2 -translate-y-1/2 right-3 w-5 h-5 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow-md animate-pulse">${g.nao_lidas}</span>` 
                 : '';
 
-            btn.innerHTML = `
-                <div class="w-10 h-10 rounded-xl bg-slate-200 flex items-center justify-center font-bold text-slate-500 shadow-inner">${g.nome[0].toUpperCase()}</div>
-                <div class="flex-1 pr-6 relative">
-                    <p class="text-xs font-bold text-navy-900 uppercase truncate">${g.nome}</p>
-                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Setor</p>
+            htmlLateral += `
+                <div onclick="selecionarChat(${g.id}, '${g.nome}', 'grupo')" class="chat-user-item ${ativo ? 'active' : ''}">
+                    <div class="w-10 h-10 rounded-xl bg-slate-200 flex items-center justify-center font-bold text-slate-500 shadow-inner shrink-0">${g.nome[0].toUpperCase()}</div>
+                    <div class="flex-1 pr-6 relative overflow-hidden">
+                        <p class="text-xs font-bold text-navy-900 uppercase truncate">${g.nome}</p>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Setor</p>
+                    </div>
+                    ${bolinha}
                 </div>
-                ${bolinha}
             `;
-            container.appendChild(btn);
         });
+
+        // --- 2. RENDERIZA AS PESSOAS (1x1) ---
+        htmlLateral += '<div class="px-4 py-2 mt-4 border-t border-slate-100/50 text-[10px] font-black text-slate-400 uppercase tracking-widest pt-4">Pessoas</div>';
+        
+        data.usuarios.forEach(u => {
+            const ativo = (u.id == destinoId && tipoDestinoAtual === 'usuario');
+            const bolinha = u.nao_lidas > 0 
+                ? `<span class="absolute top-1/2 -translate-y-1/2 right-3 w-5 h-5 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow-md animate-pulse">${u.nao_lidas}</span>` 
+                : '';
+
+            htmlLateral += `
+                <div onclick="selecionarChat(${u.id}, '${u.nome}', 'usuario')" class="chat-user-item ${ativo ? 'active' : ''}">
+                    <div class="w-10 h-10 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center font-black text-blue-600 shadow-inner text-sm shrink-0">${u.nome[0].toUpperCase()}</div>
+                    <div class="flex-1 pr-6 relative overflow-hidden">
+                        <p class="text-xs font-bold text-slate-700 capitalize truncate">${u.nome}</p>
+                        <p class="text-[9px] text-slate-400 uppercase tracking-widest truncate">Mensagem Direta</p>
+                    </div>
+                    ${bolinha}
+                </div>
+            `;
+        });
+
+        container.innerHTML = htmlLateral;
+        filtrarPessoasChat(); // REAPLICA O FILTRO PARA NÃO PERDER A BUSCA A CADA 5 SEGUNDOS
     }).catch(e => console.error("Erro na lista:", e));
 }
 
@@ -171,7 +216,7 @@ function carregarListaGrupos() {
 function monitorarChat() {
     if(!destinoId) return;
 
-    fetch(`api/chat_engine.php?acao=buscar&destino=${destinoId}&ultimo_id=${ultimoIdRecebido}`)
+    fetch(`api/chat_engine.php?acao=buscar&destino=${destinoId}&ultimo_id=${ultimoIdRecebido}&tipo=${tipoDestinoAtual}`)
     .then(async (res) => {
         const texto = await res.text();
         try { return JSON.parse(texto); } 
@@ -234,24 +279,25 @@ function renderizarBolha(m) {
 }
 
 // 4. TROCA DE CANAL DINÂMICA
-function selecionarChat(id, nome) {
+function selecionarChat(id, nome, tipo = 'grupo') {
     destinoId = id;
+    tipoDestinoAtual = tipo; // Guarda se é grupo ou pessoa
     ultimoIdRecebido = 0;
-    avisarLeituraBanco(id);
     
-    // NOVO: Verifica se o botão existe (se a pessoa é admin) antes de tentar mexer nele
+    avisarLeituraBanco(id, tipo);
+    
+    // NOVO: Verifica se o botão existe, e esconde se for o GERAL (1) ou se for um usuário (1x1)
     const btnGerenciar = document.getElementById('btn-gerenciar-grupo');
     if (btnGerenciar) {
-        if (id === 1) btnGerenciar.classList.add('hidden');
+        if (id === 1 || tipo === 'usuario') btnGerenciar.classList.add('hidden');
         else btnGerenciar.classList.remove('hidden');
     }
 
-    // CORREÇÃO: Apontando pro ID certo do cabeçalho
     document.getElementById('chat-header-nome').innerText = nome;
     document.getElementById('chat-feed').innerHTML = '<div class="flex justify-center p-10"><span class="text-[10px] font-black text-slate-400 uppercase animate-pulse">Carregando conversas...</span></div>';
     
-    carregarListaGrupos(); // Recarrega a lateral pra marcar qual tá ativo
-    monitorarChat();       // Busca as mensagens na hora
+    carregarListaGrupos(); 
+    monitorarChat();       
 }
 
 // 5. ENVIAR MENSAGEM INSTANTÂNEA
@@ -264,6 +310,7 @@ document.getElementById('form-chat-navi').onsubmit = function(e) {
     const fd = new FormData();
     fd.append('mensagem', msg);
     fd.append('destino', destinoId);
+    fd.append('tipo', tipoDestinoAtual); // NOVO: Avisa se vai pro grupo ou pra pessoa
 
     input.value = ''; 
 

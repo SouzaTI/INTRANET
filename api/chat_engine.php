@@ -24,18 +24,31 @@ try {
         case 'buscar':
             $ultimo_id = (int)($_GET['ultimo_id'] ?? 0);
             $destino = (int)($_GET['destino'] ?? 0);
+            $tipo = $_GET['tipo'] ?? 'grupo'; // NOVO: Descobre se é pessoa ou canal
 
-            $sql = "SELECT m.id, m.mensagem, m.data_hora, m.remetente_id, u.firstname as nome
-                    FROM chat_mensagens m
-                    JOIN " . DB_GLPI . ".glpi_users u ON m.remetente_id = u.id
-                    WHERE m.id > ? AND m.destino_id = ?
-                    ORDER BY m.id ASC";
+            if ($tipo === 'grupo') {
+                $sql = "SELECT m.id, m.mensagem, DATE_FORMAT(m.data_hora, '%H:%i') as hora, m.remetente_id, u.firstname as nome
+                        FROM chat_mensagens m
+                        JOIN " . DB_GLPI . ".glpi_users u ON m.remetente_id = u.id
+                        WHERE m.id > ? AND m.destino_id = ? AND m.tipo = 'grupo'
+                        ORDER BY m.id ASC";
+                $stmt = $pdo_intra->prepare($sql);
+                $stmt->execute([$ultimo_id, $destino]);
+            } else {
+                // MÁGICA DO 1x1: Traz o que eu mandei pra ele, OU o que ele mandou pra mim!
+                $sql = "SELECT m.id, m.mensagem, DATE_FORMAT(m.data_hora, '%H:%i') as hora, m.remetente_id, u.firstname as nome
+                        FROM chat_mensagens m
+                        JOIN " . DB_GLPI . ".glpi_users u ON m.remetente_id = u.id
+                        WHERE m.id > ? AND m.tipo = 'usuario' 
+                        AND ((m.remetente_id = ? AND m.destino_id = ?) OR (m.remetente_id = ? AND m.destino_id = ?))
+                        ORDER BY m.id ASC";
+                $stmt = $pdo_intra->prepare($sql);
+                $stmt->execute([$ultimo_id, $user_id, $destino, $destino, $user_id]);
+            }
             
-            $stmt = $pdo_intra->prepare($sql);
-            $stmt->execute([$ultimo_id, $destino]);
             $resultado = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            // 2. ENTREGA LIMPA: Limpa qualquer erro do buffer e entrega só o JSON
+
+            // ENTREGA LIMPA: Limpa qualquer erro do buffer e entrega só o JSON
             ob_clean(); 
             header('Content-Type: application/json');
             echo json_encode($resultado);
@@ -44,10 +57,11 @@ try {
         case 'enviar':
             $msg = trim($_POST['mensagem'] ?? '');
             $destino = (int)($_POST['destino'] ?? 0);
+            $tipo = $_POST['tipo'] ?? 'grupo'; // NOVO: Pega o tipo
 
             if (!empty($msg) && $destino > 0) {
-                $stmt = $pdo_intra->prepare("INSERT INTO chat_mensagens (remetente_id, destino_id, mensagem) VALUES (?, ?, ?)");
-                $stmt->execute([$user_id, $destino, $msg]);
+                $stmt = $pdo_intra->prepare("INSERT INTO chat_mensagens (remetente_id, destino_id, tipo, mensagem) VALUES (?, ?, ?, ?)");
+                $stmt->execute([$user_id, $destino, $tipo, $msg]);
                 
                 ob_clean();
                 header('Content-Type: application/json');
@@ -57,15 +71,16 @@ try {
 
         case 'marcar_lido':
             $destino = (int)($_POST['destino_id'] ?? 0);
+            $tipo = $_POST['tipo'] ?? 'grupo'; // NOVO: Pega o tipo
             
             if ($destino > 0) {
                 // Se não existe, CRIA. Se já existe, ATUALIZA para agora!
-                $sql = "INSERT INTO chat_leituras (user_id, destino_id) 
-                        VALUES (?, ?) 
+                $sql = "INSERT INTO chat_leituras (user_id, destino_id, tipo) 
+                        VALUES (?, ?, ?) 
                         ON DUPLICATE KEY UPDATE ultima_leitura = CURRENT_TIMESTAMP";
                 
                 $stmt = $pdo_intra->prepare($sql);
-                $stmt->execute([$user_id, $destino]);
+                $stmt->execute([$user_id, $destino, $tipo]);
             }
             
             ob_clean();
@@ -74,26 +89,37 @@ try {
             break;
 
         case 'listar_grupos':
-            // Query de PRIVACIDADE CORRIGIDA: Usa 'usuario_id' para bater certo com a tua tabela
-            $sql = "SELECT g.id, g.nome,
-                    (SELECT COUNT(m.id) FROM chat_mensagens m
-                     WHERE m.destino_id = g.id
-                     AND m.data_hora > COALESCE((SELECT ultima_leitura FROM chat_leituras WHERE user_id = ? AND destino_id = g.id), '2000-01-01')
+            // 1. Traz os Grupos (Canais)
+            $sql_grupos = "SELECT g.id, g.nome,
+                    (SELECT COUNT(m.id) FROM chat_mensagens m WHERE m.destino_id = g.id AND m.tipo = 'grupo'
+                     AND m.data_hora > COALESCE((SELECT ultima_leitura FROM chat_leituras WHERE user_id = ? AND destino_id = g.id AND tipo = 'grupo'), '2000-01-01')
                      AND m.remetente_id != ?) AS nao_lidas
-                    FROM chat_grupos g
-                    LEFT JOIN chat_grupos_membros cgm ON g.id = cgm.grupo_id
-                    WHERE g.id = 1 OR cgm.usuario_id = ?
-                    GROUP BY g.id
-                    ORDER BY CASE WHEN g.id = 1 THEN 0 ELSE 1 END, g.nome ASC";
-            
-            $stmt = $pdo_intra->prepare($sql);
-            // Passamos o ID do utilizador 3 vezes (2 para as bolinhas, 1 para a verificação de membro)
-            $stmt->execute([$user_id, $user_id, $user_id]); 
-            $resultado = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
+                    FROM chat_grupos g LEFT JOIN chat_grupos_membros cgm ON g.id = cgm.grupo_id
+                    WHERE g.id = 1 OR cgm.usuario_id = ? GROUP BY g.id ORDER BY CASE WHEN g.id = 1 THEN 0 ELSE 1 END, g.nome ASC";
+            $stmtG = $pdo_intra->prepare($sql_grupos);
+            $stmtG->execute([$user_id, $user_id, $user_id]); 
+            $grupos = $stmtG->fetchAll(PDO::FETCH_ASSOC);
+
+            $ids_escondidos = "2, 6, 9";
+
+            // 2. Traz os Usuários (Pessoas para o 1x1)
+            $sql_users = "SELECT u.id, CONCAT_WS(' ', u.firstname, u.realname) as nome,
+                    (SELECT COUNT(m.id) FROM chat_mensagens m WHERE m.tipo = 'usuario' AND m.remetente_id = u.id AND m.destino_id = ?
+                     AND m.data_hora > COALESCE((SELECT ultima_leitura FROM chat_leituras WHERE user_id = ? AND destino_id = u.id AND tipo = 'usuario'), '2000-01-01')
+                    ) AS nao_lidas
+                    FROM " . DB_GLPI . ".glpi_users u 
+                    WHERE u.id != ? 
+                    AND u.is_deleted = 0 
+                    AND u.is_active = 1 
+                    AND u.id NOT IN ($ids_escondidos)
+                    ORDER BY u.firstname ASC";
+            $stmtU = $pdo_intra->prepare($sql_users);
+            $stmtU->execute([$user_id, $user_id, $user_id]);
+            $usuarios = $stmtU->fetchAll(PDO::FETCH_ASSOC);
+
             ob_clean();
             header('Content-Type: application/json');
-            echo json_encode($resultado);
+            echo json_encode(['grupos' => $grupos, 'usuarios' => $usuarios]);
             break;
 
         case 'listar_usuarios_glpi':

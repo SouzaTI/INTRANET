@@ -43,8 +43,9 @@ $sql_feed = "SELECT c.*,
             (SELECT COUNT(*) FROM feed_curtidas WHERE comunicado_id = c.id AND user_id = ?) as ja_curtiu
             FROM comunicados c 
             WHERE c.ativo = 1 
+            AND c.data_postagem >= DATE_SUB(CURRENT_DATE(), INTERVAL 15 DAY) /* A MÁGICA DA EXPIRAÇÃO AQUI */
             ORDER BY c.data_postagem DESC 
-            LIMIT 5";
+            LIMIT 10"; // Aumentei o limite para 10, já que as antigas vão sumir sozinhas
 
 $stmt_feed = $pdo_intra->prepare($sql_feed);
 $stmt_feed->execute([$user_id_logado]);
