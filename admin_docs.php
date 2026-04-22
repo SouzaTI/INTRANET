@@ -358,6 +358,26 @@ usort($pastas, function($a, $b) { return strcasecmp($a, $b); });
         atualizarPreview();
     };
 
+    // ==========================================
+    // CÃO DE GUARDA (Bloqueia F5 ou Fechar a Aba)
+    // ==========================================
+    let intencaoDeSalvar = false; // Variável de controle
+
+    window.addEventListener('beforeunload', function (e) {
+        const conteudo = document.getElementById('editor_md').value.trim();
+        
+        // Só exibe o alerta se a pessoa digitou algo E não clicou no botão "Salvar"
+        if (conteudo.length > 0 && !intencaoDeSalvar) {
+            e.preventDefault();
+            e.returnValue = ''; // Padrão do navegador para exibir a caixa "Tem certeza que deseja sair?"
+        }
+    });
+
+    // Quando clicar no botão "Publicar", liberamos o cão de guarda para a página carregar
+    document.getElementById('form_principal').addEventListener('submit', function() {
+        intencaoDeSalvar = true; 
+    });
+
     // LIMPEZA AUTOMÁTICA APÓS SALVAR [Pilastra da Lógica]
     <?php if ($mensagem && strpos($mensagem, '✅') !== false): ?>
         const nomeAtual = document.getElementById('nome_arquivo').value;

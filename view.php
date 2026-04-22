@@ -149,4 +149,18 @@ if ($is_directory) {
     <?php endif; ?>
 </main>
 
+<style>
+    /* Reset e melhoria de leitura para a documentação (Substitui o plugin Typography) */
+    .prose p { margin-bottom: 1.5rem; line-height: 1.8; color: #475569; font-size: 1.05rem; }
+    .prose li { margin-bottom: 0.5rem; line-height: 1.6; color: #475569; }
+    .prose ul { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 1.5rem; }
+    .prose ol { list-style-type: decimal; margin-left: 1.5rem; margin-bottom: 1.5rem; }
+    .prose img { margin: 2.5rem auto; border-radius: 0.75rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); max-width: 100%; display: block; border: 1px solid #f1f5f9; }
+    .prose h1 { margin-top: 2.5rem; margin-bottom: 1rem; font-size: 2rem; color: #0f172a; }
+    .prose h2 { margin-top: 2rem; margin-bottom: 1rem; font-size: 1.5rem; color: #1e293b; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem; }
+    .prose pre { background: #0f172a; color: #f8fafc; padding: 1rem; border-radius: 0.75rem; overflow-x: auto; margin-bottom: 1.5rem; }
+    .prose code { font-family: 'Fira Code', monospace; font-size: 0.9em; background: #f1f5f9; padding: 0.2rem 0.4rem; border-radius: 0.25rem; color: #2563eb; font-weight: bold; }
+    .prose pre code { background: transparent; color: inherit; padding: 0; font-weight: normal; }
+</style>
+
 <?php include 'includes/footer.php'; ?>
