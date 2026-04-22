@@ -7,17 +7,14 @@
         <aside class="w-80 bg-slate-50 border-r border-slate-200 flex flex-col h-full shrink-0">
             <header class="p-5 border-b border-slate-200 bg-white">
                 <div class="flex items-center justify-between mb-2">
-                    <h1 class="text-xl font-black text-navy-900 italic uppercase tracking-tighter">Navi Messenger</h1>
-                    <button onclick="abrirModalCriarGrupo()" class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center hover:bg-navy-900 transition-all shadow-md">
-                        <span class="text-xl font-bold">+</span>
+                    <h1 class="text-xl font-black text-navy-900 italic uppercase tracking-tighter leading-none">Navi Messenger</h1>
+                    <button onclick="carregarListaGrupos()" class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center hover:bg-navy-900 transition-all shadow-md">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </button>
                 </div>
-                <div class="relative mt-2">
-                    <input type="text" id="search-chat" placeholder="Buscar contato..." class="w-full pl-8 pr-4 py-2 bg-slate-100 border-none rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500/20">
-                    <svg class="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                </div>
+                <p class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Canais e Setores</p>
             </header>
-            <nav id="lista-chat-usuarios" class="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1"></nav>
+            <nav id="lista-grupos-chat" class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2"></nav>
         </aside>
 
         <main class="flex-1 flex flex-col bg-white h-full relative">
@@ -89,253 +86,169 @@
     @keyframes slideInRight { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 </style>
 
+<?php 
+// Substitua o número 123 pelo SEU ID real de usuário no banco de dados do GLPI
+if (isset($_SESSION['user_id']) && $_SESSION['user_id'] == 2): 
+?>
+
 <script>
-let chatAberto = false, destinoId = 'global', meuId = <?= $_SESSION['user_id'] ?>, processadosIds = new Set();
-let tituloOriginal = document.title;
-let intervaloTitulo = null;
-const somAlerta = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
+// CONFIGURAÇÕES INICIAIS
+let chatAberto = false;
+let destinoId = 1; // Começa no GERAL
+let meuId = <?= $_SESSION['user_id'] ?>;
+let ultimoIdRecebido = 0;
+const somNotificacao = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
 
-document.addEventListener('DOMContentLoaded', () => {
-    carregarContatos(); // Carrega uma vez ao abrir
-    carregarMensagens(); 
-    setInterval(monitorarNotificacoesGlobais, 3000); // Monitora notificações a cada 3s
-    setInterval(carregarContatos, 20000);
-    
-    document.addEventListener('click', () => { if (Notification.permission !== "granted") Notification.requestPermission(); }, { once: true });
+// 1. CARREGAR LISTA DE CANAIS (LATERAL)
+function carregarListaGrupos() {
+    fetch('api/chat_engine.php?acao=listar_grupos')
+    .then(res => res.json())
+    .then(grupos => {
+        // CORREÇÃO: Agora aponta para o ID correto do HTML
+        const container = document.getElementById('lista-grupos-chat'); 
+        if(!container) return;
+        container.innerHTML = ''; 
 
-    // BUSCA DINÂMICA
-    document.getElementById('search-chat').addEventListener('input', function(e) {
-        const termo = e.target.value.toLowerCase();
-        document.querySelectorAll('.chat-user-item').forEach(item => {
-            const nome = item.innerText.toLowerCase();
-            item.style.display = nome.includes(termo) ? 'flex' : 'none';
+        grupos.forEach(g => {
+            const btn = document.createElement('div');
+            const ativo = (g.id == destinoId);
+            btn.onclick = () => selecionarChat(g.id, g.nome);
+            btn.className = `chat-user-item ${ativo ? 'active' : ''}`;
+            btn.innerHTML = `
+                <div class="w-10 h-10 rounded-xl bg-slate-200 flex items-center justify-center font-bold text-slate-500">${g.nome[0].toUpperCase()}</div>
+                <div class="flex-1">
+                    <p class="text-xs font-bold text-navy-900 uppercase">${g.nome}</p>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Setor</p>
+                </div>
+            `;
+            container.appendChild(btn);
         });
-    });
-});
+    }).catch(e => console.error("Erro na lista:", e));
+}
 
-function monitorarNotificacoesGlobais() {
-    fetch('api/chat_engine.php?acao=verificar_notificacoes')
-        .then(r => r.json())
-        .then(notificacoes => {
-            notificacoes.forEach(n => {
-                const idBusca = n.id_grupo ? `group_${n.id_grupo}` : n.id_remetente;
-                
-                if (!processadosIds.has(n.ultimo_id)) {
-                    processadosIds.add(n.ultimo_id);
+// 2. MONITORAR MENSAGENS (O CORAÇÃO BLINDADO DO CHAT)
+function monitorarChat() {
+    if(!destinoId) return;
+
+    fetch(`api/chat_engine.php?acao=buscar&destino=${destinoId}&ultimo_id=${ultimoIdRecebido}`)
+    .then(async (res) => {
+        const texto = await res.text();
+        try { return JSON.parse(texto); } 
+        catch (e) { return null; } // Ignora falhas de JSON silenciosamente
+    })
+    .then(mensagens => {
+        if (!mensagens) return; 
+
+        const feed = document.getElementById('chat-feed');
+        
+        // SACADA: Descobre se é a primeira vez que está carregando as mensagens desta sala
+        const primeiraCarga = (ultimoIdRecebido === 0);
+        
+        if(primeiraCarga) {
+            feed.innerHTML = '';
+            if(!Array.isArray(mensagens) || mensagens.length === 0) {
+                feed.innerHTML = '<div class="flex justify-center p-10"><span class="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center leading-relaxed">Nenhuma mensagem ainda.<br>Seja o primeiro a enviar! 🚀</span></div>';
+            }
+        }
+
+        if (Array.isArray(mensagens) && mensagens.length > 0) {
+            if(primeiraCarga) feed.innerHTML = ''; 
+
+            mensagens.forEach(m => {
+                if (m.id > ultimoIdRecebido) {
+                    renderizarBolha(m);
+                    ultimoIdRecebido = m.id;
                     
-                    if (destinoId !== idBusca) {
-                        somAlerta.play().catch(()=>{});
-                        mostrarToasty(n.nome_usuario || "Novo no Grupo", n.ultima_msg);
+                    // A TRAVA: Só toca o som se NÃO for o carregamento do histórico
+                    if (!primeiraCarga && deveNotificar(m)) {
                         document.getElementById('chat-notif-badge').classList.remove('hidden');
-                        
-                        if (!chatAberto) piscarTitulo();
-                        
-                        // Busca o item na sidebar pelo atributo data-chat-id
-                        const item = document.querySelector(`[data-chat-id="${idBusca}"]`);
-                        if(item) {
-                            let badge = item.querySelector('.badge-sidebar');
-                            if(!badge) {
-                                badge = document.createElement('span');
-                                badge.className = 'badge-sidebar';
-                                item.appendChild(badge);
-                            }
-                            badge.innerText = n.total;
-                        }
-                    } else { 
-                        fetch(`api/chat_engine.php?acao=marcar_como_lida&destino=${destinoId}`);
-                        carregarMensagens(); 
+                        somNotificacao.play().catch(() => {});
                     }
                 }
             });
-        });
-}
-
-function piscarTitulo() {
-    if (intervaloTitulo) return;
-    intervaloTitulo = setInterval(() => {
-        document.title = (document.title === tituloOriginal) ? "🔔 Nova Mensagem!" : tituloOriginal;
-    }, 1000);
-}
-
-function pararDePiscar() {
-    clearInterval(intervaloTitulo);
-    intervaloTitulo = null;
-    document.title = tituloOriginal;
-}
-
-function carregarMensagens() {
-    const url = `api/chat_engine.php?acao=listar_mensagens&destino=${destinoId || 'global'}`;
-    fetch(url).then(r => r.json()).then(mensagens => {
-        if (mensagens.length > 0) {
-            mensagens.forEach(m => processadosIds.add(m.id));
+            feed.scrollTo({
+                top: feed.scrollHeight,
+                behavior: 'smooth'
+            });
         }
-        if(chatAberto) renderizarFeed(mensagens);
-    });
+    })
+    .catch(() => {}); 
 }
 
-function renderizarFeed(mensagens) {
+// 3. DESENHAR A BOLHA DE MENSAGEM
+function renderizarBolha(m) {
     const feed = document.getElementById('chat-feed');
-    feed.innerHTML = mensagens.map(m => {
-        const souEu = m.id_remetente == meuId;
-        return `<div class="flex flex-col ${souEu ? 'items-end' : 'items-start'} w-full mb-2">
-            ${!souEu ? `<span class="text-[9px] font-black text-slate-500 mb-1 ml-2 uppercase">${m.nome_usuario}</span>` : ''}
-            <div class="${souEu ? 'msg-sent' : 'msg-received'} max-w-[85%] shadow-sm">
-                <p class="text-xs">${m.mensagem}</p>
-                <span class="text-[8px] opacity-60 block text-right mt-1">${new Date(m.data_envio).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
-            </div>
-        </div>`;
-    }).join('');
-    feed.scrollTop = feed.scrollHeight;
+    const souEu = (m.remetente_id == meuId);
+    const bubble = document.createElement('div');
+    
+    bubble.className = `flex flex-col ${souEu ? 'items-end' : 'items-start'} w-full mb-3 animate-in fade-in slide-in-from-bottom-2 duration-300`;
+    bubble.innerHTML = `
+        ${!souEu ? `<span class="text-[9px] font-black text-slate-400 mb-1 ml-2 uppercase tracking-widest">${m.nome}</span>` : ''}
+        <div class="${souEu ? 'bg-blue-600 text-white rounded-[1.5rem] rounded-tr-none' : 'bg-slate-100 text-slate-700 border border-slate-200 rounded-[1.5rem] rounded-tl-none'} p-4 shadow-sm max-w-[85%]">
+            <p class="text-xs font-medium leading-relaxed">${m.mensagem}</p>
+            <span class="text-[8px] opacity-50 block text-right mt-1 font-bold">${new Date(m.data_hora).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+        </div>
+    `;
+    feed.appendChild(bubble);
 }
 
-function selecionarChat(id, nome, el) {
+// 4. TROCA DE CANAL DINÂMICA
+function selecionarChat(id, nome) {
     destinoId = id;
+    ultimoIdRecebido = 0;
+    
+    // CORREÇÃO: Apontando pro ID certo do cabeçalho
     document.getElementById('chat-header-nome').innerText = nome;
+    document.getElementById('chat-feed').innerHTML = '<div class="flex justify-center p-10"><span class="text-[10px] font-black text-slate-400 uppercase animate-pulse">Carregando conversas...</span></div>';
     
-    const avatarHeader = document.getElementById('chat-header-avatar');
-    const statusHeader = document.getElementById('chat-header-status');
-    
-    // Define estilo especial se for o Bot (ID 999)
-    if(id == 999) {
-        avatarHeader.innerText = "🤖";
-        statusHeader.innerText = "Assistente Virtual Online";
-    } else {
-        avatarHeader.innerText = nome.substring(0,1).toUpperCase();
-        statusHeader.innerText = "Colaborador Online";
-    }
-
-    document.querySelectorAll('.chat-user-item').forEach(i => i.classList.remove('active'));
-    el.classList.add('active');
-    
-    const badge = el.querySelector('.badge-sidebar');
-    if(badge) badge.remove();
-    
-    fetch(`api/chat_engine.php?acao=marcar_como_lida&destino=${id}`);
-    document.getElementById('chat-feed').innerHTML = '<div class="text-center py-10 animate-pulse text-xs">A ligar ao Navi...</div>';
-    
-    // Carrega mensagens e injeta boas-vindas se estiver vazio
-    fetch(`api/chat_engine.php?acao=listar_mensagens&destino=${id}`)
-        .then(r => r.json())
-        .then(mensagens => {
-            if (mensagens.length === 0 && id == 999) {
-                document.getElementById('chat-feed').innerHTML = `
-                    <div class="flex flex-col items-start w-full mb-2">
-                        <span class="text-[9px] font-black text-blue-600 mb-1 ml-2 uppercase">Navi Bot</span>
-                        <div class="msg-received shadow-sm bg-blue-50/50">
-                            <p class="text-xs">Olá! Eu sou o Navi, a tua IA de suporte. 🚀<br>Como posso ajudar hoje?</p>
-                        </div>
-                    </div>`;
-            } else {
-                renderizarFeed(mensagens);
-            }
-        });
+    carregarListaGrupos(); // Recarrega a lateral pra marcar qual tá ativo
+    monitorarChat();       // Busca as mensagens na hora
 }
 
-// Nova lógica para o Navi se apresentar
-function carregarMensagensComBoasVindas(id) {
-    const url = `api/chat_engine.php?acao=listar_mensagens&destino=${id}`;
-    fetch(url).then(r => r.json()).then(mensagens => {
-        if (mensagens.length === 0 && id == 999) {
-            // Se for a primeira vez do utilizador com o Bot, simula uma entrada
-            const feed = document.getElementById('chat-feed');
-            feed.innerHTML = `
-                <div class="flex flex-col items-center my-4 opacity-50">
-                    <span class="text-[10px] bg-slate-200 px-3 py-1 rounded-full font-bold uppercase">Chat de Suporte Iniciado</span>
-                </div>
-                <div class="flex flex-col items-start w-full mb-2">
-                    <span class="text-[9px] font-black text-blue-600 mb-1 ml-2 uppercase">Navi Bot</span>
-                    <div class="msg-received shadow-sm border-blue-100 bg-blue-50/50">
-                        <p class="text-xs font-medium">Olá! Eu sou o Navi, a tua Inteligência Artificial. 🚀<br><br>Podes perguntar-me sobre o GLPI, ramais, procedimentos internos ou apenas dizer "Olá". Como posso ajudar?</p>
-                    </div>
-                </div>`;
-        } else {
-            renderizarFeed(mensagens);
-        }
-    });
-}
+// 5. ENVIAR MENSAGEM INSTANTÂNEA
+document.getElementById('form-chat-navi').onsubmit = function(e) {
+    e.preventDefault();
+    const input = document.getElementById('input-chat-msg');
+    const msg = input.value.trim();
+    if (!msg) return;
 
+    const fd = new FormData();
+    fd.append('mensagem', msg);
+    fd.append('destino', destinoId);
+
+    input.value = ''; 
+
+    fetch('api/chat_engine.php?acao=enviar', { method: 'POST', body: fd })
+    .then(() => monitorarChat()); 
+};
+
+// 6. CONTROLE DE INTERFACE E NOTIFICAÇÃO
 function toggleChatNavi() {
     const janela = document.getElementById('janela-chat');
     janela.classList.toggle('hidden');
     chatAberto = !janela.classList.contains('hidden');
-    if(chatAberto) { 
-        document.getElementById('chat-notif-badge').classList.add('hidden'); 
-        pararDePiscar();
-        carregarContatos(); 
-        carregarMensagens(); 
+    
+    if (chatAberto) {
+        document.getElementById('chat-notif-badge').classList.add('hidden');
+        document.title = "NAVI Messenger";
+        const feed = document.getElementById('chat-feed');
+        feed.scrollTop = feed.scrollHeight;
     }
 }
 
-function carregarContatos() {
-    fetch('api/chat_engine.php?acao=listar_contatos').then(r => r.json()).then(data => {
-        const lista = document.getElementById('lista-chat-usuarios');
-        let html = `<div onclick="selecionarChat('global', 'Chat Global', this)" data-chat-id="global" class="chat-user-item ${destinoId === 'global' ? 'active' : ''}">
-                <div class="w-10 h-10 rounded-full bg-navy-900 flex items-center justify-center text-white">🌍</div>
-                <div class="flex-1"><h3 class="font-bold text-xs">Chat Global</h3></div>
-            </div>`;
-        data.grupos?.forEach(g => {
-            html += `<div onclick="selecionarChat('group_${g.id}', '${g.nome_grupo}', this)" data-chat-id="group_${g.id}" class="chat-user-item ${destinoId === 'group_'+g.id ? 'active' : ''}">
-                <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-xs">GP</div>
-                <div class="flex-1"><h3 class="font-bold text-xs uppercase">${g.nome_grupo}</h3></div>
-            </div>`;
-        });
-        data.usuarios?.forEach(u => {
-            html += `<div onclick="selecionarChat(${u.usuario_id}, '${u.nome_usuario}', this)" data-chat-id="${u.usuario_id}" class="chat-user-item ${destinoId == u.usuario_id ? 'active' : ''}">
-                <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs">${u.nome_usuario.substring(0,2).toUpperCase()}</div>
-                <div class="flex-1"><h3 class="font-bold text-xs uppercase">${u.nome_usuario}</h3><span class="text-[9px] text-emerald-500 font-bold uppercase">Online</span></div>
-            </div>`;
-        });
-        lista.innerHTML = html;
-    });
+function deveNotificar(m) {
+    if (m.remetente_id == meuId) return false;
+    return (!chatAberto || document.hidden);
 }
 
-function mostrarToasty(autor, msg) {
-    const container = document.getElementById('toast-container');
-    const toast = document.createElement('div');
-    toast.className = 'navi-toast';
-    toast.innerHTML = `<p class="text-[10px] font-black text-blue-400 uppercase mb-1">${autor} diz:</p><p class="text-xs">${msg}</p>`;
-    container.appendChild(toast);
-    setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateX(100%)'; setTimeout(() => toast.remove(), 500); }, 5000);
-}
-
-function confirmarLimparChat() {
-    if (confirm("Apagar histórico desta conversa?")) {
-        fetch(`api/chat_engine.php?acao=limpar_chat&destino=${destinoId || 'global'}`)
-            .then(r => r.json()).then(() => {
-                document.getElementById('chat-feed').innerHTML = '';
-                mostrarToasty("Sistema", "Conversa limpa!");
-            });
-    }
-}
-
-document.getElementById('form-chat-navi').onsubmit = function(e) {
-    e.preventDefault();
-    const input = document.getElementById('input-chat-msg'), msg = input.value.trim();
-    if(!msg) return;
-    const fd = new FormData(); fd.append('mensagem', msg); fd.append('id_destinatario', destinoId);
-    fetch('api/chat_engine.php?acao=enviar', { method: 'POST', body: fd }).then(() => { input.value = ''; carregarMensagens(); });
-};
-
-function abrirModalCriarGrupo() {
-    document.getElementById('modal-criar-grupo').classList.remove('hidden');
-    // Busca todos os usuários, independentemente do status online
-    fetch('api/chat_engine.php?acao=listar_todos_usuarios').then(r => r.json()).then(data => {
-        document.getElementById('lista-membros-selecao').innerHTML = data.map(u => `
-            <label class="flex items-center gap-3 p-3 bg-slate-50 rounded-xl cursor-pointer hover:bg-slate-200 transition-all">
-                <input type="checkbox" name="membros[]" value="${u.usuario_id}" class="w-4 h-4 text-blue-600">
-                <span class="text-xs font-bold uppercase text-slate-700">${u.nome_usuario}</span>
-            </label>`).join('');
-    });
-}
-
-function fecharModalGrupo() { document.getElementById('modal-criar-grupo').classList.add('hidden'); }
-
-document.getElementById('form-criar-grupo').onsubmit = function(e) {
-    e.preventDefault();
-    const membros = Array.from(document.querySelectorAll('input[name="membros[]"]:checked')).map(cb => cb.value);
-    const fd = new FormData(); fd.append('nome_grupo', document.getElementById('nome-grupo-input').value); fd.append('membros', JSON.stringify(membros));
-    fetch('api/chat_engine.php?acao=criar_grupo', { method: 'POST', body: fd }).then(() => { fecharModalGrupo(); carregarContatos(); });
-};
+// INICIALIZAÇÃO ÚNICA (Sem loops concorrentes)
+document.addEventListener('DOMContentLoaded', function() {
+    carregarListaGrupos();
+    monitorarChat();
+    setInterval(monitorarChat, 2000);
+});
 </script>
+
+<?php endif; ?>
 </body>
 </html>

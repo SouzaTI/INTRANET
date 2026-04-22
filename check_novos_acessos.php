@@ -1,6 +1,5 @@
 <?php
 require_once 'config.php';
-session_start();
 
 $meu_id = $_SESSION['user_id'] ?? 0;
 

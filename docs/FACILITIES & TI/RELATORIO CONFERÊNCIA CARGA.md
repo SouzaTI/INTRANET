@@ -4,20 +4,46 @@
 **Data da Publicação:** 11/03/2026
 :::
 
-1 - Em módulos do sistema selecione:comercial
-![Descrição](img/1_AÇÃO.gif)
+1 – Acessar suas credenciais no Dualgcom (login/senha)
 
-2 - Em especificos selecione relatorio conferência carga
-![Descrição](img/2_AÇÃO.gif)
+2 - Selecione em módulos do sistmea: comercial 
 
-3 - Assim que abrir a tela selecione o computador do lado esquerdo 
-![Descrição](img/3_AÇÃO.gif)
+![IA](img/1_conf.carg.png)
 
-4 - Vá em data inicial,data final e selecione sempre o dia anterior e clique em executar 
-![Descrição](img/4_AÇÃO.gif)
+3 - Vá em relatorios e selecionar específicos
 
-5 - Assim que abrir o documento excel vá em arquivo, salvar como, procurar 
-![Descrição](img/5_AÇÃO.gif)
+![IA](img/2_conf.carg.png)
 
-6 - Após a ação acima procure na sua tela a pasta carregamento bi na aba tipo mude para pasta de trabalho excel e em nome do arquivo a data que esta registrada na planilha
-![Descrição](img/6_AÇÃO.gif)
+4 - Selecione relatório conferência carga 
+
+![IA](img/3_conf.carg.png)
+
+5 - Assim que abrir a tela referente a ação acima selecione o computador do lado esquerdo 
+
+![IA](img/4_conf.carg.png)
+
+6 - Em data inicial, data final sempre referente ao dia anterior 
+
+![IA](img/5_conf.carga.png)
+
+7 - Após inserir a data clique em executar 
+
+8 - Após a execução irá abrir o documento em excel , após isto clique no botão do lado esquerdo arquivo 
+
+![IA](img/6_conf.carga.png)
+
+9 - Vá em salvar como,depois procurar e selecione a pasta carregamento bi 
+
+10 - Assim que abrir a pasta mude o tipo do arquivo de 
+
+![IA](img/9_conf_carga.png)
+
+para:
+
+![IA](img/8_conf.carga.png)
+
+11 - Depois renomeie o nome do arquivo para o periodo que foi gerado exemplo imagem abaixo 
+
+![IA](img/10_conf.carga.png)
+
+

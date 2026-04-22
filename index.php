@@ -676,6 +676,8 @@ function atualizarPresenca() {
     // Atualiza a cada 30 segundos (30000ms) para não sobrecarregar o servidor
     setInterval(atualizarPresenca, 30000);
 
+
+
 </script>
 
 
