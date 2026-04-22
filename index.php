@@ -170,16 +170,31 @@ if (empty($aniversariantes)) {
                                 <span class="bg-blue-50 text-blue-600 text-[9px] font-black px-3 py-1 rounded-full uppercase">Importante</span>
                             </div>
                             <p class="text-slate-500 text-sm leading-relaxed mb-6"><?php echo $com['resumo']; ?></p>
-                            <div class="flex items-center justify-between pt-4 border-t border-slate-50">
-                                <div class="flex items-center gap-6">
-                                    <button class="flex items-center gap-2 text-slate-400 hover:text-red-500 transition-colors">
-                                        <span class="text-lg">🤍</span> <span class="text-xs font-bold">24</span>
-                                    </button>
-                                    <button class="flex items-center gap-2 text-slate-400 hover:text-blue-500 transition-colors">
-                                        <span class="text-lg">💬</span> <span class="text-xs font-bold">5</span>
-                                    </button>
+                            <div class="pt-4 border-t border-slate-50">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-6">
+                                        <button onclick="toggleCurtida(<?php echo $com['id']; ?>, this)" class="flex items-center gap-2 text-slate-400 hover:text-red-500 transition-colors">
+                                            <span class="text-lg icone-coracao">🤍</span> <span class="text-xs font-bold contador-curtidas">0</span>
+                                        </button>
+                                        <button onclick="toggleComentarios(<?php echo $com['id']; ?>)" class="flex items-center gap-2 text-slate-400 hover:text-blue-500 transition-colors">
+                                            <span class="text-lg">💬</span> <span class="text-xs font-bold contador-comentarios">0</span>
+                                        </button>
+                                    </div>
+                                    <button class="text-slate-400 hover:text-navy-900 text-lg">🔖</button>
                                 </div>
-                                <button class="text-slate-400 hover:text-navy-900 text-lg">🔖</button>
+
+                                <div id="comentarios-post-<?php echo $com['id']; ?>" class="hidden mt-4 pt-4 border-t border-slate-50">
+                                    <div class="lista-comentarios space-y-3 mb-4 max-h-40 overflow-y-auto custom-scrollbar-compact pr-2">
+                                        <p class="text-center text-[10px] text-slate-400 italic">Carregando...</p>
+                                    </div>
+                                    <form onsubmit="enviarComentario(event, <?php echo $com['id']; ?>, this)" class="flex gap-2 relative">
+                                        <input type="text" name="texto_comentario" placeholder="Escreva um comentário..." required autocomplete="off" 
+                                            class="flex-1 bg-slate-50 border border-slate-100 rounded-xl pl-4 pr-12 py-3 text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-700">
+                                        <button type="submit" class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-blue-600 text-white rounded-lg flex items-center justify-center hover:bg-navy-900 transition-colors shadow-md">
+                                            <svg class="w-3 h-3 rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                                        </button>
+                                    </form>
+                                </div>
                             </div>
                         </div>
                         <?php endforeach; ?>
@@ -676,11 +691,108 @@ function atualizarPresenca() {
     // Atualiza a cada 30 segundos (30000ms) para não sobrecarregar o servidor
     setInterval(atualizarPresenca, 30000);
 
+function toggleCurtida(comunicadoId, btnElement) {
+    const fd = new FormData();
+    fd.append('acao', 'curtir');
+    fd.append('comunicado_id', comunicadoId);
 
+    fetch('api/feed_interacoes.php', {
+        method: 'POST',
+        body: fd
+    })
+    .then(response => response.json())
+    .then(data => {
+        if(data.status === 'sucesso') {
+            // Atualiza o número na tela
+            btnElement.querySelector('.contador-curtidas').innerText = data.total;
+            
+            // Troca o emoji do coração
+            if(data.acao === 'curtiu') {
+                btnElement.querySelector('.icone-coracao').innerText = '❤️';
+            } else {
+                btnElement.querySelector('.icone-coracao').innerText = '🤍';
+            }
+        }
+    })
+    .catch(err => console.error('Erro ao curtir:', err));
+}
+
+// 1. Abre/Fecha a sessão de comentários
+function toggleComentarios(comunicadoId) {
+    const divComentarios = document.getElementById(`comentarios-post-${comunicadoId}`);
+    divComentarios.classList.toggle('hidden');
+
+    // Se acabou de abrir, busca os comentários no banco!
+    if (!divComentarios.classList.contains('hidden')) {
+        carregarComentarios(comunicadoId, divComentarios.querySelector('.lista-comentarios'));
+    }
+}
+
+// 2. Busca e desenha os comentários na tela
+function carregarComentarios(comunicadoId, containerElement) {
+    const fd = new FormData();
+    fd.append('acao', 'listar_comentarios');
+    fd.append('comunicado_id', comunicadoId);
+
+    fetch('api/feed_interacoes.php', { method: 'POST', body: fd })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'sucesso') {
+            // Atualiza o contador de balões do post atual
+            const postCard = containerElement.closest('.bg-white');
+            postCard.querySelector('.contador-comentarios').innerText = data.comentarios.length;
+
+            if (data.comentarios.length === 0) {
+                containerElement.innerHTML = '<p class="text-[10px] text-slate-400 text-center italic py-2">Seja o primeiro a comentar! 💬</p>';
+                return;
+            }
+
+            // Desenha os balões de cada pessoa
+            containerElement.innerHTML = data.comentarios.map(c => `
+                <div class="bg-slate-50 rounded-2xl rounded-tl-none p-3 shadow-sm border border-slate-100">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[9px] font-black text-navy-900 uppercase">${c.nome}</span>
+                        <span class="text-[8px] text-slate-400 font-bold">${c.data_hora}</span>
+                    </div>
+                    <p class="text-xs text-slate-600 font-medium">${c.comentario}</p>
+                </div>
+            `).join('');
+            
+            // Rola para o final da listinha se tiver muitos
+            containerElement.scrollTop = containerElement.scrollHeight;
+        }
+    });
+}
+
+// 3. Manda um novo comentário pro banco
+function enviarComentario(e, comunicadoId, formElement) {
+    e.preventDefault();
+    const input = formElement.querySelector('input[name="texto_comentario"]');
+    const texto = input.value.trim();
+    if(!texto) return;
+
+    const fd = new FormData();
+    fd.append('acao', 'comentar');
+    fd.append('comunicado_id', comunicadoId);
+    fd.append('comentario', texto);
+
+    // Trava o input enquanto envia
+    input.value = ''; 
+    input.disabled = true;
+
+    fetch('api/feed_interacoes.php', { method: 'POST', body: fd })
+    .then(res => res.json())
+    .then(data => {
+        input.disabled = false;
+        if (data.status === 'sucesso') {
+            // Se deu certo, recarrega a lista para mostrar o novo na hora!
+            const container = document.getElementById(`comentarios-post-${comunicadoId}`).querySelector('.lista-comentarios');
+            carregarComentarios(comunicadoId, container);
+        }
+    })
+    .catch(() => input.disabled = false);
+}
 
 </script>
-
-
-
 
 <?php include 'includes/footer.php'; ?>
