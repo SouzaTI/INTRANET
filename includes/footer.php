@@ -31,11 +31,19 @@
                 </div>
                 
                 <div class="flex items-center gap-2">
+
+                    <?php if(isset($_SESSION['is_admin']) && $_SESSION['is_admin']): ?>
+                    <button id="btn-gerenciar-grupo" onclick="abrirModalGerenciarMembros()" class="hidden w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-blue-400 transition-all" title="Ver Membros do Grupo">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    </button>
+                    <?php endif; ?>
+
                     <button onclick="confirmarLimparChat()" class="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-red-400 transition-all" title="Limpar conversa">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                     </button>
                     <button onclick="toggleChatNavi()" class="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white text-2xl transition-all">&times;</button>
                 </div>
+
             </header>
 
             <section id="chat-feed" class="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50/50 custom-scrollbar scroll-smooth"></section>
@@ -75,6 +83,26 @@
     </div>
 </div>
 
+<div id="modal-gerenciar-membros" class="hidden fixed inset-0 bg-navy-900/50 backdrop-blur-sm z-[2000] flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+        <div class="bg-navy-900 p-6 text-white flex justify-between items-center">
+            <div>
+                <h3 class="font-black uppercase italic tracking-tighter">Membros do Grupo</h3>
+                <p id="nome-grupo-gerenciar" class="text-[10px] font-bold text-blue-400 uppercase tracking-widest"></p>
+            </div>
+            <button onclick="fecharModalMembros()" class="text-2xl opacity-50 hover:opacity-100">&times;</button>
+        </div>
+        <form id="form-gerenciar-membros" class="p-6 space-y-4" onsubmit="salvarMembros(event)">
+            <div class="relative">
+                <input type="text" id="busca-membros" placeholder="Buscar usuário por nome..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500" oninput="filtrarUsuariosLista()">
+            </div>
+            <div id="lista-usuarios-glpi" class="space-y-2 max-h-64 overflow-y-auto custom-scrollbar p-3 border border-slate-100 rounded-xl bg-slate-50">
+                </div>
+            <button type="submit" class="w-full bg-navy-900 text-white py-4 rounded-2xl font-bold hover:bg-blue-600 transition-all uppercase text-xs tracking-widest shadow-lg">Salvar Alterações 💾</button>
+        </form>
+    </div>
+</div>
+
 <style>
     .msg-sent { background: #0f172a; border-radius: 20px 20px 4px 20px; color: white; padding: 12px 16px; align-self: flex-end; max-width: 80%; }
     .msg-received { background: white; border: 1px solid #e2e8f0; border-radius: 20px 20px 20px 4px; color: #1e293b; padding: 12px 16px; align-self: flex-start; max-width: 80%; }
@@ -86,11 +114,6 @@
     @keyframes slideInRight { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 </style>
 
-<?php 
-// Substitua o número 123 pelo SEU ID real de usuário no banco de dados do GLPI
-if (isset($_SESSION['user_id']) && $_SESSION['user_id'] == 2): 
-?>
-
 <script>
 // CONFIGURAÇÕES INICIAIS
 let chatAberto = false;
@@ -98,6 +121,19 @@ let destinoId = 1; // Começa no GERAL
 let meuId = <?= $_SESSION['user_id'] ?>;
 let ultimoIdRecebido = 0;
 const somNotificacao = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
+
+// 0. O PING SILENCIOSO (Avisa o banco que você leu a sala)
+function avisarLeituraBanco(destinoId) {
+    const fd = new FormData();
+    fd.append('destino_id', destinoId);
+
+    fetch('api/chat_engine.php?acao=marcar_lido', {
+        method: 'POST',
+        body: fd
+    })
+    .then(() => carregarListaGrupos()) // Atualiza a lateral na mesma hora para a bolinha sumir
+    .catch(err => console.error(err));
+}
 
 // 1. CARREGAR LISTA DE CANAIS (LATERAL)
 function carregarListaGrupos() {
@@ -114,12 +150,17 @@ function carregarListaGrupos() {
             const ativo = (g.id == destinoId);
             btn.onclick = () => selecionarChat(g.id, g.nome);
             btn.className = `chat-user-item ${ativo ? 'active' : ''}`;
+            const bolinha = g.nao_lidas > 0 
+                ? `<span class="absolute top-1/2 -translate-y-1/2 right-3 w-5 h-5 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow-md animate-pulse">${g.nao_lidas}</span>` 
+                : '';
+
             btn.innerHTML = `
-                <div class="w-10 h-10 rounded-xl bg-slate-200 flex items-center justify-center font-bold text-slate-500">${g.nome[0].toUpperCase()}</div>
-                <div class="flex-1">
-                    <p class="text-xs font-bold text-navy-900 uppercase">${g.nome}</p>
+                <div class="w-10 h-10 rounded-xl bg-slate-200 flex items-center justify-center font-bold text-slate-500 shadow-inner">${g.nome[0].toUpperCase()}</div>
+                <div class="flex-1 pr-6 relative">
+                    <p class="text-xs font-bold text-navy-900 uppercase truncate">${g.nome}</p>
                     <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Setor</p>
                 </div>
+                ${bolinha}
             `;
             container.appendChild(btn);
         });
@@ -196,7 +237,15 @@ function renderizarBolha(m) {
 function selecionarChat(id, nome) {
     destinoId = id;
     ultimoIdRecebido = 0;
+    avisarLeituraBanco(id);
     
+    // NOVO: Verifica se o botão existe (se a pessoa é admin) antes de tentar mexer nele
+    const btnGerenciar = document.getElementById('btn-gerenciar-grupo');
+    if (btnGerenciar) {
+        if (id === 1) btnGerenciar.classList.add('hidden');
+        else btnGerenciar.classList.remove('hidden');
+    }
+
     // CORREÇÃO: Apontando pro ID certo do cabeçalho
     document.getElementById('chat-header-nome').innerText = nome;
     document.getElementById('chat-feed').innerHTML = '<div class="flex justify-center p-10"><span class="text-[10px] font-black text-slate-400 uppercase animate-pulse">Carregando conversas...</span></div>';
@@ -241,14 +290,83 @@ function deveNotificar(m) {
     return (!chatAberto || document.hidden);
 }
 
+// --- LÓGICA DE GERENCIAR MEMBROS ---
+function abrirModalGerenciarMembros() {
+    if(destinoId === 1) return; // Segurança extra
+    
+    document.getElementById('nome-grupo-gerenciar').innerText = document.getElementById('chat-header-nome').innerText;
+    document.getElementById('modal-gerenciar-membros').classList.remove('hidden');
+    document.getElementById('lista-usuarios-glpi').innerHTML = '<p class="text-xs text-center text-slate-400 py-4 uppercase font-bold animate-pulse">Carregando equipe...</p>';
+
+    // Pede pro PHP trazer todo mundo do GLPI e quem já está no grupo ao mesmo tempo
+    Promise.all([
+        fetch('api/chat_engine.php?acao=listar_usuarios_glpi').then(r => r.json()),
+        fetch(`api/chat_engine.php?acao=listar_membros_grupo&grupo_id=${destinoId}`).then(r => r.json())
+    ]).then(([usuarios, membrosAtuais]) => {
+        renderizarListaUsuarios(usuarios, membrosAtuais.map(Number));
+    });
+}
+
+function fecharModalMembros() {
+    document.getElementById('modal-gerenciar-membros').classList.add('hidden');
+}
+
+function renderizarListaUsuarios(usuarios, membrosAtuais) {
+    const container = document.getElementById('lista-usuarios-glpi');
+    container.innerHTML = '';
+    
+    usuarios.forEach(u => {
+        const isChecked = membrosAtuais.includes(Number(u.id)) ? 'checked' : '';
+        container.innerHTML += `
+            <label class="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-100 cursor-pointer hover:border-blue-300 transition-colors usuario-item-lista">
+                <input type="checkbox" name="membros_grupo[]" value="${u.id}" class="w-5 h-5 text-blue-600 rounded border-slate-300" ${isChecked}>
+                <span class="text-xs font-bold text-slate-700 uppercase nome-usuario-busca">${u.nome}</span>
+            </label>
+        `;
+    });
+}
+
+function filtrarUsuariosLista() {
+    const termo = document.getElementById('busca-membros').value.toLowerCase();
+    document.querySelectorAll('.usuario-item-lista').forEach(el => {
+        const nome = el.querySelector('.nome-usuario-busca').innerText.toLowerCase();
+        el.style.display = nome.includes(termo) ? 'flex' : 'none';
+    });
+}
+
+function salvarMembros(e) {
+    e.preventDefault();
+    const form = document.getElementById('form-gerenciar-membros');
+    const formData = new FormData(form);
+    formData.append('grupo_id', destinoId);
+
+    // CORREÇÃO: Colocamos a "acao" direto na URL, igual fizemos nas outras funções!
+    fetch('api/chat_engine.php?acao=salvar_membros_grupo', { 
+        method: 'POST', 
+        body: formData 
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.status === 'sucesso') {
+            fecharModalMembros();
+            alert('✅ Membros atualizados com sucesso!');
+        } else if (data.erro) {
+            // Se o PHP barrar por não ser Admin, avisa na tela
+            alert('Erro: ' + data.erro); 
+        }
+    })
+    .catch(err => console.error("Erro na resposta do servidor:", err));
+}
+
 // INICIALIZAÇÃO ÚNICA (Sem loops concorrentes)
 document.addEventListener('DOMContentLoaded', function() {
     carregarListaGrupos();
     monitorarChat();
     setInterval(monitorarChat, 2000);
+    setInterval(carregarListaGrupos, 5000); // Fica varrendo a lateral a cada 5s para acender as bolinhas
 });
 </script>
 
-<?php endif; ?>
+
 </body>
 </html>
