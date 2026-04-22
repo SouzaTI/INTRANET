@@ -15,6 +15,7 @@ $nome_exibicao = trim($primeiro_nome . ' ' . $segundo_nome);
 // Define valores padrão para outras variáveis de sessão que podem causar avisos no Header
 $_SESSION['is_admin'] = $_SESSION['is_admin'] ?? false;
 $_SESSION['setor_principal'] = $_SESSION['setor_principal'] ?? 'GERAL';
+$user_id_logado = $_SESSION['user_id'] ?? 0; // Necessário para a query do feed
 // -----------------------------------------------------
 
 // Registro de log de acesso único por sessão
@@ -35,8 +36,19 @@ $stmt = $pdo_intra->prepare("SELECT * FROM banners_marketing
 $stmt->execute(['hoje' => $hoje]);
 $banners = $stmt->fetchAll();
 
-// 2. Busca Comunicados Ativos
-$comunicados = $pdo_intra->query("SELECT * FROM comunicados WHERE ativo = 1 ORDER BY data_postagem DESC LIMIT 5")->fetchAll();
+// 2. Busca Comunicados Ativos com contadores REAIS de curtidas e comentários
+$sql_feed = "SELECT c.*, 
+            (SELECT COUNT(*) FROM feed_curtidas WHERE comunicado_id = c.id) as total_curtidas,
+            (SELECT COUNT(*) FROM feed_comentarios WHERE comunicado_id = c.id) as total_comentarios,
+            (SELECT COUNT(*) FROM feed_curtidas WHERE comunicado_id = c.id AND user_id = ?) as ja_curtiu
+            FROM comunicados c 
+            WHERE c.ativo = 1 
+            ORDER BY c.data_postagem DESC 
+            LIMIT 5";
+
+$stmt_feed = $pdo_intra->prepare($sql_feed);
+$stmt_feed->execute([$user_id_logado]);
+$comunicados = $stmt_feed->fetchAll();
 
 $sistemas_permitidos = [1, 2];
 $aniversariantes = [];
@@ -74,7 +86,6 @@ if (empty($aniversariantes)) {
         'data' => '--/--'
     ];
 }
-
 ?>
 
 <main class="flex-1 overflow-y-auto bg-slate-50 p-4 md:p-8">
@@ -173,11 +184,15 @@ if (empty($aniversariantes)) {
                             <div class="pt-4 border-t border-slate-50">
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-center gap-6">
-                                        <button onclick="toggleCurtida(<?php echo $com['id']; ?>, this)" class="flex items-center gap-2 text-slate-400 hover:text-red-500 transition-colors">
-                                            <span class="text-lg icone-coracao">🤍</span> <span class="text-xs font-bold contador-curtidas">0</span>
+                                        <button onclick="toggleCurtida(<?php echo $com['id']; ?>, this)" 
+                                                class="flex items-center gap-2 transition-colors <?php echo $com['ja_curtiu'] ? 'text-rose-500' : 'text-slate-400'; ?> hover:text-red-500">
+                                            <span class="text-lg icone-coracao"><?php echo $com['ja_curtiu'] ? '❤️' : '🤍'; ?></span> 
+                                            <span class="text-xs font-bold contador-curtidas"><?php echo $com['total_curtidas']; ?></span>
                                         </button>
+
                                         <button onclick="toggleComentarios(<?php echo $com['id']; ?>)" class="flex items-center gap-2 text-slate-400 hover:text-blue-500 transition-colors">
-                                            <span class="text-lg">💬</span> <span class="text-xs font-bold contador-comentarios">0</span>
+                                            <span class="text-lg">💬</span> 
+                                            <span class="text-xs font-bold contador-comentarios"><?php echo $com['total_comentarios']; ?></span>
                                         </button>
                                     </div>
                                     <button class="text-slate-400 hover:text-navy-900 text-lg">🔖</button>

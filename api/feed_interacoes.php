@@ -45,8 +45,9 @@ try {
     
     // 2. LÓGICA DE LISTAR COMENTÁRIOS (NOVO)
     elseif ($acao === 'listar_comentarios' && $comunicado_id > 0) {
-        // Busca o comentário e cruza com o banco do GLPI para pegar o nome da pessoa
-        $sql = "SELECT c.comentario, DATE_FORMAT(c.data_hora, '%d/%m %H:%i') as data_hora, u.firstname as nome
+        // Busca o comentário e cruza com o banco do GLPI para pegar NOME e SOBRENOME
+        $sql = "SELECT c.comentario, DATE_FORMAT(c.data_hora, '%d/%m %H:%i') as data_hora, 
+                CONCAT_WS(' ', u.firstname, u.realname) as nome
                 FROM feed_comentarios c
                 JOIN " . DB_GLPI . ".glpi_users u ON c.user_id = u.id
                 WHERE c.comunicado_id = ?
