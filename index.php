@@ -220,6 +220,76 @@ if (empty($aniversariantes)) {
 
             <div class="lg:col-span-4 space-y-6 sticky top-6">
 
+                <?php
+                $projetos_ativos = [];
+                try {
+                    // Conecta no seu banco de projetos do Winthor (porta 3307 como vi no seu config)
+                    $pdo_proj = new PDO("mysql:host=127.0.0.1;port=3307;dbname=gerenciador_projetos_db;charset=utf8mb4", "root", "");
+                    $pdo_proj->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+                    // Busca todos os projetos que têm data de virada configurada
+                    $stmtProj = $pdo_proj->query("SELECT * FROM projetos WHERE data_virada IS NOT NULL ORDER BY data_virada ASC");
+                    $projetos_ativos = $stmtProj->fetchAll(PDO::FETCH_ASSOC);
+
+                    // Calcula o progresso real de TODOS eles
+                    foreach ($projetos_ativos as $key => $proj) {
+                        $stmtProg = $pdo_proj->prepare("SELECT COUNT(*) as total, SUM(CASE WHEN s.status = 'concluido' THEN 1 ELSE 0 END) as concluidas FROM subtarefas s INNER JOIN fases f ON s.fk_fase = f.id WHERE f.fk_projeto = ?");
+                        $stmtProg->execute([$proj['id']]);
+                        $progData = $stmtProg->fetch(PDO::FETCH_ASSOC);
+                        $total_t = (int)$progData['total'];
+                        $projetos_ativos[$key]['progresso'] = $total_t > 0 ? round(((int)$progData['concluidas'] / $total_t) * 100) : 0;
+                    }
+                } catch(Exception $e) {}
+                ?>
+
+                <?php if (count($projetos_ativos) > 0): 
+                    $proj_principal = $projetos_ativos[0]; // Pega o projeto mais urgente
+                ?>
+
+                <div onclick="abrirModalProjetos()" class="space-y-4 cursor-pointer group relative transition-all hover:scale-[1.02]">
+                    
+                    <div class="absolute -top-3 right-4 bg-blue-600 text-white text-[9px] font-black px-3 py-1 rounded-full shadow-lg z-20 group-hover:bg-blue-500 transition-colors uppercase tracking-widest border border-blue-400">
+                        Ver Todos (<?php echo count($projetos_ativos); ?>)
+                    </div>
+
+                    <div class="bg-navy-900 rounded-2xl p-5 shadow-lg border border-slate-800 flex flex-col justify-center relative z-10">
+                        <div class="flex justify-between items-start mb-3">
+                            <div class="overflow-hidden pr-2">
+                                <h3 class="text-blue-400 font-black text-[10px] uppercase tracking-widest">Projeto em Destaque</h3>
+                                <span class="text-white font-black italic text-base truncate block"><?php echo mb_strtoupper($proj_principal['nome_projeto'], 'UTF-8'); ?></span>
+                            </div>
+                            <span class="text-emerald-400 font-black text-2xl leading-none drop-shadow-[0_0_5px_rgba(52,211,153,0.8)]"><?php echo $proj_principal['progresso']; ?>%</span>
+                        </div>
+                        <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden mt-1">
+                            <div class="bg-blue-500 h-2 rounded-full transition-all duration-1000" style="width: <?php echo $proj_principal['progresso']; ?>%"></div>
+                        </div>
+                    </div>
+
+                    <?php if (isset($proj_principal['status_implantacao']) && $proj_principal['status_implantacao'] === 'TRAVADO'): ?>
+                        <div class="bg-red-500 rounded-2xl p-4 shadow-lg border border-red-600 flex flex-col justify-center relative overflow-hidden animate-pulse">
+                            <div class="absolute -right-4 -bottom-4 opacity-[0.15] text-7xl grayscale">🛑</div>
+                            <div class="flex items-center gap-2 mb-1 relative z-10">
+                                <span class="text-white text-sm">⚠️</span>
+                                <span class="text-white font-black text-[10px] uppercase tracking-widest">PROCESSO TRAVADO</span>
+                            </div>
+                            <p class="text-red-50 text-[10px] font-bold leading-tight relative z-10 line-clamp-2">
+                                <?php echo $proj_principal['motivo_bloqueio'] ?: 'Aguardando liberação da diretoria.'; ?>
+                            </p>
+                        </div>
+                    <?php endif; ?>
+
+                    <div class="bg-slate-900 rounded-2xl p-4 shadow-lg border border-slate-800 text-center flex flex-col justify-center">
+                        <p class="text-slate-500 text-[9px] font-black uppercase tracking-[0.2em] mb-3">Contagem para Virada</p>
+                        <div class="grid grid-cols-4 gap-2 text-white cronometro-dinamico" data-virada="<?php echo $proj_principal['data_virada']; ?>">
+                            <div class="bg-slate-800 rounded-xl py-2"><span class="c-dias block font-black text-lg">00</span><span class="text-[8px] text-slate-500 uppercase">Dias</span></div>
+                            <div class="bg-slate-800 rounded-xl py-2"><span class="c-horas block font-black text-lg">00</span><span class="text-[8px] text-slate-500 uppercase">Hrs</span></div>
+                            <div class="bg-slate-800 rounded-xl py-2"><span class="c-mins block font-black text-lg">00</span><span class="text-[8px] text-slate-500 uppercase">Min</span></div>
+                            <div class="bg-slate-800 rounded-xl py-2"><span class="c-segs block font-black text-lg text-blue-400">00</span><span class="text-[8px] text-slate-500 uppercase">Seg</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <?php endif; ?>
                 <div id="painel-presenca" class="w-full transition-all duration-500">
                     <div class="animate-pulse bg-white rounded-2xl h-64 w-full border border-slate-200"></div>
                 </div>
@@ -298,7 +368,6 @@ if (empty($aniversariantes)) {
 </main>
 
 <div id="modalSistemas" class="fixed inset-0 z-[1000] hidden items-center justify-center p-4 backdrop-blur-xl bg-navy-900/40 transition-all duration-500">
-    
     <div class="relative bg-navy-900/90 border border-white/10 w-full max-w-4xl rounded-[2rem] p-8 shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden">
         
         <button id="btnVoltarModal" onclick="exibirPrincipalSistemas()" class="hidden absolute top-5 left-6 text-blue-400 hover:text-white transition-colors text-xs font-black flex items-center gap-2">
@@ -315,17 +384,11 @@ if (empty($aniversariantes)) {
         </div>
 
         <?php 
-            // ==========================================
-            // O CÉREBRO DINÂMICO DOS SISTEMAS
-            // ==========================================
             $sistemas_permitidos = [];
-            
             if ($_SESSION['is_admin']) {
-                // Admin vê TODAS as bolinhas que foram criadas no Gestor
                 $stmt_sys = $pdo_intra->query("SELECT * FROM sistemas_lista ORDER BY nome");
                 $sistemas_permitidos = $stmt_sys->fetchAll(PDO::FETCH_ASSOC);
             } else {
-                // Usuário comum: Só puxa as bolinhas que ele tem permissão VIP ou que o Grupo dele liberou
                 $stmt_sys = $pdo_intra->prepare("
                     SELECT DISTINCT sl.* FROM sistemas_lista sl
                     LEFT JOIN permissoes_sistemas ps ON sl.id = ps.sistema_id AND ps.user_id = ?
@@ -340,7 +403,6 @@ if (empty($aniversariantes)) {
         ?>
 
         <div id="gridSistemasPrincipal" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar-compact">
-            
             <?php foreach ($sistemas_permitidos as $sys): ?>
                 <a href="<?php echo htmlspecialchars($sys['url']); ?>" class="group flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-white/5 transition-all duration-300">
                     <div class="w-14 h-14 rounded-full <?php echo $sys['cor']; ?>/20 border border-<?php echo $sys['cor']; ?>/30 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 group-hover:<?php echo str_replace('bg-', 'text-', $sys['cor']); ?> transition-all duration-300">
@@ -351,11 +413,9 @@ if (empty($aniversariantes)) {
                     </span>
                 </a>
             <?php endforeach; ?>
-
         </div>
 
-        <div id="gridSistemasSub" class="hidden grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar-compact">
-            </div>
+        <div id="gridSistemasSub" class="hidden grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar-compact"></div>
 
         <div class="mt-8 pt-4 border-t border-white/5 flex justify-between items-center text-[9px] font-bold text-white/20 uppercase tracking-widest">
             <span>Navi</span>
@@ -422,7 +482,7 @@ if (empty($aniversariantes)) {
                 </div>
                 <?php endif; ?>
 
-                <button type="submit" class="w-full bg-navy-900 hover:bg-blue-700 text-white font-black py-4 rounded-xl transition-all uppercase text-xs tracking-widest mt-2">
+                <button id="btn-confirmar" type="submit" class="w-full bg-navy-900 hover:bg-blue-700 text-white font-black py-4 rounded-xl transition-all uppercase text-xs tracking-widest mt-2">
                     Confirmar Reserva 🚀
                 </button>
             </form>
@@ -430,7 +490,79 @@ if (empty($aniversariantes)) {
     </div>
 </div>
 
+<div id="modalProjetos" class="fixed inset-0 z-[1200] hidden items-center justify-center p-4 backdrop-blur-xl bg-navy-900/60 transition-all duration-500">
+    <div class="relative bg-navy-900 border border-white/10 w-full max-w-5xl rounded-[2rem] p-8 shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden flex flex-col max-h-[90vh]">
+        
+        <button onclick="fecharModalProjetos()" class="absolute top-5 right-6 text-white/30 hover:text-white transition-colors text-3xl font-light z-20">&times;</button>
+
+        <div class="mb-8 text-left border-b border-white/5 pb-4 shrink-0">
+            <h2 class="text-white text-xl font-black tracking-tighter uppercase italic">Status das Implantações</h2>
+            <p class="text-blue-400 text-[10px] font-bold uppercase tracking-widest">Cronogramas e Gargalos de Sistemas</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto custom-scrollbar-compact pr-2 flex-1 pb-4">
+            <?php if(!empty($projetos_ativos)): foreach ($projetos_ativos as $proj): ?>
+            <div class="bg-slate-900 border border-white/5 rounded-2xl p-5 flex flex-col group hover:border-blue-500/50 transition-colors h-full">
+                
+                <div class="mb-4">
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="text-white font-black italic uppercase leading-tight truncate pr-2"><?php echo mb_strtoupper($proj['nome_projeto'], 'UTF-8'); ?></h3>
+                        <span class="text-emerald-400 font-black text-xl leading-none"><?php echo $proj['progresso']; ?>%</span>
+                    </div>
+                    <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                        <div class="bg-blue-500 h-1.5 rounded-full" style="width: <?php echo $proj['progresso']; ?>%"></div>
+                    </div>
+                </div>
+
+                <div class="mt-auto space-y-3">
+                    
+                    <?php if (isset($proj['status_implantacao']) && $proj['status_implantacao'] === 'TRAVADO'): ?>
+                        <div class="bg-red-500/20 rounded-xl p-3 border border-red-500/40 relative overflow-hidden animate-pulse">
+                            <span class="text-red-500 font-black text-[9px] uppercase tracking-widest block mb-1 flex items-center gap-1">
+                                ⚠️ Pausado
+                            </span>
+                            <p class="text-red-100 text-[10px] font-medium leading-tight line-clamp-2" title="<?php echo htmlspecialchars($proj['motivo_bloqueio']); ?>">
+                                <?php echo $proj['motivo_bloqueio'] ?: 'Aguardando liberação.'; ?>
+                            </p>
+                        </div>
+                    <?php endif; ?>
+
+                    <div class="bg-slate-800/50 rounded-xl p-3 border border-white/5 text-center">
+                        <p class="text-slate-500 text-[8px] font-black uppercase tracking-widest mb-2">Tempo Restante para Virada</p>
+                        <div class="flex justify-center gap-2 text-white cronometro-dinamico" data-virada="<?php echo $proj['data_virada']; ?>">
+                            <div class="text-center">
+                                <span class="c-dias block font-black text-sm">00</span>
+                                <span class="text-[7px] text-slate-500 uppercase">D</span>
+                            </div>
+                            <span class="text-slate-600">:</span>
+                            <div class="text-center">
+                                <span class="c-horas block font-black text-sm">00</span>
+                                <span class="text-[7px] text-slate-500 uppercase">H</span>
+                            </div>
+                            <span class="text-slate-600">:</span>
+                            <div class="text-center">
+                                <span class="c-mins block font-black text-sm">00</span>
+                                <span class="text-[7px] text-slate-500 uppercase">M</span>
+                            </div>
+                            <span class="text-blue-500">:</span>
+                            <div class="text-center">
+                                <span class="c-segs block font-black text-sm text-blue-400">00</span>
+                                <span class="text-[7px] text-slate-500 uppercase">S</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <?php endforeach; endif; ?>
+        </div>
+    </div>
+</div>
+
 <script>
+// ==========================================
+// SCRIPTS GERAIS DA TELA
+// ==========================================
 
 let slideAtual = 0;
 const totalSlides = <?php echo count($banners); ?>;
@@ -484,59 +616,70 @@ function abrirModalSistemas() {
     const modal = document.getElementById('modalSistemas');
     modal.classList.remove('hidden');
     modal.classList.add('flex');
-    document.body.style.overflow = 'hidden'; // Trava o scroll da página ao fundo
+    document.body.style.overflow = 'hidden';
 }
 
 function fecharModalSistemas() {
     const modal = document.getElementById('modalSistemas');
     modal.classList.add('hidden');
     modal.classList.remove('flex');
-    document.body.style.overflow = 'auto'; // Libera o scroll
+    document.body.style.overflow = 'auto';
 }
 
-// Fecha com a tecla ESC
+// SCRIPTS DO MODAL DE PROJETOS
+function abrirModalProjetos() {
+    document.getElementById('modalProjetos').classList.remove('hidden');
+    document.getElementById('modalProjetos').classList.add('flex');
+    document.body.style.overflow = 'hidden';
+}
+function fecharModalProjetos() {
+    document.getElementById('modalProjetos').classList.add('hidden');
+    document.getElementById('modalProjetos').classList.remove('flex');
+    document.body.style.overflow = 'auto';
+}
+
 document.addEventListener('keydown', function(event) {
     if (event.key === "Escape") {
         fecharModalSistemas();
+        fecharModalProjetos();
+        fecharModalAniversariantes();
     }
 });
 
 function abrirModalAniversariantes() {
-            const modal = document.getElementById('modalAniversariantes');
-            modal.classList.remove('hidden'); modal.classList.add('flex');
-            document.body.style.overflow = 'hidden';
-        }
-        function fecharModalAniversariantes() {
-            const modal = document.getElementById('modalAniversariantes');
-            modal.classList.add('hidden'); modal.classList.remove('flex');
-            document.body.style.overflow = 'auto';
-        }
-        document.addEventListener('keydown', function(event) { if (event.key === "Escape") { fecharModalAniversariantes(); } });
+    const modal = document.getElementById('modalAniversariantes');
+    modal.classList.remove('hidden'); modal.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+}
+function fecharModalAniversariantes() {
+    const modal = document.getElementById('modalAniversariantes');
+    modal.classList.add('hidden'); modal.classList.remove('flex');
+    document.body.style.overflow = 'auto';
+}
 
-        const listaAniversariantes = <?php echo json_encode($aniversariantes); ?>;
-        let indexAtual = 0;
-        function trocarAniversariante() {
-            const container = document.getElementById('ticker-aniversariante');
-            const nomeEl = document.getElementById('nome-aniv');
-            const dataEl = document.getElementById('data-aniv');
-            container.style.opacity = '0';
-            container.style.transform = 'translateY(-15px)';
-            setTimeout(() => {
-                indexAtual = (indexAtual + 1) % listaAniversariantes.length;
-                nomeEl.innerText = listaAniversariantes[indexAtual].nome;
-                dataEl.innerText = listaAniversariantes[indexAtual].data;
-                container.style.transform = 'translateY(15px)';
-                setTimeout(() => {
-                    container.style.opacity = '1';
-                    container.style.transform = 'translateY(0)';
-                }, 50);
-            }, 700);
-        }
-        if(listaAniversariantes.length > 0) { setInterval(trocarAniversariante, 5000); }
+const listaAniversariantes = <?php echo json_encode($aniversariantes); ?>;
+let indexAtual = 0;
+function trocarAniversariante() {
+    const container = document.getElementById('ticker-aniversariante');
+    const nomeEl = document.getElementById('nome-aniv');
+    const dataEl = document.getElementById('data-aniv');
+    container.style.opacity = '0';
+    container.style.transform = 'translateY(-15px)';
+    setTimeout(() => {
+        indexAtual = (indexAtual + 1) % listaAniversariantes.length;
+        nomeEl.innerText = listaAniversariantes[indexAtual].nome;
+        dataEl.innerText = listaAniversariantes[indexAtual].data;
+        container.style.transform = 'translateY(15px)';
+        setTimeout(() => {
+            container.style.opacity = '1';
+            container.style.transform = 'translateY(0)';
+        }, 50);
+    }, 700);
+}
+if(listaAniversariantes.length > 0) { setInterval(trocarAniversariante, 5000); }
 
 function carregarCalendario(mes, ano) {
     const container = document.getElementById('calendario-ajax');
-    // Efeito visual de carregamento
     container.style.opacity = '0.5';
 
     fetch(`api/get_calendario.php?mes=${mes}&ano=${ano}`)
@@ -548,16 +691,15 @@ function carregarCalendario(mes, ano) {
         .catch(err => console.error('Erro ao carregar calendário:', err));
 }
 
-// Inicializa o calendário no mês atual ao carregar a página
 document.addEventListener('DOMContentLoaded', function() {
     carregarCalendario(<?= date('n') ?>, <?= date('Y') ?>);
+    atualizarPresenca();
 });
 
 function abrirAgendamento(data) {
     document.getElementById('input-data-evento').value = data;
     document.getElementById('data-formatada').innerText = data.split('-').reverse().join('/');
     
-    // Busca os horários ocupados para esse dia via AJAX
     fetch(`api/get_horarios_dia.php?data=${data}`)
         .then(res => res.text())
         .then(html => {
@@ -568,7 +710,6 @@ function abrirAgendamento(data) {
     document.getElementById('modalAgendamento').classList.add('flex');
 }
 
-// Processar o agendamento via AJAX
 document.getElementById('formAgenda').onsubmit = function(e) {
     e.preventDefault();
     const formData = new FormData(this);
@@ -581,12 +722,10 @@ document.getElementById('formAgenda').onsubmit = function(e) {
     .then(data => {
         if(data.success) {
             fecharAgendamento();
-            // Recarrega o calendário mantendo o mês/ano atual
             const dataSel = document.getElementById('input-data-evento').value.split('-');
             carregarCalendario(parseInt(dataSel[1]), parseInt(dataSel[0]));
             this.reset();
         } else {
-            // EXIBE O ERRO DE CONFLITO (Ex: Esta sala já está reservada...)
             alert(data.error); 
         }
     });
@@ -602,9 +741,7 @@ function excluirEvento(id, data) {
     .then(res => res.json())
     .then(dataRes => {
         if(dataRes.success) {
-            // Atualiza a lista lateral do modal
             abrirAgendamento(data);
-            // Atualiza o calendário ao fundo (bolinhas)
             const d = data.split('-');
             carregarCalendario(parseInt(d[1]), parseInt(d[0]));
         } else {
@@ -619,36 +756,27 @@ function toggleHoras(marcado) {
     const inputFim = document.querySelector('input[name="hora_fim"]');
     
     if (marcado) {
-        // Bloqueia visualmente mas preenche os valores padrão
         div.style.opacity = '0.5';
         div.style.pointerEvents = 'none';
-        
         inputInicio.value = '08:00';
         inputFim.value = '17:48';
-        
-        // Remove obrigatoriedade manual pois já preenchemos
         inputInicio.required = false;
         inputFim.required = false;
     } else {
-        // Libera para edição manual e limpa para o usuário escolher
         div.style.opacity = '1';
         div.style.pointerEvents = 'all';
-        
         inputInicio.value = '';
         inputFim.value = '';
-        
         inputInicio.required = true;
         inputFim.required = true;
     }
 }
 
 function prepararEdicao(evento) {
-    // 1. Preenche os campos do modal com os dados existentes
     document.getElementById('edit-id-evento').value = evento.id;
     document.getElementsByName('titulo')[0].value = evento.titulo;
     document.getElementsByName('local_sala')[0].value = evento.local_sala;
     
-    // 2. Trata horários
     if (evento.hora_inicio && evento.hora_fim) {
         document.getElementsByName('hora_inicio')[0].value = evento.hora_inicio;
         document.getElementsByName('hora_fim')[0].value = evento.hora_fim;
@@ -659,11 +787,9 @@ function prepararEdicao(evento) {
         toggleHoras(true);
     }
 
-    // 3. Muda o visual do botão
     document.getElementById('btn-confirmar').innerHTML = "Salvar Alterações 💾";
 }
 
-// No fecharAgendamento(), certifique-se de resetar o ID e o botão
 function fecharAgendamento() {
     document.getElementById('modalAgendamento').classList.add('hidden');
     document.getElementById('formAgenda').reset();
@@ -672,59 +798,37 @@ function fecharAgendamento() {
 }
 
 function atualizarPresenca() {
-        // Faz a chamada para o arquivo que criamos
-        fetch('lista_online.php')
-            .then(response => response.text())
-            .then(html => {
-                document.getElementById('painel-presenca').innerHTML = html;
-            })
-            .catch(err => console.warn('Erro ao carregar lista de presença.'));
-    }
-
-    // Carrega ao abrir a página
-    document.addEventListener('DOMContentLoaded', atualizarPresenca);
-
-    // Atualiza a cada 30 segundos (30000ms) para não sobrecarregar o servidor
-    setInterval(atualizarPresenca, 30000);
+    fetch('lista_online.php')
+        .then(response => response.text())
+        .then(html => { document.getElementById('painel-presenca').innerHTML = html; })
+        .catch(err => console.warn('Erro ao carregar lista de presença.'));
+}
+setInterval(atualizarPresenca, 30000);
 
 function toggleCurtida(comunicadoId, btnElement) {
     const fd = new FormData();
     fd.append('acao', 'curtir');
     fd.append('comunicado_id', comunicadoId);
 
-    fetch('api/feed_interacoes.php', {
-        method: 'POST',
-        body: fd
-    })
+    fetch('api/feed_interacoes.php', { method: 'POST', body: fd })
     .then(response => response.json())
     .then(data => {
         if(data.status === 'sucesso') {
-            // Atualiza o número na tela
             btnElement.querySelector('.contador-curtidas').innerText = data.total;
-            
-            // Troca o emoji do coração
-            if(data.acao === 'curtiu') {
-                btnElement.querySelector('.icone-coracao').innerText = '❤️';
-            } else {
-                btnElement.querySelector('.icone-coracao').innerText = '🤍';
-            }
+            btnElement.querySelector('.icone-coracao').innerText = data.acao === 'curtiu' ? '❤️' : '🤍';
         }
     })
     .catch(err => console.error('Erro ao curtir:', err));
 }
 
-// 1. Abre/Fecha a sessão de comentários
 function toggleComentarios(comunicadoId) {
     const divComentarios = document.getElementById(`comentarios-post-${comunicadoId}`);
     divComentarios.classList.toggle('hidden');
-
-    // Se acabou de abrir, busca os comentários no banco!
     if (!divComentarios.classList.contains('hidden')) {
         carregarComentarios(comunicadoId, divComentarios.querySelector('.lista-comentarios'));
     }
 }
 
-// 2. Busca e desenha os comentários na tela
 function carregarComentarios(comunicadoId, containerElement) {
     const fd = new FormData();
     fd.append('acao', 'listar_comentarios');
@@ -734,7 +838,6 @@ function carregarComentarios(comunicadoId, containerElement) {
     .then(res => res.json())
     .then(data => {
         if (data.status === 'sucesso') {
-            // Atualiza o contador de balões do post atual
             const postCard = containerElement.closest('.bg-white');
             postCard.querySelector('.contador-comentarios').innerText = data.comentarios.length;
 
@@ -743,7 +846,6 @@ function carregarComentarios(comunicadoId, containerElement) {
                 return;
             }
 
-            // Desenha os balões de cada pessoa
             containerElement.innerHTML = data.comentarios.map(c => `
                 <div class="bg-slate-50 rounded-2xl rounded-tl-none p-3 shadow-sm border border-slate-100">
                     <div class="flex justify-between items-center mb-1">
@@ -754,13 +856,11 @@ function carregarComentarios(comunicadoId, containerElement) {
                 </div>
             `).join('');
             
-            // Rola para o final da listinha se tiver muitos
             containerElement.scrollTop = containerElement.scrollHeight;
         }
     });
 }
 
-// 3. Manda um novo comentário pro banco
 function enviarComentario(e, comunicadoId, formElement) {
     e.preventDefault();
     const input = formElement.querySelector('input[name="texto_comentario"]');
@@ -772,7 +872,6 @@ function enviarComentario(e, comunicadoId, formElement) {
     fd.append('comunicado_id', comunicadoId);
     fd.append('comentario', texto);
 
-    // Trava o input enquanto envia
     input.value = ''; 
     input.disabled = true;
 
@@ -781,13 +880,33 @@ function enviarComentario(e, comunicadoId, formElement) {
     .then(data => {
         input.disabled = false;
         if (data.status === 'sucesso') {
-            // Se deu certo, recarrega a lista para mostrar o novo na hora!
             const container = document.getElementById(`comentarios-post-${comunicadoId}`).querySelector('.lista-comentarios');
             carregarComentarios(comunicadoId, container);
         }
     })
     .catch(() => input.disabled = false);
 }
+
+// MOTOR DE CRONÔMETROS MÚLTIPLOS (Para o Modal e para a Barra Lateral)
+setInterval(function() {
+    const agora = new Date().getTime();
+    
+    document.querySelectorAll('.cronometro-dinamico').forEach(el => {
+        const dataAlvo = new Date(el.getAttribute('data-virada')).getTime();
+        const distancia = dataAlvo - agora;
+
+        if (distancia < 0) {
+            el.innerHTML = "<div class='w-full text-emerald-400 font-black text-sm uppercase tracking-widest animate-pulse py-1 text-center'>IMPLANTADO! 🚀</div>";
+            el.classList.remove('cronometro-dinamico');
+            return;
+        }
+
+        el.querySelector('.c-dias').innerText = Math.floor(distancia / (1000 * 60 * 60 * 24)).toString().padStart(2, '0');
+        el.querySelector('.c-horas').innerText = Math.floor((distancia % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)).toString().padStart(2, '0');
+        el.querySelector('.c-mins').innerText = Math.floor((distancia % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
+        el.querySelector('.c-segs').innerText = Math.floor((distancia % (1000 * 60)) / 1000).toString().padStart(2, '0');
+    });
+}, 1000);
 
 </script>
 
