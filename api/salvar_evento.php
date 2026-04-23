@@ -18,6 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $titulo = htmlspecialchars($_POST['titulo'], ENT_QUOTES, 'UTF-8');
     $data = $_POST['data_evento'];
     $sala = $_POST['local_sala'] ?? 'GERAL';
+    $ip_acesso = $_SERVER['REMOTE_ADDR']; // Pega o IP
     
     $abertura = "08:00:00";
     $fechamento = "17:48:00";
@@ -72,12 +73,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     WHERE id = ? AND (usuario_id = ? OR ?)";
             $stmt = $pdo_intra->prepare($sql);
             $stmt->execute([$titulo, $h_inicio, $h_fim, $visibilidade, $sala, $id_evento, $usuario_id, (int)$isAdmin]);
+            
+            // 🚀 LOG DE EDIÇÃO DA AGENDA
+            registrarLog($pdo_intra, 'ALTEROU AGENDA', "Editou a reserva/evento ID $id_evento: $titulo na $sala.", $usuario_id, $ip_acesso);
         } else {
             // LÓGICA DE INSERT
             $sql = "INSERT INTO agenda_eventos (usuario_id, titulo, data_evento, hora_inicio, hora_fim, visibilidade, local_sala, categoria) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, 'EVENTO')";
             $stmt = $pdo_intra->prepare($sql);
             $stmt->execute([$usuario_id, $titulo, $data, $h_inicio, $h_fim, $visibilidade, $sala]);
+            
+            // 🚀 LOG DE CRIAÇÃO DA AGENDA
+            registrarLog($pdo_intra, 'CRIOU AGENDA', "Criou a reserva/evento: $titulo na $sala para o dia $data.", $usuario_id, $ip_acesso);
         }
         
         echo json_encode(['success' => true]);

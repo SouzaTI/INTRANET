@@ -315,61 +315,41 @@ if (empty($aniversariantes)) {
         </div>
 
         <?php 
-            // ARRAY AMPLIADO COM EXEMPLOS E GRUPOS
-            $exemplos = [
-                // GRUPO TI
-                ['nome' => 'T.I Central', 'cor' => 'bg-blue-600', 'icon' => '👨‍💻', 'subitens' => [
-                    ['nome' => 'Documentação', 'icon' => '📄', 'link' => '#'],
-                    ['nome' => 'Gestão de PCs', 'icon' => '💻', 'link' => '#'],
-                    ['nome' => 'Servidores', 'icon' => '🖥️', 'link' => '#'],
-                    ['nome' => 'Chamados TI', 'icon' => '🎫', 'link' => '#']
-                ]],
-                // ITENS INDIVIDUAIS
-                ['nome' => 'Portal RH', 'cor' => 'bg-emerald-500', 'icon' => '📂', 'link' => '#'],
-                ['nome' => 'Financeiro', 'cor' => 'bg-amber-500', 'icon' => '💰', 'link' => '#'],
-                ['nome' => 'Marketing', 'cor' => 'bg-pink-500', 'icon' => '🎨', 'link' => '#'],
-                ['nome' => 'Logística', 'cor' => 'bg-orange-500', 'icon' => '📦', 'link' => '#'],
-                ['nome' => 'Diretoria', 'cor' => 'bg-purple-500', 'icon' => '👔', 'link' => '#'],
-                ['nome' => 'Vendas', 'cor' => 'bg-red-500', 'icon' => '📉', 'link' => '#'],
-                ['nome' => 'Suporte', 'cor' => 'bg-cyan-500', 'icon' => '🎧', 'link' => '#'],
-                ['nome' => 'BI / Dash', 'cor' => 'bg-yellow-500', 'icon' => '📊', 'link' => '#'],
-                ['nome' => 'Expedição', 'cor' => 'bg-slate-500', 'icon' => '🚚', 'link' => '#'],
-                ['nome' => 'Jurídico', 'cor' => 'bg-indigo-700', 'icon' => '⚖️', 'link' => '#'],
-                ['nome' => 'Qualidade', 'cor' => 'bg-teal-600', 'icon' => '✅', 'link' => '#'],
-                ['nome' => 'Frota', 'cor' => 'bg-gray-700', 'icon' => '🚗', 'link' => '#'],
-                ['nome' => 'Compras', 'cor' => 'bg-blue-400', 'icon' => '🛒', 'link' => '#'],
-                ['nome' => 'Produção', 'cor' => 'bg-red-800', 'icon' => '🏗️', 'link' => '#'],
-                ['nome' => 'Estoque', 'cor' => 'bg-lime-600', 'icon' => '🏷️', 'link' => '#'],
-                ['nome' => 'E-commerce', 'cor' => 'bg-violet-600', 'icon' => '🌐', 'link' => '#'],
-                ['nome' => 'Treinamentos', 'cor' => 'bg-rose-500', 'icon' => '🎓', 'link' => '#'],
-            ];
+            // ==========================================
+            // O CÉREBRO DINÂMICO DOS SISTEMAS
+            // ==========================================
+            $sistemas_permitidos = [];
+            
+            if ($_SESSION['is_admin']) {
+                // Admin vê TODAS as bolinhas que foram criadas no Gestor
+                $stmt_sys = $pdo_intra->query("SELECT * FROM sistemas_lista ORDER BY nome");
+                $sistemas_permitidos = $stmt_sys->fetchAll(PDO::FETCH_ASSOC);
+            } else {
+                // Usuário comum: Só puxa as bolinhas que ele tem permissão VIP ou que o Grupo dele liberou
+                $stmt_sys = $pdo_intra->prepare("
+                    SELECT DISTINCT sl.* FROM sistemas_lista sl
+                    LEFT JOIN permissoes_sistemas ps ON sl.id = ps.sistema_id AND ps.user_id = ?
+                    LEFT JOIN grupos_sistemas gs ON sl.id = gs.sistema_id
+                    LEFT JOIN usuarios_grupos ug ON gs.grupo_id = ug.grupo_id AND ug.usuario_id = ?
+                    WHERE ps.user_id IS NOT NULL OR ug.usuario_id IS NOT NULL
+                    ORDER BY sl.nome
+                ");
+                $stmt_sys->execute([$_SESSION['user_id'], $_SESSION['user_id']]);
+                $sistemas_permitidos = $stmt_sys->fetchAll(PDO::FETCH_ASSOC);
+            }
         ?>
 
         <div id="gridSistemasPrincipal" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar-compact">
             
-            <?php foreach ($exemplos as $item): ?>
-                <?php if (isset($item['subitens'])): ?>
-                    <button onclick='abrirGrupoSistemas(<?php echo json_encode($item); ?>)' class="group flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-white/5 transition-all duration-300">
-                        <div class="w-14 h-14 rounded-full <?php echo $item['cor']; ?> flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 transition-all duration-300 relative">
-                            <?php echo $item['icon']; ?>
-                            <span class="absolute -right-1 -top-1 bg-white text-navy-900 text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">
-                                <?php echo count($item['subitens']); ?>
-                            </span>
-                        </div>
-                        <span class="mt-2 text-white/70 font-bold text-[9px] uppercase tracking-tighter text-center leading-tight group-hover:text-white">
-                            <?php echo $item['nome']; ?>
-                        </span>
-                    </button>
-                <?php else: ?>
-                    <a href="<?php echo $item['link'] ?? '#'; ?>" class="group flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-white/5 transition-all duration-300">
-                        <div class="w-14 h-14 rounded-full <?php echo $item['cor']; ?>/20 border border-<?php echo $item['cor']; ?>/30 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 group-hover:<?php echo $item['cor']; ?> group-hover:shadow-<?php echo $item['cor']; ?>/40 transition-all duration-300">
-                            <?php echo $item['icon']; ?>
-                        </div>
-                        <span class="mt-2 text-white/70 font-bold text-[9px] uppercase tracking-tighter text-center leading-tight group-hover:text-white">
-                            <?php echo $item['nome']; ?>
-                        </span>
-                    </a>
-                <?php endif; ?>
+            <?php foreach ($sistemas_permitidos as $sys): ?>
+                <a href="<?php echo htmlspecialchars($sys['url']); ?>" class="group flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-white/5 transition-all duration-300">
+                    <div class="w-14 h-14 rounded-full <?php echo $sys['cor']; ?>/20 border border-<?php echo $sys['cor']; ?>/30 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 group-hover:<?php echo str_replace('bg-', 'text-', $sys['cor']); ?> transition-all duration-300">
+                        <?php echo $sys['icone']; ?>
+                    </div>
+                    <span class="mt-2 text-white/70 font-bold text-[9px] uppercase tracking-tighter text-center leading-tight group-hover:text-white">
+                        <?php echo htmlspecialchars($sys['nome']); ?>
+                    </span>
+                </a>
             <?php endforeach; ?>
 
         </div>

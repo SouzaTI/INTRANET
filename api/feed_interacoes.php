@@ -16,9 +16,10 @@ if (!isset($_SESSION['user_id'])) {
 $acao = $_POST['acao'] ?? '';
 $user_id = $_SESSION['user_id'];
 $comunicado_id = (int)($_POST['comunicado_id'] ?? 0);
+$ip_acesso = $_SERVER['REMOTE_ADDR']; // Pega o IP de quem interagiu
 
 try {
-    // 1. LÓGICA DE CURTIR (Já estava funcionando)
+    // 1. LÓGICA DE CURTIR
     if ($acao === 'curtir' && $comunicado_id > 0) {
         $stmtCheck = $pdo_intra->prepare("SELECT id FROM feed_curtidas WHERE comunicado_id = ? AND user_id = ?");
         $stmtCheck->execute([$comunicado_id, $user_id]);
@@ -27,10 +28,16 @@ try {
             $stmtDel = $pdo_intra->prepare("DELETE FROM feed_curtidas WHERE comunicado_id = ? AND user_id = ?");
             $stmtDel->execute([$comunicado_id, $user_id]);
             $status_acao = 'descurtiu';
+            
+            // 🚀 LOG DE DESCURTIR
+            registrarLog($pdo_intra, 'INTERAÇÃO FEED', "Removeu a curtida do comunicado ID: $comunicado_id", $user_id, $ip_acesso);
         } else {
             $stmtIns = $pdo_intra->prepare("INSERT INTO feed_curtidas (comunicado_id, user_id) VALUES (?, ?)");
             $stmtIns->execute([$comunicado_id, $user_id]);
             $status_acao = 'curtiu';
+            
+            // 🚀 LOG DE CURTIR
+            registrarLog($pdo_intra, 'INTERAÇÃO FEED', "Curtiu o comunicado ID: $comunicado_id", $user_id, $ip_acesso);
         }
 
         $stmtCount = $pdo_intra->prepare("SELECT COUNT(*) as total FROM feed_curtidas WHERE comunicado_id = ?");
@@ -43,9 +50,8 @@ try {
         exit;
     }
     
-    // 2. LÓGICA DE LISTAR COMENTÁRIOS (NOVO)
+    // 2. LÓGICA DE LISTAR COMENTÁRIOS
     elseif ($acao === 'listar_comentarios' && $comunicado_id > 0) {
-        // Busca o comentário e cruza com o banco do GLPI para pegar NOME e SOBRENOME
         $sql = "SELECT c.comentario, DATE_FORMAT(c.data_hora, '%d/%m %H:%i') as data_hora, 
                 CONCAT_WS(' ', u.firstname, u.realname) as nome
                 FROM feed_comentarios c
@@ -63,13 +69,16 @@ try {
         exit;
     }
 
-    // 3. LÓGICA DE SALVAR COMENTÁRIO (NOVO)
+    // 3. LÓGICA DE SALVAR COMENTÁRIO
     elseif ($acao === 'comentar' && $comunicado_id > 0) {
         $texto = trim($_POST['comentario'] ?? '');
         
         if (!empty($texto)) {
             $stmt = $pdo_intra->prepare("INSERT INTO feed_comentarios (comunicado_id, user_id, comentario) VALUES (?, ?, ?)");
             $stmt->execute([$comunicado_id, $user_id, $texto]);
+            
+            // 🚀 LOG DE COMENTÁRIO
+            registrarLog($pdo_intra, 'INTERAÇÃO FEED', "Adicionou um comentário no comunicado ID: $comunicado_id", $user_id, $ip_acesso);
         }
         
         ob_clean();
