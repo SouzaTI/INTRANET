@@ -52,13 +52,21 @@ if (isset($_GET['path'])) {
             </ul>
         </div>
 
-        <?php if ($acesso_marketing): ?>
+        <?php 
+            $tem_permissao_feed = ($_SESSION['is_admin'] || ($_SESSION['pode_postar_feed'] ?? false) || $_SESSION['setor_principal'] == 'MARKETING');
+            if ($tem_permissao_feed): 
+        ?>
         <div>
             <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-3">Comunicação</p>
             <ul class="space-y-1">
                 <li>
                     <a href="admin_marketing.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'admin_marketing.php') ? 'bg-amber-500 text-white shadow-lg shadow-amber-900/20' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>">
                         <span>🎨</span> <span class="text-sm font-semibold">Gestão Marketing</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="admin_feed.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'admin_feed.php') ? 'bg-amber-500 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>">
+                        <span>📢</span> <span class="text-sm font-semibold">Gestão do Feed</span>
                     </a>
                 </li>
             </ul>
