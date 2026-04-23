@@ -58,10 +58,25 @@
 
             <section id="chat-feed" class="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50/50 custom-scrollbar scroll-smooth"></section>
 
-            <footer class="px-6 py-4 bg-white border-t border-slate-100">
+            <footer class="px-6 py-4 bg-white border-t border-slate-100 relative">
                 <form id="form-chat-navi" class="flex items-center gap-3">
+                    
+                    <div class="relative flex items-center">
+                        <button type="button" onclick="document.getElementById('emoji-picker-navi').classList.toggle('hidden')" class="p-2 text-slate-400 hover:text-amber-500 transition-all text-2xl hover:scale-110">
+                            😀
+                        </button>
+                        <div id="emoji-picker-navi" class="hidden absolute bottom-14 left-0 bg-white border border-slate-200 shadow-2xl rounded-2xl p-3 grid grid-cols-6 gap-2 z-50 w-64">
+                            <?php 
+                            $emojis = ['😀','😂','🥰','😎','🤔','👍','🙌','🔥','🎉','👀','🚨','✅','💼','💡','🚀','🎯','📝','📅'];
+                            foreach($emojis as $e): 
+                            ?>
+                                <button type="button" onclick="addEmojiNavi('<?= $e ?>')" class="hover:bg-slate-100 p-2 rounded-xl text-xl transition-colors"><?= $e ?></button>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+
                     <input type="text" id="input-chat-msg" autocomplete="off" placeholder="Digite uma mensagem..." class="flex-1 px-5 py-3 bg-slate-100 rounded-2xl text-sm border-none outline-none focus:ring-2 focus:ring-blue-500/20">
-                    <button type="submit" class="w-12 h-12 rounded-xl bg-navy-900 text-white flex items-center justify-center shadow-lg hover:bg-blue-600 transition-all active:scale-95">
+                    <button type="submit" class="w-12 h-12 rounded-xl bg-navy-900 text-white flex items-center justify-center shadow-lg hover:bg-blue-600 transition-all active:scale-95 shrink-0">
                         <svg class="w-5 h-5 rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
                     </button>
                 </form>
@@ -131,7 +146,7 @@ let destinoId = 1; // Começa no GERAL
 let tipoDestinoAtual = 'grupo'; // NOVO: Controla se a conversa é grupo ou 1x1
 let meuId = <?= $_SESSION['user_id'] ?>;
 let ultimoIdRecebido = 0;
-const somNotificacao = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
+const somNotificacao = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
 
 // 0. O PING SILENCIOSO (Avisa o banco que você leu a sala ou pessoa)
 function avisarLeituraBanco(destinoId, tipo = 'grupo') {
@@ -147,11 +162,26 @@ function avisarLeituraBanco(destinoId, tipo = 'grupo') {
     .catch(err => console.error(err));
 }
 
-// FILTRO DE BUSCA LATERAL
+const formatarDataLateral = (dataStr) => {
+    if (!dataStr) return '';
+    const p = dataStr.split(/[- :]/);
+    return p.length >= 5 ? p[2] + '/' + p[1] + ' ' + p[3] + ':' + p[4] : '';
+};
+
+// FILTRO DE BUSCA LATERAL (Agora revela os contatos escondidos ao pesquisar)
 function filtrarPessoasChat() {
     const termo = document.getElementById('busca-pessoas-chat').value.toLowerCase();
+    const containerOutros = document.getElementById('container-outros-contatos');
+
+    // Se digitou algo, revela os contatos ocultos. Se apagou, esconde de novo.
+    if (termo.trim() !== '') {
+        if(containerOutros) containerOutros.classList.remove('hidden');
+    } else {
+        if(containerOutros) containerOutros.classList.add('hidden');
+    }
+
     document.querySelectorAll('.chat-user-item').forEach(el => {
-        // Pega o nome do canal ou da pessoa e compara com o que foi digitado
+        // Pega o nome do canal ou da pessoa
         const nome = el.querySelector('p.truncate').innerText.toLowerCase();
         el.style.display = nome.includes(termo) ? 'flex' : 'none';
     });
@@ -165,9 +195,9 @@ function carregarListaGrupos() {
         const container = document.getElementById('lista-grupos-chat'); 
         if(!container) return;
         
-        // --- 1. RENDERIZA OS CANAIS ---
         let htmlLateral = '<div class="px-4 py-2 mt-1 text-[10px] font-black text-slate-400 uppercase tracking-widest">Canais</div>';
         
+        // --- 1. RENDERIZA OS CANAIS (SEMPRE VISÍVEIS) ---
         data.grupos.forEach(g => {
             const ativo = (g.id == destinoId && tipoDestinoAtual === 'grupo');
             const bolinha = g.nao_lidas > 0 
@@ -186,29 +216,53 @@ function carregarListaGrupos() {
             `;
         });
 
-        // --- 2. RENDERIZA AS PESSOAS (1x1) ---
-        htmlLateral += '<div class="px-4 py-2 mt-4 border-t border-slate-100/50 text-[10px] font-black text-slate-400 uppercase tracking-widest pt-4">Pessoas</div>';
-        
-        data.usuarios.forEach(u => {
-            const ativo = (u.id == destinoId && tipoDestinoAtual === 'usuario');
-            const bolinha = u.nao_lidas > 0 
-                ? `<span class="absolute top-1/2 -translate-y-1/2 right-3 w-5 h-5 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow-md animate-pulse">${u.nao_lidas}</span>` 
-                : '';
+        // --- 2. SEPARA QUEM TEM CONVERSA DE QUEM NÃO TEM ---
+        const conversasRecentes = data.usuarios.filter(u => u.ultima_msg !== null);
+        const outrosContatos = data.usuarios.filter(u => u.ultima_msg === null);
 
-            htmlLateral += `
-                <div onclick="selecionarChat(${u.id}, '${u.nome}', 'usuario')" class="chat-user-item ${ativo ? 'active' : ''}">
-                    <div class="w-10 h-10 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center font-black text-blue-600 shadow-inner text-sm shrink-0">${u.nome[0].toUpperCase()}</div>
-                    <div class="flex-1 pr-6 relative overflow-hidden">
-                        <p class="text-xs font-bold text-slate-700 capitalize truncate">${u.nome}</p>
-                        <p class="text-[9px] text-slate-400 uppercase tracking-widest truncate">Mensagem Direta</p>
+        // --- 3. RENDERIZA CONVERSAS RECENTES (SEMPRE VISÍVEIS) ---
+        if (conversasRecentes.length > 0) {
+            htmlLateral += '<div class="px-4 py-2 mt-4 border-t border-slate-100/50 text-[10px] font-black text-slate-400 uppercase tracking-widest pt-4">Conversas Recentes</div>';
+            conversasRecentes.forEach(u => {
+                const ativo = (u.id == destinoId && tipoDestinoAtual === 'usuario');
+                const bolinha = u.nao_lidas > 0 
+                    ? `<span class="absolute top-1/2 -translate-y-1/2 right-3 w-5 h-5 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow-md animate-pulse">${u.nao_lidas}</span>` 
+                    : '';
+
+                htmlLateral += `
+                    <div onclick="selecionarChat(${u.id}, '${u.nome}', 'usuario')" class="chat-user-item ${ativo ? 'active' : ''}">
+                        <div class="w-10 h-10 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center font-black text-blue-600 shadow-inner text-sm shrink-0">${u.nome[0].toUpperCase()}</div>
+                        <div class="flex-1 pr-6 relative overflow-hidden">
+                            <p class="text-xs font-bold text-slate-700 capitalize truncate">${u.nome}</p>
+                            <p class="text-[9px] text-blue-500 uppercase tracking-widest truncate font-bold">Última msg: ${formatarDataLateral(u.ultima_msg)}</p>
+                        </div>
+                        ${bolinha}
                     </div>
-                    ${bolinha}
-                </div>
-            `;
-        });
+                `;
+            });
+        }
+
+        // --- 4. RENDERIZA OS OUTROS (ESCONDIDOS POR PADRÃO, APARECEM NA BUSCA) ---
+        htmlLateral += `<div id="container-outros-contatos" class="hidden">`;
+        if (outrosContatos.length > 0) {
+            htmlLateral += '<div class="px-4 py-2 mt-4 border-t border-slate-100/50 text-[10px] font-black text-slate-400 uppercase tracking-widest pt-4">Outros Contatos</div>';
+            outrosContatos.forEach(u => {
+                const ativo = (u.id == destinoId && tipoDestinoAtual === 'usuario');
+                htmlLateral += `
+                    <div onclick="selecionarChat(${u.id}, '${u.nome}', 'usuario')" class="chat-user-item ${ativo ? 'active' : ''}">
+                        <div class="w-10 h-10 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center font-black text-slate-400 shadow-inner text-sm shrink-0">${u.nome[0].toUpperCase()}</div>
+                        <div class="flex-1 pr-6 relative overflow-hidden">
+                            <p class="text-xs font-bold text-slate-600 capitalize truncate">${u.nome}</p>
+                            <p class="text-[9px] text-slate-300 uppercase tracking-widest truncate">Iniciar conversa</p>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        htmlLateral += `</div>`;
 
         container.innerHTML = htmlLateral;
-        filtrarPessoasChat(); // REAPLICA O FILTRO PARA NÃO PERDER A BUSCA A CADA 5 SEGUNDOS
+        filtrarPessoasChat(); // Mantém o estado da pesquisa se a tela atualizar enquanto você digita
     }).catch(e => console.error("Erro na lista:", e));
 }
 
@@ -267,12 +321,17 @@ function renderizarBolha(m) {
     const souEu = (m.remetente_id == meuId);
     const bubble = document.createElement('div');
     
+    // A HORA CORRETA: O PHP já manda a variável "hora" formatada!
+    let horaFormatada = m.hora || "Agora";
+
     bubble.className = `flex flex-col ${souEu ? 'items-end' : 'items-start'} w-full mb-3 animate-in fade-in slide-in-from-bottom-2 duration-300`;
     bubble.innerHTML = `
-        ${!souEu ? `<span class="text-[9px] font-black text-slate-400 mb-1 ml-2 uppercase tracking-widest">${m.nome}</span>` : ''}
+        ${!souEu ? `<span class="text-[9px] font-black text-slate-400 mb-1 ml-2 uppercase tracking-widest">${m.nome || 'Equipe'}</span>` : ''}
         <div class="${souEu ? 'bg-blue-600 text-white rounded-[1.5rem] rounded-tr-none' : 'bg-slate-100 text-slate-700 border border-slate-200 rounded-[1.5rem] rounded-tl-none'} p-4 shadow-sm max-w-[85%]">
             <p class="text-xs font-medium leading-relaxed">${m.mensagem}</p>
-            <span class="text-[8px] opacity-50 block text-right mt-1 font-bold">${new Date(m.data_hora).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+            <span class="text-[9px] ${souEu ? 'text-blue-200' : 'text-slate-400'} block text-right mt-1 font-bold tracking-wider">
+                ${horaFormatada}
+            </span>
         </div>
     `;
     feed.appendChild(bubble);
@@ -403,6 +462,14 @@ function salvarMembros(e) {
         }
     })
     .catch(err => console.error("Erro na resposta do servidor:", err));
+}
+
+// Função do botão de Emoji
+function addEmojiNavi(emoji) {
+    const input = document.getElementById('input-chat-msg');
+    input.value += emoji;
+    input.focus();
+    document.getElementById('emoji-picker-navi').classList.add('hidden');
 }
 
 // INICIALIZAÇÃO ÚNICA (Sem loops concorrentes)

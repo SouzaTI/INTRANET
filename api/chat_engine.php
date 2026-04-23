@@ -102,19 +102,23 @@ try {
 
             $ids_escondidos = "2, 6, 9";
 
-            // 2. Traz os Usuários (Pessoas para o 1x1)
+            // 2. Traz os Usuários (Pessoas para o 1x1) com ordenação por Última Mensagem
             $sql_users = "SELECT u.id, CONCAT_WS(' ', u.firstname, u.realname) as nome,
                     (SELECT COUNT(m.id) FROM chat_mensagens m WHERE m.tipo = 'usuario' AND m.remetente_id = u.id AND m.destino_id = ?
                      AND m.data_hora > COALESCE((SELECT ultima_leitura FROM chat_leituras WHERE user_id = ? AND destino_id = u.id AND tipo = 'usuario'), '2000-01-01')
-                    ) AS nao_lidas
+                    ) AS nao_lidas,
+                    (SELECT MAX(data_hora) FROM chat_mensagens WHERE tipo = 'usuario' AND ((remetente_id = u.id AND destino_id = ?) OR (remetente_id = ? AND destino_id = u.id))) AS ultima_msg
                     FROM " . DB_GLPI . ".glpi_users u 
                     WHERE u.id != ? 
                     AND u.is_deleted = 0 
                     AND u.is_active = 1 
                     AND u.id NOT IN ($ids_escondidos)
-                    ORDER BY u.firstname ASC";
+                    ORDER BY ultima_msg DESC, u.firstname ASC";
+                    
             $stmtU = $pdo_intra->prepare($sql_users);
-            $stmtU->execute([$user_id, $user_id, $user_id]);
+            
+            // ATENÇÃO: Agora passamos a variável $user_id 5 vezes, pois adicionamos 2 novas perguntas (destino_id e remetente_id) no MAX(data_hora)
+            $stmtU->execute([$user_id, $user_id, $user_id, $user_id, $user_id]);
             $usuarios = $stmtU->fetchAll(PDO::FETCH_ASSOC);
 
             ob_clean();

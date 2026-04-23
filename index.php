@@ -175,11 +175,24 @@ if (empty($aniversariantes)) {
                                         <?php echo substr($com['categoria'], 0, 1); ?>
                                     </div>
                                     <div>
-                                        <p class="font-black text-navy-900 italic text-xs">Equipe de <?php echo $com['categoria']; ?> • <span class="text-slate-400 font-medium not-italic"><?php echo date('H', strtotime($com['data_postagem'])); ?>h atrás</span></p>
+                                        <p class="font-black text-navy-900 italic text-xs">
+                                            <?php 
+                                            // Inteligência para não escrever "Equipe de IMPORTANTE"
+                                            if (in_array($com['categoria'], ['IMPORTANTE', 'AVISO GERAL'])) {
+                                                echo "📢 Comunicado Oficial";
+                                            } else {
+                                                echo "Equipe de <span class='uppercase'>" . $com['categoria'] . "</span>";
+                                            }
+                                            ?> 
+                                            • <span class="text-slate-400 font-medium not-italic text-[10px]"><?php echo date('d/m H:i', strtotime($com['data_postagem'])); ?></span>
+                                        </p>
                                         <h4 class="text-lg font-black text-navy-900 tracking-tight leading-tight"><?php echo $com['titulo']; ?></h4>
                                     </div>
                                 </div>
-                                <span class="bg-blue-50 text-blue-600 text-[9px] font-black px-3 py-1 rounded-full uppercase">Importante</span>
+                                
+                                <span class="bg-slate-100 text-slate-500 border border-slate-200 text-[9px] font-black px-3 py-1 rounded-full uppercase">
+                                    <?php echo $com['categoria']; ?>
+                                </span>
                             </div>
                             <p class="text-slate-500 text-sm leading-relaxed mb-6"><?php echo $com['resumo']; ?></p>
                             <div class="pt-4 border-t border-slate-50">
