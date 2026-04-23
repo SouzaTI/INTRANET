@@ -4,6 +4,7 @@ require_once 'config.php';
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $user_login = $_POST['user'];
     $user_pass  = $_POST['pass'];
+    $ip_acesso = $_SERVER['REMOTE_ADDR']; // Pega o IP de quem está tentando logar
 
     // 1. Busca o usuário no banco do GLPI (Consulta Segura)
     $stmt = $pdo->prepare("SELECT id, password, firstname, realname FROM glpi_users WHERE name = ?");
@@ -16,19 +17,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $_SESSION['user_name'] = $user['firstname'] . " " . $user['realname'];
         
         // --- LOGICA DE PRESENÇA (ONLINE) ---
-        // Usamos o $pdo_intra para gravar na nossa tabela de controle
         $stmt_presenca = $pdo_intra->prepare("
             INSERT INTO controle_presenca (usuario_id, nome_usuario, status, ultima_atividade) 
             VALUES (?, ?, 'ONLINE', NOW()) 
             ON DUPLICATE KEY UPDATE status = 'ONLINE', ultima_atividade = NOW()
         ");
         $stmt_presenca->execute([$user['id'], $user['firstname']]);
-        // ------------------------------------
+        
+        // 🚀 REGISTRA LOG DE SUCESSO
+        registrarLog($pdo_intra, 'LOGIN', "Sessão iniciada com sucesso.", $user['id'], $ip_acesso);
 
         header("Location: index.php");
         exit;
     } else {
         $erro = "Usuário ou senha inválidos.";
+        
+        // 🚀 REGISTRA LOG DE FALHA (Tentativa de invasão/erro de senha)
+        registrarLog($pdo_intra, 'FALHA DE LOGIN', "Tentativa de acesso negada para o usuário: $user_login", 0, $ip_acesso);
     }
 }
 ?>

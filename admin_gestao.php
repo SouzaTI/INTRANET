@@ -2,10 +2,14 @@
 require_once 'config.php';
 
 // =====================================================================
-// 1. PROCESSAMENTO DE FORMULÁRIOS (Backend embutido)
+// 1. PROCESSAMENTO DE FORMULÁRIOS (Backend embutido com LOGS)
 // =====================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
     
+    // Pega os dados de quem está fazendo a alteração (O Administrador)
+    $admin_id = $_SESSION['user_id'] ?? 0;
+    $admin_ip = $_SERVER['REMOTE_ADDR'];
+
     // A. SALVAR USUÁRIO (Permissões Individuais e Grupos)
     if ($_POST['acao'] === 'salvar_usuario') {
         $uid = $_POST['user_id'];
@@ -37,6 +41,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             foreach ($_POST['pastas'] as $pasta) { $stmt_p->execute([$uid, $pasta]); }
         }
         
+        // 🚀 REGISTRA O LOG DA AÇÃO
+        registrarLog($pdo_intra, 'ALTEROU ACESSOS', "Modificou a matriz de permissões/grupos do usuário ID: $uid", $admin_id, $admin_ip);
+        
         $msg_sucesso = "✅ Permissões do usuário atualizadas com sucesso!";
     }
 
@@ -54,10 +61,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $sql = "INSERT INTO grupos_intranet (nome, is_admin, pode_gerenciar_docs, pode_postar_feed, pode_gerenciar_acessos) VALUES (?, ?, ?, ?, ?)";
             $pdo_intra->prepare($sql)->execute([$nome, $g_admin, $g_docs, $g_feed, $g_aces]);
             $gid = $pdo_intra->lastInsertId();
+            registrarLog($pdo_intra, 'CRIOU GRUPO', "Criou o novo grupo de acessos: $nome", $admin_id, $admin_ip);
         } else {
             // Edita Grupo
             $sql = "UPDATE grupos_intranet SET nome = ?, is_admin = ?, pode_gerenciar_docs = ?, pode_postar_feed = ?, pode_gerenciar_acessos = ? WHERE id = ?";
             $pdo_intra->prepare($sql)->execute([$nome, $g_admin, $g_docs, $g_feed, $g_aces, $gid]);
+            registrarLog($pdo_intra, 'EDITOU GRUPO', "Alterou as regras do grupo: $nome", $admin_id, $admin_ip);
         }
 
         // Salva as pastas do grupo
@@ -76,6 +85,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
         $pdo_intra->prepare("DELETE FROM grupos_intranet WHERE id = ?")->execute([$gid]);
         $pdo_intra->prepare("DELETE FROM grupos_pastas WHERE grupo_id = ?")->execute([$gid]);
         $pdo_intra->prepare("DELETE FROM usuarios_grupos WHERE grupo_id = ?")->execute([$gid]);
+        
+        registrarLog($pdo_intra, 'EXCLUIU GRUPO', "Deletou o grupo de ID: $gid e todas as suas dependências", $admin_id, $admin_ip);
+        
         $msg_sucesso = "🗑️ Grupo excluído com sucesso!";
     }
 }
