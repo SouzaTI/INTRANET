@@ -7,7 +7,7 @@ $nome_exibicao = "Usuário";
 $iniciais = "??";
 
 if (isset($_SESSION['user_id'])) {
-    // 1. Busca Dados no GLPI
+    // 1. Busca Dados Básicos no GLPI
     $stmt = $pdo_glpi->prepare("
         SELECT u.firstname, u.realname, l.name as setor, GROUP_CONCAT(p.id) as perfis_ids
         FROM glpi_users u 
@@ -24,35 +24,76 @@ if (isset($_SESSION['user_id'])) {
         $primeiro_nome = $user_data['firstname'] ?: 'Usuário';
         $sobrenome = $user_data['realname'] ?: '';
         
-        // Define o nome completo para exibição e para o banco de dados
         $nome_exibicao = trim($primeiro_nome . " " . $sobrenome);
-        
-        // Define as iniciais (Primeira letra do nome + Primeira letra do sobrenome)
         $iniciais = strtoupper(substr($primeiro_nome, 0, 1) . substr($sobrenome, 0, 1));
         
         $_SESSION['user_name'] = $nome_exibicao;
         $_SESSION['setor_principal'] = strtoupper($user_data['setor'] ?? 'GERAL');
         
-        // --- 2. LÓGICA DE ADMIN E GESTÃO ---
         $meus_perfis = explode(',', $user_data['perfis_ids'] ?? '');
+        $is_glpi_admin = in_array('4', $meus_perfis); // Se ele for Super-Admin no GLPI
+
+        // =========================================================================
+        // 🛡️ 2. O NOVO CÉREBRO DE PERMISSÕES (RBAC - Híbrido)
+        // =========================================================================
         
-        $stmt_intra = $pdo_intra->prepare("SELECT is_admin, pode_gerenciar_docs FROM usuarios_config WHERE user_id = ?");
-        $stmt_intra->execute([$_SESSION['user_id']]);
-        $config_intra = $stmt_intra->fetch();
+        // A. Busca as permissões EXCLUSIVAS do usuário
+        $stmt_indiv = $pdo_intra->prepare("SELECT * FROM usuarios_permissoes WHERE usuario_id = ?");
+        $stmt_indiv->execute([$_SESSION['user_id']]);
+        $perm_indiv = $stmt_indiv->fetch(PDO::FETCH_ASSOC) ?: [];
 
-        $is_intra_admin = (bool)($config_intra['is_admin'] ?? false);
-        $pode_docs_local = (bool)($config_intra['pode_gerenciar_docs'] ?? false);
+        // B. Busca as permissões HERDADAS de todos os grupos que ele participa
+        $stmt_grupo = $pdo_intra->prepare("
+            SELECT 
+                MAX(g.is_admin) as g_admin, 
+                MAX(g.pode_gerenciar_docs) as g_docs, 
+                MAX(g.pode_postar_feed) as g_feed, 
+                MAX(g.pode_gerenciar_acessos) as g_acessos
+            FROM usuarios_grupos ug
+            JOIN grupos_intranet g ON ug.grupo_id = g.id
+            WHERE ug.usuario_id = ?
+        ");
+        $stmt_grupo->execute([$_SESSION['user_id']]);
+        $perm_grupo = $stmt_grupo->fetch(PDO::FETCH_ASSOC) ?: [];
 
-        $_SESSION['is_admin'] = ($is_intra_admin || in_array('4', $meus_perfis));
-        $_SESSION['pode_gerenciar_docs'] = ($_SESSION['is_admin'] || $pode_docs_local);
+        // C. A Matemática Final (Individual OU Grupo)
+        $is_intra_admin = !empty($perm_indiv['is_admin']) || !empty($perm_grupo['g_admin']);
+        $pode_docs      = !empty($perm_indiv['pode_gerenciar_docs']) || !empty($perm_grupo['g_docs']);
+        $pode_feed      = !empty($perm_indiv['pode_postar_feed']) || !empty($perm_grupo['g_feed']);
+        $pode_acessos   = !empty($perm_indiv['pode_gerenciar_acessos']) || !empty($perm_grupo['g_acessos']);
 
-        // 3. Pastas Extras
-        $stmt_extras = $pdo_intra->prepare("SELECT pasta_nome FROM permissoes_pastas WHERE user_id = ?");
-        $stmt_extras->execute([$_SESSION['user_id']]);
-        $_SESSION['pastas_extras'] = $stmt_extras->fetchAll(PDO::FETCH_COLUMN);
+        // D. Guarda no crachá (Sessão)
+        $_SESSION['is_admin']               = ($is_intra_admin || $is_glpi_admin);
+        $_SESSION['pode_gerenciar_docs']    = ($_SESSION['is_admin'] || $pode_docs);
+        $_SESSION['pode_postar_feed']       = ($_SESSION['is_admin'] || $pode_feed);
+        $_SESSION['pode_gerenciar_acessos'] = ($_SESSION['is_admin'] || $pode_acessos);
 
-        // --- NOVA LÓGICA DE PRESENÇA (Update Silencioso) ---
-        // Aqui usamos o $nome_exibicao para gravar nome e sobrenome na lista online
+        // =========================================================================
+        // 📂 3. MATRIZ DE PASTAS E SETORES
+        // =========================================================================
+        
+        // Pastas dadas pessoa por pessoa (A tabela antiga)
+        $stmt_extras_indiv = $pdo_intra->prepare("SELECT pasta_nome FROM permissoes_pastas WHERE user_id = ?");
+        $stmt_extras_indiv->execute([$_SESSION['user_id']]);
+        $pastas_indiv = $stmt_extras_indiv->fetchAll(PDO::FETCH_COLUMN);
+
+        // Pastas liberadas pelos grupos que ele participa
+        $stmt_extras_grupo = $pdo_intra->prepare("
+            SELECT gp.pasta_nome 
+            FROM usuarios_grupos ug
+            JOIN grupos_pastas gp ON ug.grupo_id = gp.grupo_id
+            WHERE ug.usuario_id = ?
+        ");
+        $stmt_extras_grupo->execute([$_SESSION['user_id']]);
+        $pastas_grupo = $stmt_extras_grupo->fetchAll(PDO::FETCH_COLUMN);
+
+        // Junta as pastas dele com as pastas do grupo, remove repetições, e salva!
+        $todas_pastas = array_unique(array_merge($pastas_indiv, $pastas_grupo));
+        $_SESSION['pastas_extras'] = array_map('strtoupper', $todas_pastas);
+
+        // =========================================================================
+        // 4. LÓGICA DE PRESENÇA
+        // =========================================================================
         $stmt_p = $pdo_intra->prepare("
             INSERT INTO controle_presenca (usuario_id, nome_usuario, status, ultima_atividade) 
             VALUES (?, ?, 'ONLINE', NOW()) 
@@ -163,9 +204,6 @@ if (isset($_SESSION['user_id'])) {
             
             container.insertAdjacentHTML('beforeend', toastHTML);
             
-            // Som de notificação (opcional - remova se não quiser áudio)
-            // new Audio('assets/sounds/notify.mp3').play().catch(() => {});
-
             setTimeout(() => {
                 const el = document.getElementById(id);
                 if(el) {
@@ -187,8 +225,6 @@ if (isset($_SESSION['user_id'])) {
                     });
                 });
         }
-
-        // Verifica a cada 10 segundos
         setInterval(monitorarLogins, 10000);
         </script>
 
