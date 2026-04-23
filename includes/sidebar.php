@@ -19,10 +19,17 @@ sort($setores_disponiveis);
 
 // Verifica se o usuário tem acesso ao Marketing (Admin ou Setor Marketing)
 $acesso_marketing = ($_SESSION['is_admin'] || $_SESSION['setor_principal'] == 'MARKETING');
+
+// Descobre a pasta atual que está sendo visualizada para manter a sanfona aberta
+$pasta_url_atual = '';
+if (isset($_GET['path'])) {
+    $partes_path = explode('/', urldecode($_GET['path']));
+    $pasta_url_atual = strtoupper($partes_path[0]);
+}
 ?>
 
 <aside class="w-64 bg-navy-900 flex flex-col h-full border-r border-navy-700 transition-all duration-300">
-    <nav class="flex-1 px-4 py-6 space-y-8 overflow-y-auto">
+    <nav class="flex-1 px-4 py-6 space-y-8 overflow-y-auto custom-scrollbar">
         
         <div>
             <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-3">Menu Principal</p>
@@ -74,13 +81,15 @@ $acesso_marketing = ($_SESSION['is_admin'] || $_SESSION['setor_principal'] == 'M
                            (isset($_SESSION['pastas_extras']) && in_array($setor, $_SESSION['pastas_extras'])));
 
             if ($tem_acesso):
-                // AJUSTE DE CAMINHO: Tenta localizar a pasta docs na raiz do projeto
                 $diretorio_base = $_SERVER['DOCUMENT_ROOT'] . '/intranet/docs/'; 
                 $diretorio_setor = $diretorio_base . $setor;
                 
-                // Busca apenas arquivos .md
-                $arquivos_md = glob($diretorio_setor . '/*.md');
+                // CORREÇÃO 1: Agora busca arquivos .md E .pdf
+                $arquivos_docs = glob($diretorio_setor . '/*.{md,pdf}', GLOB_BRACE);
                 $id_setor_limpo = str_replace([' ', '&', '.'], '_', $setor);
+                
+                // Verifica se esta é a pasta que o usuário está visualizando agora para manter a sanfona aberta
+                $is_this_open = ($pasta_url_atual === $setor);
         ?>
             <li class="group">
                 <div class="flex items-center justify-between py-1 px-2 rounded hover:bg-navy-800 transition-all">
@@ -90,24 +99,29 @@ $acesso_marketing = ($_SESSION['is_admin'] || $_SESSION['setor_principal'] == 'M
                     
                     <button onclick="event.preventDefault(); event.stopPropagation(); toggleSetor('sub_<?php echo $id_setor_limpo; ?>', 'arrow_<?php echo $id_setor_limpo; ?>')" 
                             class="p-1 text-slate-600 hover:text-white transition-all">
-                        <span id="arrow_<?php echo $id_setor_limpo; ?>" class="text-[8px] transition-transform block">▶</span>
+                        <span id="arrow_<?php echo $id_setor_limpo; ?>" class="text-[8px] transition-transform block" style="transform: <?php echo $is_this_open ? 'rotate(90deg)' : 'rotate(0deg)'; ?>">▶</span>
                     </button>
                 </div>
 
-                <ul id="sub_<?php echo $id_setor_limpo; ?>" class="hidden pl-4 border-l border-slate-700 space-y-1 my-1">
+                <ul id="sub_<?php echo $id_setor_limpo; ?>" class="<?php echo $is_this_open ? '' : 'hidden'; ?> pl-4 border-l border-slate-700 space-y-1 my-1">
                     <?php 
-                    if (!$arquivos_md || empty($arquivos_md)): 
+                    if (!$arquivos_docs || empty($arquivos_docs)): 
                     ?>
                         <li class="text-[10px] text-slate-600 italic py-1">Nenhum documento</li>
                     <?php 
                     else: 
-                        foreach ($arquivos_md as $arq): 
-                            $nome_doc = basename($arq, '.md');
+                        foreach ($arquivos_docs as $arq): 
+                            $ext = strtolower(pathinfo($arq, PATHINFO_EXTENSION));
+                            $nome_doc = str_replace(['.md', '.pdf'], '', basename($arq));
+                            $icone = ($ext == 'pdf') ? '📕' : '📄';
+                            
+                            // CORREÇÃO 2: Passa o caminho completo do arquivo para o view.php!
+                            $caminho_completo = $setor . '/' . basename($arq);
                     ?>
                         <li>
-                            <a href="view.php?path=<?php echo urlencode($setor); ?>&file=<?php echo urlencode(basename($arq)); ?>" 
-                               class="block py-1 text-[10px] text-slate-500 hover:text-blue-400 transition-all truncate">
-                                📄 <?php echo str_replace('_', ' ', $nome_doc); ?>
+                            <a href="view.php?path=<?php echo urlencode($caminho_completo); ?>" 
+                               class="block py-1 text-[10px] text-slate-500 hover:text-blue-400 transition-all truncate" title="<?php echo $nome_doc; ?>">
+                                <?php echo $icone; ?> <?php echo str_replace('_', ' ', $nome_doc); ?>
                             </a>
                         </li>
                     <?php 
@@ -176,5 +190,4 @@ function toggleSetor(id, arrowId) {
         arrow.style.transform = 'rotate(90deg)';
     }
 }
-
 </script>
