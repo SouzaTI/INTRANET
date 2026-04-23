@@ -36,7 +36,6 @@ if (isset($_GET['excluir_img'])) {
     if (file_exists($caminho) && strpos($caminho, 'img') !== false) {
         $nome_img_log = basename($caminho);
         unlink($caminho);
-        // Registro de Auditoria
         registrarLog($pdo_intra, 'EXCLUIR MÍDIA', "Usuário $user_name removeu a imagem: $nome_img_log da biblioteca", $user_id, $ip_address);
         $mensagem = "🗑️ Imagem removida da biblioteca!";
     }
@@ -50,7 +49,6 @@ if (isset($_GET['acao']) && $_GET['acao'] == 'renomear') {
     
     if (file_exists($antigo) && !file_exists($novo)) {
         rename($antigo, $novo);
-        // Registro de Auditoria
         registrarLog($pdo_intra, 'RENOMEAR MÍDIA', "Usuário $user_name renomeou $antigo_nome para $novo_nome", $user_id, $ip_address);
         header("Location: admin_docs.php?msg=Arquivo renomeado!");
         exit;
@@ -71,7 +69,7 @@ if (isset($_GET['editar'])) {
     }
 }
 
-// --- 2. LÓGICA: SALVAR OU CRIAR ARQUIVO .MD (COM RASTREABILIDADE) ---
+// --- 2. LÓGICA: SALVAR OU CRIAR ARQUIVO .MD ---
 if (isset($_POST['salvar_documento'])) {
     $setor = $_POST['setor_destino'];
     $nome_arquivo = trim($_POST['nome_arquivo']);
@@ -81,7 +79,6 @@ if (isset($_POST['salvar_documento'])) {
     $caminho = $diretorio_docs . $setor . '/' . $nome_arquivo;
 
     if (file_put_contents($caminho, $conteudo)) {
-        // Registro de Auditoria
         $acao_log = isset($_GET['editar']) ? 'EDITAR DOC' : 'CRIAR DOC';
         registrarLog($pdo_intra, $acao_log, "Usuário $user_name salvou o documento: $nome_arquivo no setor $setor", $user_id, $ip_address);
         
@@ -94,24 +91,41 @@ if (isset($_POST['salvar_documento'])) {
     }
 }
 
-// --- 3. LÓGICA: CRIAR NOVA PASTA (COM RASTREABILIDADE) ---
+// --- 3. LÓGICA: UPLOAD DE PDF DIRETO ---
+if (isset($_FILES['arquivo_pdf']) && isset($_POST['setor_pdf'])) {
+    $setor = $_POST['setor_pdf'];
+    $nome_pdf = $_FILES['arquivo_pdf']['name'];
+    $ext = strtolower(pathinfo($nome_pdf, PATHINFO_EXTENSION));
+
+    if ($ext === 'pdf') {
+        $caminho_destino = $diretorio_docs . $setor . '/' . $nome_pdf;
+        if (move_uploaded_file($_FILES['arquivo_pdf']['tmp_name'], $caminho_destino)) {
+            registrarLog($pdo_intra, 'UPLOAD PDF', "Usuário $user_name importou o PDF: $nome_pdf para o setor $setor", $user_id, $ip_address);
+            $mensagem = "📄 Arquivo PDF '$nome_pdf' importado com sucesso para a pasta $setor!";
+        } else {
+            $mensagem = "❌ Erro ao mover o PDF.";
+        }
+    } else {
+        $mensagem = "❌ ERRO: Apenas arquivos .pdf são aceitos neste campo!";
+    }
+}
+
+// --- 4. LÓGICA: CRIAR NOVA PASTA ---
 if (isset($_POST['nova_pasta']) && !empty($_POST['nome_pasta'])) {
     $nova = strtoupper(trim($_POST['nome_pasta']));
     if (!is_dir($diretorio_docs . $nova)) {
         mkdir($diretorio_docs . $nova, 0777, true);
-        // Registro de Auditoria
         registrarLog($pdo_intra, 'CRIAR PASTA', "Usuário $user_name criou o setor: $nova", $user_id, $ip_address);
         $mensagem = "✅ Pasta '$nova' criada!";
     }
 }
 
-// --- 4. LÓGICA: UPLOAD DE IMAGEM (VIA FORM OU AJAX COM RASTREABILIDADE) ---
+// --- 5. LÓGICA: UPLOAD DE IMAGEM ---
 if (isset($_FILES['arquivo_img'])) {
     $nome = $_FILES['arquivo_img']['name'];
     $nome = str_replace(['..', ' '], ['.', '_'], $nome);
     
     if (move_uploaded_file($_FILES['arquivo_img']['tmp_name'], $diretorio_img . $nome)) {
-        // Registro de Auditoria
         registrarLog($pdo_intra, 'UPLOAD MÍDIA', "Usuário $user_name subiu a imagem: $nome", $user_id, $ip_address);
         
         if(isset($_POST['ajax_upload'])) { echo "success"; exit; }
@@ -119,7 +133,7 @@ if (isset($_FILES['arquivo_img'])) {
     }
 }
 
-// Listagem de pastas e imagens para uso no HTML e no Modal
+// Listagem de pastas e imagens
 $pastas = array_filter(glob($diretorio_docs . '*'), 'is_dir');
 $imagens_biblioteca = array_filter(glob($diretorio_img . '*'), 'is_file');
 usort($pastas, function($a, $b) { return strcasecmp($a, $b); });
@@ -178,23 +192,35 @@ usort($pastas, function($a, $b) { return strcasecmp($a, $b); });
         <div class="lg:col-span-2 space-y-4">
             <section class="bg-white p-5 rounded-3xl shadow-sm border border-slate-200">
                 <h3 class="text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest">Documentos Atuais</h3>
-                <div class="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                <div class="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                     <?php foreach($pastas as $p): 
                         $nome_setor = basename($p);
-                        $arquivos = glob($p . '/*.md');
+                        // Agora busca arquivos .md E .pdf
+                        $arquivos = glob($p . '/*.{md,pdf}', GLOB_BRACE);
                     ?>
                         <div>
                             <p class="text-[9px] font-black text-blue-600 uppercase mb-1 bg-blue-50 px-2 py-0.5 rounded inline-block"><?= $nome_setor ?></p>
                             <ul class="space-y-1 ml-1 border-l-2 border-slate-50 pl-3">
                                 <?php foreach($arquivos as $arq): 
                                     $nome_arq = basename($arq);
-                                    $link_edit = "admin_docs.php?editar=" . base64_encode($arq);
-                                    $estilo_link = ($nome_arq == $nome_editar) ? 'text-blue-700 font-bold bg-slate-100' : 'text-slate-500 hover:text-blue-600';
+                                    $ext = strtolower(pathinfo($nome_arq, PATHINFO_EXTENSION));
+                                    $link_del = "admin_docs.php?excluir_arq=" . base64_encode($arq);
+                                    
+                                    if ($ext == 'md') {
+                                        $link_edit = "admin_docs.php?editar=" . base64_encode($arq);
+                                        $icone = "📝";
+                                        $estilo_link = ($nome_arq == $nome_editar) ? 'text-blue-700 font-bold bg-slate-100' : 'text-slate-500 hover:text-blue-600';
+                                    } else {
+                                        $link_edit = "#"; // Não editamos PDF no código
+                                        $icone = "📄";
+                                        $estilo_link = "text-red-500 opacity-70 hover:opacity-100";
+                                    }
                                 ?>
                                     <li class="flex justify-between items-center group">
-                                        <a href="<?= $link_edit ?>" class="text-[10px] block py-1 transition-all rounded px-1 <?= $estilo_link ?>">
-                                            📄 <?= $nome_arq ?>
+                                        <a href="<?= $link_edit ?>" class="text-[10px] truncate block py-1 transition-all rounded px-1 flex-1 <?= $estilo_link ?>" title="<?= $nome_arq ?>">
+                                            <?= $icone ?> <?= $nome_arq ?>
                                         </a>
+                                        <a href="<?= $link_del ?>" onclick="return confirm('Deseja excluir o arquivo <?= $nome_arq ?> definitivamente?')" class="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded shadow-sm opacity-0 group-hover:opacity-100 transition-opacity" title="Excluir">🗑️</a>
                                     </li>
                                 <?php endforeach; ?>
                             </ul>
@@ -204,9 +230,20 @@ usort($pastas, function($a, $b) { return strcasecmp($a, $b); });
             </section>
 
             <section class="bg-white p-5 rounded-3xl shadow-sm border border-slate-200">
+                <h3 class="text-[10px] font-black text-red-500 uppercase mb-3 tracking-widest flex items-center gap-2">📄 Importar PDF</h3>
+                <form method="POST" enctype="multipart/form-data" class="space-y-3">
+                    <select name="setor_pdf" class="w-full bg-slate-50 border border-slate-200 p-2 rounded-xl text-xs font-bold uppercase outline-none focus:ring-2 focus:ring-red-500">
+                        <?php foreach($pastas as $p): $n = basename($p); echo "<option value='$n'>$n</option>"; endforeach; ?>
+                    </select>
+                    <input type="file" name="arquivo_pdf" accept="application/pdf" required class="w-full text-[10px] file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-red-50 file:text-red-600 hover:file:bg-red-100 cursor-pointer">
+                    <button type="submit" class="w-full bg-red-600 text-white px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:bg-red-700 transition-all">Subir PDF ⬆️</button>
+                </form>
+            </section>
+
+            <section class="bg-white p-5 rounded-3xl shadow-sm border border-slate-200">
                 <h3 class="text-[10px] font-black text-slate-400 uppercase mb-3 tracking-widest">Novo Setor</h3>
                 <form method="POST" class="flex gap-2">
-                    <input type="text" name="nome_pasta" placeholder="Ex: TI" class="flex-1 bg-slate-50 border border-slate-200 p-2 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase">
+                    <input type="text" name="nome_pasta" placeholder="Ex: RH" required class="flex-1 bg-slate-50 border border-slate-200 p-2 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase">
                     <button name="nova_pasta" class="bg-slate-900 text-white px-4 rounded-xl font-bold">+</button>
                 </form>
             </section>
@@ -254,7 +291,7 @@ usort($pastas, function($a, $b) { return strcasecmp($a, $b); });
                 <input type="hidden" id="user_sessao" value="<?= $user_name ?>">
 
                 <button type="submit" name="salvar_documento" class="w-full bg-blue-600 text-white py-5 rounded-3xl font-black text-xs tracking-[0.2em] uppercase shadow-xl hover:bg-blue-700 hover:scale-[1.005] transition-all flex items-center justify-center gap-3">
-                    Publicar Documentação Agora 🚀
+                    Publicar Documentação Markdown Agora 🚀
                 </button>
             </form>
         </div>
@@ -280,10 +317,6 @@ usort($pastas, function($a, $b) { return strcasecmp($a, $b); });
                     </label>
                     <div id="upload_status" class="hidden text-center text-[10px] font-black text-emerald-500 uppercase italic animate-pulse">Sincronizando arquivo...</div>
                 </form>
-                <div class="p-6 bg-slate-50 rounded-3xl border border-slate-100 text-[10px] text-slate-400 leading-relaxed font-medium">
-                    <b class="text-slate-600 block mb-1 uppercase">Dica:</b>
-                    Ao clicar em "Inserir" na lista ao lado, o código Markdown será injetado exatamente onde está o cursor do seu editor.
-                </div>
             </div>
 
             <div class="md:col-span-8 space-y-4">
@@ -335,7 +368,6 @@ usort($pastas, function($a, $b) { return strcasecmp($a, $b); });
         const rawText = document.getElementById('editor_md').value;
         const nomeArq = document.getElementById('nome_arquivo').value;
         
-        // Se tem nome, salva específico. Se não, salva no rascunho temporário.
         const chave = nomeArq ? 'rascunho_navi_' + nomeArq : 'rascunho_navi_novo';
         localStorage.setItem(chave, rawText);
 
@@ -348,7 +380,6 @@ usort($pastas, function($a, $b) { return strcasecmp($a, $b); });
 
     window.onload = function() {
         const nomeArq = document.getElementById('nome_arquivo').value;
-        // Tenta carregar rascunho específico ou o temporário de "novo"
         const chave = nomeArq ? 'rascunho_navi_' + nomeArq : 'rascunho_navi_novo';
         const salvo = localStorage.getItem(chave);
         
@@ -358,27 +389,20 @@ usort($pastas, function($a, $b) { return strcasecmp($a, $b); });
         atualizarPreview();
     };
 
-    // ==========================================
-    // CÃO DE GUARDA (Bloqueia F5 ou Fechar a Aba)
-    // ==========================================
-    let intencaoDeSalvar = false; // Variável de controle
+    let intencaoDeSalvar = false; 
 
     window.addEventListener('beforeunload', function (e) {
         const conteudo = document.getElementById('editor_md').value.trim();
-        
-        // Só exibe o alerta se a pessoa digitou algo E não clicou no botão "Salvar"
         if (conteudo.length > 0 && !intencaoDeSalvar) {
             e.preventDefault();
-            e.returnValue = ''; // Padrão do navegador para exibir a caixa "Tem certeza que deseja sair?"
+            e.returnValue = ''; 
         }
     });
 
-    // Quando clicar no botão "Publicar", liberamos o cão de guarda para a página carregar
     document.getElementById('form_principal').addEventListener('submit', function() {
         intencaoDeSalvar = true; 
     });
 
-    // LIMPEZA AUTOMÁTICA APÓS SALVAR [Pilastra da Lógica]
     <?php if ($mensagem && strpos($mensagem, '✅') !== false): ?>
         const nomeAtual = document.getElementById('nome_arquivo').value;
         localStorage.removeItem('rascunho_navi_' + nomeAtual);
