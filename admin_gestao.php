@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             foreach ($_POST['pastas'] as $pasta) { $stmt_p->execute([$uid, $pasta]); }
         }
 
-        // NOVO: SALVA AS BOLINHAS PERMITIDAS PARA O USUÁRIO
+        // SALVA AS BOLINHAS PERMITIDAS PARA O USUÁRIO
         $pdo_intra->prepare("DELETE FROM permissoes_sistemas WHERE user_id = ?")->execute([$uid]);
         if (!empty($_POST['sistemas'])) {
             $stmt_s = $pdo_intra->prepare("INSERT INTO permissoes_sistemas (user_id, sistema_id) VALUES (?, ?)");
@@ -51,11 +51,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
     // B. SALVAR GRUPO
     if ($_POST['acao'] === 'salvar_grupo') {
         $gid = $_POST['grupo_id'];
-        $nome = trim($_POST['nome_grupo']);
+        $nome = strtoupper(trim($_POST['nome_grupo'])); 
+
         $g_admin = isset($_POST['g_admin']) ? 1 : 0;
         $g_docs  = isset($_POST['g_docs']) ? 1 : 0;
         $g_feed  = isset($_POST['g_feed']) ? 1 : 0;
-        $g_aces  = isset($_POST['g_acessos']) ? 1 : 0;
+        $g_aces  = isset($_POST['g_acessos']) ? 1 : 0; 
 
         if (empty($gid)) {
             $sql = "INSERT INTO grupos_intranet (nome, is_admin, pode_gerenciar_docs, pode_postar_feed, pode_gerenciar_acessos) VALUES (?, ?, ?, ?, ?)";
@@ -74,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             foreach ($_POST['pastas_grupo'] as $pasta) { $stmt_p->execute([$gid, $pasta]); }
         }
 
-        // NOVO: SALVA AS BOLINHAS PERMITIDAS PARA O GRUPO
+        // SALVA AS BOLINHAS DO GRUPO (Corrigido para sistemas_grupo)
         $pdo_intra->prepare("DELETE FROM grupos_sistemas WHERE grupo_id = ?")->execute([$gid]);
         if (!empty($_POST['sistemas_grupo'])) {
             $stmt_s = $pdo_intra->prepare("INSERT INTO grupos_sistemas (grupo_id, sistema_id) VALUES (?, ?)");
@@ -309,7 +310,7 @@ foreach ($usuarios as &$u) {
 </main>
 
 <div id="modalSistema" class="fixed inset-0 bg-navy-900/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
-    <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
+    <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
         <form method="POST" class="flex flex-col">
             <input type="hidden" name="acao" value="salvar_sistema">
             <input type="hidden" name="sistema_id" id="msys_id">
@@ -355,7 +356,7 @@ foreach ($usuarios as &$u) {
 </div>
 
 <div id="modalUser" class="fixed inset-0 bg-navy-900/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
-    <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-300">
         <form method="POST" class="flex flex-col h-full">
             <input type="hidden" name="acao" value="salvar_usuario">
             <input type="hidden" name="user_id" id="mu_id">
@@ -366,6 +367,41 @@ foreach ($usuarios as &$u) {
             </div>
             
             <div class="p-8 overflow-y-auto custom-scrollbar space-y-8 flex-1">
+                
+                <div>
+                    <h4 class="text-xs font-black text-red-500 uppercase tracking-widest mb-3 flex items-center gap-2">⚠️ Permissões Individuais Extras</h4>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <label class="flex items-center gap-2 p-2 rounded hover:bg-slate-50 cursor-pointer border border-slate-100 shadow-sm">
+                            <input type="checkbox" name="p_admin" id="mu_p_admin" class="w-4 h-4 text-corporate-blue rounded">
+                            <span class="text-[9px] font-bold text-navy-900 uppercase">Admin Total</span>
+                        </label>
+                        <label class="flex items-center gap-2 p-2 rounded hover:bg-slate-50 cursor-pointer border border-slate-100 shadow-sm">
+                            <input type="checkbox" name="p_feed" id="mu_p_feed" class="w-4 h-4 text-amber-500 rounded">
+                            <span class="text-[9px] font-bold text-navy-900 uppercase">Postar Feed</span>
+                        </label>
+                        <label class="flex items-center gap-2 p-2 rounded hover:bg-slate-50 cursor-pointer border border-slate-100 shadow-sm">
+                            <input type="checkbox" name="p_docs" id="mu_p_docs" class="w-4 h-4 text-blue-500 rounded">
+                            <span class="text-[9px] font-bold text-navy-900 uppercase">Gerenciar Docs</span>
+                        </label>
+                        <label class="flex items-center gap-2 p-2 rounded hover:bg-slate-50 cursor-pointer border border-slate-100 shadow-sm">
+                            <input type="checkbox" name="p_acessos" id="mu_p_acessos" class="w-4 h-4 text-emerald-500 rounded">
+                            <span class="text-[9px] font-bold text-navy-900 uppercase">Acessos</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-xs font-black text-amber-500 uppercase tracking-widest mb-3 flex items-center gap-2">📁 Pastas Extras (Docs)</h4>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <?php foreach($pastas_fisicas as $pasta): ?>
+                        <label class="flex items-center gap-2 p-2 rounded hover:bg-slate-50 cursor-pointer border border-slate-100 shadow-sm">
+                            <input type="checkbox" name="pastas[]" value="<?php echo $pasta; ?>" class="chk-mu-pasta w-3.5 h-3.5 text-amber-500 rounded">
+                            <span class="text-[9px] font-bold text-navy-900 truncate uppercase"><?php echo $pasta; ?></span>
+                        </label>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+
                 <div>
                     <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">🛡️ Grupos</h4>
                     <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -391,44 +427,94 @@ foreach ($usuarios as &$u) {
                 </div>
             </div>
             <div class="p-6 bg-slate-50 border-t border-slate-200 flex gap-4 shrink-0">
-                <button type="submit" class="flex-[2] bg-corporate-blue text-white rounded-xl text-xs font-black uppercase tracking-widest py-3">Salvar Armadura</button>
+                <button type="submit" class="flex-[2] bg-corporate-blue text-white rounded-xl text-xs font-black uppercase tracking-widest py-3 hover:scale-[1.02] transition-all">Salvar Armadura</button>
             </div>
         </form>
     </div>
 </div>
 
 <div id="modalGroup" class="fixed inset-0 bg-navy-900/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
-    <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]">
-        <form method="POST" class="flex flex-col h-full">
+    <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+        <form method="POST">
             <input type="hidden" name="acao" value="salvar_grupo">
             <input type="hidden" name="grupo_id" id="mg_id">
             
-            <div class="px-8 py-6 bg-slate-900 text-white flex justify-between items-center shrink-0">
-                <h3 class="text-xl font-black italic uppercase" id="mg_titulo">Novo Grupo</h3>
-                <button type="button" onclick="fecharModais()" class="text-white/50 hover:text-white text-2xl font-bold">&times;</button>
+            <div class="px-8 py-6 bg-corporate-blue text-white flex justify-between items-center">
+                <h3 class="text-xl font-black italic uppercase tracking-tighter" id="mg_titulo">Gerenciar Grupo</h3>
+                <button type="button" onclick="fecharModais()" class="text-white/50 hover:text-white text-3xl">&times;</button>
             </div>
             
-            <div class="p-8 overflow-y-auto custom-scrollbar space-y-6 flex-1">
-                <div>
-                    <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-3 block mb-1">Nome do Grupo</label>
-                    <input type="text" name="nome_grupo" id="mg_nome" required class="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl text-sm outline-none font-bold uppercase">
+            <div class="p-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                <div class="mb-8">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">Nome do Grupo</label>
+                    <input type="text" name="nome_grupo" id="mg_nome" required class="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl text-sm font-bold uppercase focus:ring-2 ring-corporate-blue outline-none transition-all">
+                </div>
+
+                <div class="mb-8">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-3">Acessos Administrativos</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-transparent hover:border-slate-200 cursor-pointer transition-all">
+                            <input type="checkbox" name="g_admin" id="mg_g_admin" class="w-5 h-5 rounded-lg border-slate-300 text-corporate-blue focus:ring-corporate-blue">
+                            <div>
+                                <p class="text-xs font-black text-navy-900 uppercase">Administrador Total</p>
+                                <p class="text-[9px] text-slate-500 font-medium">Acesso a todas as configurações</p>
+                            </div>
+                        </label>
+                        <label class="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-transparent hover:border-slate-200 cursor-pointer transition-all">
+                            <input type="checkbox" name="g_feed" id="mg_g_feed" class="w-5 h-5 rounded-lg border-slate-300 text-amber-500 focus:ring-amber-500">
+                            <div>
+                                <p class="text-xs font-black text-navy-900 uppercase">Gestão de Feed</p>
+                                <p class="text-[9px] text-slate-500 font-medium">Postar e excluir comunicados</p>
+                            </div>
+                        </label>
+                        <label class="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-transparent hover:border-slate-200 cursor-pointer transition-all">
+                            <input type="checkbox" name="g_docs" id="mg_g_docs" class="w-5 h-5 rounded-lg border-slate-300 text-blue-500 focus:ring-blue-500">
+                            <div>
+                                <p class="text-xs font-black text-navy-900 uppercase">Gestão de Docs</p>
+                                <p class="text-[9px] text-slate-500 font-medium">Upload e remoção de arquivos</p>
+                            </div>
+                        </label>
+                        <label class="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-transparent hover:border-slate-200 cursor-pointer transition-all">
+                            <input type="checkbox" name="g_acessos" id="mg_g_acessos" class="w-5 h-5 rounded-lg border-slate-300 text-emerald-500 focus:ring-emerald-500">
+                            <div>
+                                <p class="text-xs font-black text-navy-900 uppercase">Gestão de Acessos</p>
+                                <p class="text-[9px] text-slate-500 font-medium">Editar usuários e grupos</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="mb-8">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-3">📁 Pastas de Documentos</p>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        <?php foreach ($pastas_fisicas as $pasta): ?>
+                        <label class="flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-transparent hover:border-slate-200 cursor-pointer transition-all">
+                            <input type="checkbox" name="pastas_grupo[]" value="<?php echo $pasta; ?>" class="chk-mg-pasta w-5 h-5 rounded-lg border-slate-300 text-corporate-blue focus:ring-corporate-blue">
+                            <span class="text-xs font-bold text-navy-900 uppercase truncate"><?php echo $pasta; ?></span>
+                        </label>
+                        <?php endforeach; ?>
+                    </div>
                 </div>
 
                 <div>
-                    <h4 class="text-xs font-black text-blue-500 uppercase tracking-widest mb-3 flex items-center gap-2">🚀 Sistemas do Launchpad</h4>
-                    <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
-                        <?php foreach($sistemas_db as $sys): ?>
-                        <label class="flex items-center gap-2 p-2 rounded hover:bg-slate-50 cursor-pointer border border-slate-100 shadow-sm">
-                            <input type="checkbox" name="sistemas_grupo[]" value="<?php echo $sys['id']; ?>" class="chk-mg-sistema w-3.5 h-3.5 text-blue-600 rounded">
-                            <span class="text-[9px] font-bold text-navy-900 truncate uppercase"><?php echo $sys['icone'] . ' ' . $sys['nome']; ?></span>
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-3">Sistemas Visíveis (Launchpad)</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <?php foreach ($sistemas_db as $s): ?>
+                        <label class="flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-transparent hover:border-slate-200 cursor-pointer transition-all">
+                            <input type="checkbox" name="sistemas_grupo[]" value="<?php echo $s['id']; ?>" class="chk-mg-sistema w-5 h-5 rounded-lg border-slate-300 text-corporate-blue focus:ring-corporate-blue">
+                            <div class="flex items-center gap-2">
+                                <span class="text-lg"><?php echo $s['icone']; ?></span>
+                                <span class="text-xs font-bold text-navy-900 uppercase"><?php echo $s['nome']; ?></span>
+                            </div>
                         </label>
                         <?php endforeach; ?>
                     </div>
                 </div>
             </div>
             
-            <div class="p-6 bg-slate-50 border-t border-slate-200 flex gap-4 shrink-0">
-                <button type="submit" class="flex-[2] bg-emerald-500 text-white rounded-xl text-xs font-black uppercase tracking-widest py-3">Salvar Grupo</button>
+            <div class="p-6 bg-slate-50 border-t border-slate-200 flex gap-3">
+                <button type="button" onclick="fecharModais()" class="flex-1 bg-white border border-slate-200 py-4 rounded-2xl text-xs font-black uppercase text-slate-500 hover:bg-slate-100 transition-all">Cancelar</button>
+                <button type="submit" class="flex-1 bg-corporate-blue text-white py-4 rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-blue-900/20 hover:scale-[1.02] transition-all">Salvar Grupo</button>
             </div>
         </form>
     </div>
@@ -462,15 +548,38 @@ foreach ($usuarios as &$u) {
         document.getElementById('mu_id').value = id;
         document.getElementById('mu_nome').innerText = u.firstname + ' ' + u.realname;
         
+        // Limpa tudo
         document.querySelectorAll('.chk-mu-grupo').forEach(c => c.checked = false);
-        document.querySelectorAll('.chk-mu-sistema').forEach(c => c.checked = false); // Limpa as bolinhas
+        document.querySelectorAll('.chk-mu-sistema').forEach(c => c.checked = false);
+        document.querySelectorAll('.chk-mu-pasta').forEach(c => c.checked = false);
+        document.getElementById('mu_p_admin').checked = false;
+        document.getElementById('mu_p_feed').checked = false;
+        document.getElementById('mu_p_docs').checked = false;
+        document.getElementById('mu_p_acessos').checked = false;
 
+        // Seta permissões individuais
+        if(u.perms) {
+            document.getElementById('mu_p_admin').checked = (u.perms.is_admin == 1);
+            document.getElementById('mu_p_feed').checked = (u.perms.pode_postar_feed == 1);
+            document.getElementById('mu_p_docs').checked = (u.perms.pode_gerenciar_docs == 1);
+            document.getElementById('mu_p_acessos').checked = (u.perms.pode_gerenciar_acessos == 1);
+        }
+        
+        // Seta as Pastas
+        if(u.pastas_indiv) {
+            u.pastas_indiv.forEach(p => {
+                const cb = document.querySelector(`.chk-mu-pasta[value="${p}"]`);
+                if(cb) cb.checked = true;
+            });
+        }
+
+        // Seta Grupos
         u.meus_grupos.forEach(gid => {
             const cb = document.querySelector(`.chk-mu-grupo[value="${gid}"]`);
             if(cb) cb.checked = true;
         });
         
-        // Pinta as bolinhas do cara
+        // Seta Sistemas
         if(u.meus_sistemas) {
             u.meus_sistemas.forEach(sid => {
                 const cb = document.querySelector(`.chk-mu-sistema[value="${sid}"]`);
@@ -483,21 +592,43 @@ foreach ($usuarios as &$u) {
 
     function abrirModalGrupo(id) {
         document.getElementById('mg_id').value = '';
-        document.getElementById('mg_titulo').innerText = 'NOVO GRUPO';
         document.getElementById('mg_nome').value = '';
-        document.querySelectorAll('.chk-mg-sistema').forEach(c => c.checked = false);
+        document.getElementById('mg_titulo').innerText = 'Novo Grupo';
+        
+        document.getElementById('mg_g_admin').checked = false;
+        document.getElementById('mg_g_feed').checked = false;
+        document.getElementById('mg_g_docs').checked = false;
+        document.getElementById('mg_g_acessos').checked = false;
+        
+        document.querySelectorAll('.chk-mg-sistema').forEach(cb => cb.checked = false);
+        document.querySelectorAll('.chk-mg-pasta').forEach(cb => cb.checked = false);
 
         if (id !== 0) {
+            // CORREÇÃO: O array JS se chama dadosGrupos, e não gruposData
             const g = dadosGrupos[id];
-            document.getElementById('mg_id').value = id;
-            document.getElementById('mg_titulo').innerText = 'EDITAR: ' + g.nome;
-            document.getElementById('mg_nome').value = g.nome;
+            if (g) {
+                document.getElementById('mg_id').value = id;
+                document.getElementById('mg_titulo').innerText = 'EDITAR: ' + g.nome;
+                document.getElementById('mg_nome').value = g.nome;
 
-            if(g.sistemas) {
-                g.sistemas.forEach(sid => {
-                    const cb = document.querySelector(`.chk-mg-sistema[value="${sid}"]`);
-                    if(cb) cb.checked = true;
-                });
+                document.getElementById('mg_g_admin').checked = (g.is_admin == 1);
+                document.getElementById('mg_g_feed').checked = (g.pode_postar_feed == 1);
+                document.getElementById('mg_g_docs').checked = (g.pode_gerenciar_docs == 1);
+                document.getElementById('mg_g_acessos').checked = (g.pode_gerenciar_acessos == 1);
+
+                if(g.sistemas) {
+                    g.sistemas.forEach(sid => {
+                        const cb = document.querySelector(`.chk-mg-sistema[value="${sid}"]`);
+                        if(cb) cb.checked = true;
+                    });
+                }
+                // Pinta as Pastas de Documentos
+                if(g.pastas) {
+                    g.pastas.forEach(p => {
+                        const cb = document.querySelector(`.chk-mg-pasta[value="${p}"]`);
+                        if(cb) cb.checked = true;
+                    });
+                }
             }
         }
         document.getElementById('modalGroup').classList.replace('hidden', 'flex');
