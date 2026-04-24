@@ -36,6 +36,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $stmt_p = $pdo_intra->prepare("INSERT INTO permissoes_pastas (user_id, pasta_nome) VALUES (?, ?)");
             foreach ($_POST['pastas'] as $pasta) { $stmt_p->execute([$uid, $pasta]); }
         }
+        
+        // NOVO: SALVA AS PERMISSÕES DE VÍDEOS DO USUÁRIO
+        $pdo_intra->prepare("DELETE FROM permissoes_videos WHERE user_id = ?")->execute([$uid]);
+        if (!empty($_POST['videos'])) {
+            $stmt_v = $pdo_intra->prepare("INSERT INTO permissoes_videos (user_id, pasta_video) VALUES (?, ?)");
+            foreach ($_POST['videos'] as $video) { $stmt_v->execute([$uid, $video]); }
+        }
 
         // SALVA AS BOLINHAS PERMITIDAS PARA O USUÁRIO
         $pdo_intra->prepare("DELETE FROM permissoes_sistemas WHERE user_id = ?")->execute([$uid]);
@@ -75,7 +82,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             foreach ($_POST['pastas_grupo'] as $pasta) { $stmt_p->execute([$gid, $pasta]); }
         }
 
-        // SALVA AS BOLINHAS DO GRUPO (Corrigido para sistemas_grupo)
+        // NOVO: SALVA AS PERMISSÕES DE VÍDEOS DO GRUPO
+        $pdo_intra->prepare("DELETE FROM grupos_videos WHERE grupo_id = ?")->execute([$gid]);
+        if (!empty($_POST['videos_grupo'])) {
+            $stmt_v = $pdo_intra->prepare("INSERT INTO grupos_videos (grupo_id, pasta_video) VALUES (?, ?)");
+            foreach ($_POST['videos_grupo'] as $video) { $stmt_v->execute([$gid, $video]); }
+        }
+
+        // SALVA AS BOLINHAS DO GRUPO
         $pdo_intra->prepare("DELETE FROM grupos_sistemas WHERE grupo_id = ?")->execute([$gid]);
         if (!empty($_POST['sistemas_grupo'])) {
             $stmt_s = $pdo_intra->prepare("INSERT INTO grupos_sistemas (grupo_id, sistema_id) VALUES (?, ?)");
@@ -90,6 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
         $gid = $_POST['grupo_id'];
         $pdo_intra->prepare("DELETE FROM grupos_intranet WHERE id = ?")->execute([$gid]);
         $pdo_intra->prepare("DELETE FROM grupos_pastas WHERE grupo_id = ?")->execute([$gid]);
+        $pdo_intra->prepare("DELETE FROM grupos_videos WHERE grupo_id = ?")->execute([$gid]);
         $pdo_intra->prepare("DELETE FROM usuarios_grupos WHERE grupo_id = ?")->execute([$gid]);
         $pdo_intra->prepare("DELETE FROM grupos_sistemas WHERE grupo_id = ?")->execute([$gid]);
         registrarLog($pdo_intra, 'EXCLUIU GRUPO', "Deletou o grupo de ID: $gid", $admin_id, $admin_ip);
@@ -145,6 +160,16 @@ if (is_dir($diretorio_docs)) {
     }
 }
 
+// --- LEITOR DE PASTAS DE VÍDEO ---
+$diretorio_videos = __DIR__ . '/videos/';
+$pastas_videos = [];
+if (is_dir($diretorio_videos)) {
+    $dirs_v = scandir($diretorio_videos);
+    foreach ($dirs_v as $dv) {
+        if ($dv !== '.' && $dv !== '..' && is_dir($diretorio_videos . $dv)) $pastas_videos[] = strtoupper($dv);
+    }
+}
+
 // Busca todos os Sistemas Criados
 $sistemas_db = $pdo_intra->query("SELECT * FROM sistemas_lista ORDER BY nome")->fetchAll(PDO::FETCH_ASSOC);
 
@@ -154,6 +179,11 @@ foreach ($grupos as &$g) {
     $stmt = $pdo_intra->prepare("SELECT pasta_nome FROM grupos_pastas WHERE grupo_id = ?");
     $stmt->execute([$g['id']]);
     $g['pastas'] = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+    // Busca vídeos do grupo
+    $stmt_vid = $pdo_intra->prepare("SELECT pasta_video FROM grupos_videos WHERE grupo_id = ?");
+    $stmt_vid->execute([$g['id']]);
+    $g['videos'] = $stmt_vid->fetchAll(PDO::FETCH_COLUMN);
 
     // Busca sistemas do grupo
     $stmt_sys = $pdo_intra->prepare("SELECT sistema_id FROM grupos_sistemas WHERE grupo_id = ?");
@@ -180,6 +210,11 @@ foreach ($usuarios as &$u) {
     $stmt_pastas = $pdo_intra->prepare("SELECT pasta_nome FROM permissoes_pastas WHERE user_id = ?");
     $stmt_pastas->execute([$u['id']]);
     $u['pastas_indiv'] = $stmt_pastas->fetchAll(PDO::FETCH_COLUMN);
+
+    // Busca vídeos do usuário
+    $stmt_vid_u = $pdo_intra->prepare("SELECT pasta_video FROM permissoes_videos WHERE user_id = ?");
+    $stmt_vid_u->execute([$u['id']]);
+    $u['videos_indiv'] = $stmt_vid_u->fetchAll(PDO::FETCH_COLUMN);
 
     $stmt_ug = $pdo_intra->prepare("SELECT grupo_id FROM usuarios_grupos WHERE usuario_id = ?");
     $stmt_ug->execute([$u['id']]);
@@ -403,6 +438,18 @@ foreach ($usuarios as &$u) {
                 </div>
 
                 <div>
+                    <h4 class="text-xs font-black text-rose-500 uppercase tracking-widest mb-3 flex items-center gap-2">🎬 Vídeos Extras (Individuais)</h4>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <?php foreach($pastas_videos as $video_folder): ?>
+                        <label class="flex items-center gap-2 p-2 rounded hover:bg-slate-50 cursor-pointer border border-slate-100 shadow-sm">
+                            <input type="checkbox" name="videos[]" value="<?php echo $video_folder; ?>" class="chk-mu-video w-3.5 h-3.5 text-rose-500 rounded">
+                            <span class="text-[9px] font-bold text-navy-900 truncate uppercase"><?php echo str_replace('ROTINAS ', '', $video_folder); ?></span>
+                        </label>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+
+                <div>
                     <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">🛡️ Grupos</h4>
                     <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
                         <?php foreach($grupos as $g): ?>
@@ -496,6 +543,18 @@ foreach ($usuarios as &$u) {
                     </div>
                 </div>
 
+                <div class="mb-8">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-3">🎬 Playlists da Academia (Vídeos)</p>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        <?php foreach ($pastas_videos as $video_folder): ?>
+                        <label class="flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-transparent hover:border-slate-200 cursor-pointer transition-all">
+                            <input type="checkbox" name="videos_grupo[]" value="<?php echo $video_folder; ?>" class="chk-mg-video w-5 h-5 rounded-lg border-slate-300 text-rose-500 focus:ring-rose-500">
+                            <span class="text-[10px] font-bold text-navy-900 uppercase truncate"><?php echo str_replace('ROTINAS ', '', $video_folder); ?></span>
+                        </label>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+
                 <div>
                     <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-3">Sistemas Visíveis (Launchpad)</p>
                     <div class="grid grid-cols-2 gap-3">
@@ -552,6 +611,7 @@ foreach ($usuarios as &$u) {
         document.querySelectorAll('.chk-mu-grupo').forEach(c => c.checked = false);
         document.querySelectorAll('.chk-mu-sistema').forEach(c => c.checked = false);
         document.querySelectorAll('.chk-mu-pasta').forEach(c => c.checked = false);
+        document.querySelectorAll('.chk-mu-video').forEach(c => c.checked = false); // LIMPA VÍDEOS
         document.getElementById('mu_p_admin').checked = false;
         document.getElementById('mu_p_feed').checked = false;
         document.getElementById('mu_p_docs').checked = false;
@@ -569,6 +629,14 @@ foreach ($usuarios as &$u) {
         if(u.pastas_indiv) {
             u.pastas_indiv.forEach(p => {
                 const cb = document.querySelector(`.chk-mu-pasta[value="${p}"]`);
+                if(cb) cb.checked = true;
+            });
+        }
+
+        // Seta VÍDEOS
+        if(u.videos_indiv) {
+            u.videos_indiv.forEach(vid => {
+                const cb = document.querySelector(`.chk-mu-video[value="${vid}"]`);
                 if(cb) cb.checked = true;
             });
         }
@@ -602,9 +670,9 @@ foreach ($usuarios as &$u) {
         
         document.querySelectorAll('.chk-mg-sistema').forEach(cb => cb.checked = false);
         document.querySelectorAll('.chk-mg-pasta').forEach(cb => cb.checked = false);
+        document.querySelectorAll('.chk-mg-video').forEach(cb => cb.checked = false); // LIMPA VÍDEOS
 
         if (id !== 0) {
-            // CORREÇÃO: O array JS se chama dadosGrupos, e não gruposData
             const g = dadosGrupos[id];
             if (g) {
                 document.getElementById('mg_id').value = id;
@@ -622,10 +690,19 @@ foreach ($usuarios as &$u) {
                         if(cb) cb.checked = true;
                     });
                 }
+                
                 // Pinta as Pastas de Documentos
                 if(g.pastas) {
                     g.pastas.forEach(p => {
                         const cb = document.querySelector(`.chk-mg-pasta[value="${p}"]`);
+                        if(cb) cb.checked = true;
+                    });
+                }
+
+                // Pinta VÍDEOS
+                if(g.videos) {
+                    g.videos.forEach(vid => {
+                        const cb = document.querySelector(`.chk-mg-video[value="${vid}"]`);
                         if(cb) cb.checked = true;
                     });
                 }
