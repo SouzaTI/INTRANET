@@ -417,7 +417,7 @@ if (empty($aniversariantes)) {
 
         <div id="gridSistemasPrincipal" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar-compact">
             <?php foreach ($sistemas_permitidos as $sys): ?>
-                <a href="<?php echo htmlspecialchars($sys['url']); ?>" class="group flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-white/5 transition-all duration-300">
+                <a href="<?php echo htmlspecialchars($sys['url']); ?>" target="_blank" class="group flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-white/5 transition-all duration-300">
                     <div class="w-14 h-14 rounded-full <?php echo $sys['cor']; ?>/20 border border-<?php echo $sys['cor']; ?>/30 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 group-hover:<?php echo str_replace('bg-', 'text-', $sys['cor']); ?> transition-all duration-300">
                         <?php echo $sys['icone']; ?>
                     </div>
