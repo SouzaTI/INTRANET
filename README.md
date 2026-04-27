@@ -60,3 +60,9 @@ Portal de acesso rápido às ferramentas de produtividade.
 ├── config.php          # Configurações de ligação e constantes globais
 ├── admin_gestao.php    # Painel Administrativo RBAC
 └── index.php           # Landing Page e Feed de Notícias
+
+
+👨‍💻 Desenvolvedor
+Matheus Cabral - Fullstack Developer
+
+"Transformando a comunicação corporativa através de tecnologia moderna e interfaces intuitivas."
