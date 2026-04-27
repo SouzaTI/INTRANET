@@ -8,17 +8,37 @@ $user_id = $_SESSION['user_id'] ?? 0;
 $setor_usuario = strtoupper($_SESSION['setor_principal'] ?? '');
 $is_admin = $_SESSION['is_admin'] ?? false;
 
-// 2. BUSCA AS PASTAS EXTRAS QUE ELE TEM PERMISSÃO
-$pastas_extras = [];
+// 2. O MOTOR DE HERANÇA (Busca Permissões Individuais + Grupo)
+$videos_extras = [];
+$pastas_extras = []; // Mantido apenas para a regra de exceção do TI
+
 if ($user_id > 0) {
+    // A. Busca de Pastas de Documentos (usado na regra especial abaixo)
     $stmt_perm = $pdo_intra->prepare("SELECT pasta_nome FROM permissoes_pastas WHERE user_id = ?");
     $stmt_perm->execute([$user_id]);
-    $pastas_extras = $stmt_perm->fetchAll(PDO::FETCH_COLUMN);
-    $pastas_extras = array_map('strtoupper', $pastas_extras); 
+    $pastas_extras = array_map('strtoupper', $stmt_perm->fetchAll(PDO::FETCH_COLUMN));
+
+    // B. A MÁGICA DA HERANÇA: Junta permissão INDIVIDUAL com a do GRUPO
+    $sql_videos = "
+        SELECT pasta_video FROM permissoes_videos WHERE user_id = :uid
+        UNION
+        SELECT gv.pasta_video 
+        FROM grupos_videos gv
+        INNER JOIN usuarios_grupos ug ON gv.grupo_id = ug.grupo_id
+        WHERE ug.usuario_id = :uid
+    ";
+    $stmt_vid = $pdo_intra->prepare($sql_videos);
+    $stmt_vid->execute(['uid' => $user_id]);
+    $vids_brutos = $stmt_vid->fetchAll(PDO::FETCH_COLUMN);
+    
+    // Limpa a palavra "ROTINAS " que vem do banco para casar com a matriz abaixo
+    foreach($vids_brutos as $v) {
+        $nome_limpo = str_replace('ROTINAS ', '', strtoupper($v));
+        $videos_extras[] = trim($nome_limpo);
+    }
 }
 
 // 🎬 3. OS CURSOS (O "Netflix" Local)
-// IMPORTANTE: Ajuste o caminho em 'arquivo' para bater certinho com o nome do seu MP4!
 $setores = [
     'TI' => [
         ['n' => '132', 'p' => '1', 'arquivo' => 'ROTINAS TI/Certificação TOTVS Distribuição e Varejo - Linha Winthor  - 132 - Parâmetros da presidência.mp4'],
@@ -151,13 +171,13 @@ $setores = [
     ],
 ];
 
-// 4. MÁGICA DE PERMISSÕES
+// 4. MÁGICA DE PERMISSÕES 
 $setores_permitidos = [];
 foreach(array_keys($setores) as $s) {
     $s_upper = strtoupper($s);
     if( $is_admin || 
         $setor_usuario === $s_upper || 
-        in_array($s_upper, $pastas_extras) || 
+        in_array($s_upper, $videos_extras) || // <-- AGORA USA A TABELA NOVA!
         ($s_upper === 'TI' && in_array('FACILITIES & TI', $pastas_extras))
     ) {
         $setores_permitidos[] = $s;
