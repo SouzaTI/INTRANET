@@ -2,9 +2,17 @@
 
 <div id="wrapper-chat-navi" class="fixed bottom-6 right-6 z-[1000] flex flex-col items-end font-sans">
     
-    <div id="janela-chat" class="hidden w-[90vw] md:w-[850px] h-[600px] bg-white rounded-[2rem] shadow-[0_25px_60px_rgba(15,23,42,0.3)] border border-slate-200 overflow-hidden flex mb-4 animate-in slide-in-from-bottom-10 duration-500">
+    <!-- 🔥 JANELA DO CHAT: Ajustada para ser gaveta no mobile (right-0 h-full) e card no PC -->
+    <div id="janela-chat" class="hidden fixed z-[1000] 
+        /* Mobile: Ocupa a lateral direita toda, colada no canto */
+        inset-y-0 right-0 w-[85vw] h-full rounded-l-[2.5rem] rounded-r-none 
+        /* Desktop (md): Volta a ser um card flutuante elegante */
+        md:inset-auto md:bottom-24 md:right-6 md:w-[850px] md:h-[600px] md:rounded-[2rem] 
+        bg-white shadow-[0_25px_60px_rgba(15,23,42,0.3)] border border-slate-200 overflow-hidden flex mb-0 md:mb-4 
+        transition-transform duration-500 transform translate-x-full md:translate-x-0 animate-in slide-in-from-right md:slide-in-from-bottom-10">
         
-        <aside class="w-80 bg-slate-50 border-r border-slate-200 flex flex-col h-full shrink-0">
+        <!-- LATERAL DE CANAIS: No mobile ela começa ocupando tudo e some ao abrir uma conversa -->
+        <aside id="chat-sidebar" class="w-full md:w-80 bg-slate-50 border-r border-slate-200 flex flex-col h-full shrink-0">
             <header class="p-5 border-b border-slate-200 bg-white">
                 <div class="flex items-center justify-between mb-2">
                     <h1 class="text-xl font-black text-navy-900 italic uppercase tracking-tighter leading-none">Navi Messenger</h1>
@@ -27,9 +35,15 @@
             <nav id="lista-grupos-chat" class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2"></nav>
         </aside>
 
-        <main class="flex-1 flex flex-col bg-white h-full relative">
+        <!-- ÁREA DE MENSAGENS: No mobile começa oculta e aparece ao selecionar alguém -->
+        <main id="chat-main" class="hidden md:flex flex-1 flex flex-col bg-white h-full relative overflow-hidden">
             <header class="px-6 py-4 bg-navy-900 flex items-center justify-between shrink-0 shadow-lg">
                 <div class="flex items-center gap-3">
+                    <!-- 🔥 BOTÃO VOLTAR (Mobile): Volta para a lista de contatos -->
+                    <button onclick="voltarParaListaChat()" class="md:hidden text-white mr-2">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+
                     <div id="chat-header-avatar" class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center text-white font-bold shadow-md">G</div>
                     <div>
                         <h2 id="chat-header-nome" class="font-bold text-white text-sm">Chat Global</h2>
@@ -41,7 +55,6 @@
                 </div>
                 
                 <div class="flex items-center gap-2">
-
                     <?php if(isset($_SESSION['is_admin']) && $_SESSION['is_admin']): ?>
                     <button id="btn-gerenciar-grupo" onclick="abrirModalGerenciarMembros()" class="hidden w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-blue-400 transition-all" title="Ver Membros do Grupo">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
@@ -53,31 +66,26 @@
                     </button>
                     <button onclick="toggleChatNavi()" class="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white text-2xl transition-all">&times;</button>
                 </div>
-
             </header>
 
-            <section id="chat-feed" class="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50/50 custom-scrollbar scroll-smooth"></section>
+            <section id="chat-feed" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 bg-slate-50/50 custom-scrollbar scroll-smooth"></section>
 
-            <footer class="px-6 py-4 bg-white border-t border-slate-100 relative">
-                <form id="form-chat-navi" class="flex items-center gap-3">
-                    
+            <footer class="px-4 py-3 md:px-6 md:py-4 bg-white border-t border-slate-100 relative">
+                <form id="form-chat-navi" class="flex items-center gap-2 md:gap-3">
                     <div class="relative flex items-center">
-                        <button type="button" onclick="document.getElementById('emoji-picker-navi').classList.toggle('hidden')" class="p-2 text-slate-400 hover:text-amber-500 transition-all text-2xl hover:scale-110">
-                            😀
-                        </button>
+                        <button type="button" onclick="document.getElementById('emoji-picker-navi').classList.toggle('hidden')" class="p-2 text-slate-400 hover:text-amber-500 transition-all text-xl md:text-2xl hover:scale-110">😀</button>
                         <div id="emoji-picker-navi" class="hidden absolute bottom-14 left-0 bg-white border border-slate-200 shadow-2xl rounded-2xl p-3 grid grid-cols-6 gap-2 z-50 w-64">
                             <?php 
                             $emojis = ['😀','😂','🥰','😎','🤔','👍','🙌','🔥','🎉','👀','🚨','✅','💼','💡','🚀','🎯','📝','📅'];
                             foreach($emojis as $e): 
                             ?>
-                                <button type="button" onclick="addEmojiNavi('<?= $e ?>')" class="hover:bg-slate-100 p-2 rounded-xl text-xl transition-colors"><?= $e ?></button>
+                                <button type="button" onclick="addEmojiNavi('<?= $e ?>')" class="hover:bg-slate-100 p-2 rounded-xl text-lg md:text-xl transition-colors"><?= $e ?></button>
                             <?php endforeach; ?>
                         </div>
                     </div>
-
-                    <input type="text" id="input-chat-msg" autocomplete="off" placeholder="Digite uma mensagem..." class="flex-1 px-5 py-3 bg-slate-100 rounded-2xl text-sm border-none outline-none focus:ring-2 focus:ring-blue-500/20">
-                    <button type="submit" class="w-12 h-12 rounded-xl bg-navy-900 text-white flex items-center justify-center shadow-lg hover:bg-blue-600 transition-all active:scale-95 shrink-0">
-                        <svg class="w-5 h-5 rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                    <input type="text" id="input-chat-msg" autocomplete="off" placeholder="Digite..." class="flex-1 px-4 py-2.5 md:px-5 md:py-3 bg-slate-100 rounded-2xl text-xs md:text-sm border-none outline-none focus:ring-2 focus:ring-blue-500/20">
+                    <button type="submit" class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-navy-900 text-white flex items-center justify-center shadow-lg hover:bg-blue-600 transition-all active:scale-95 shrink-0">
+                        <svg class="w-4 h-4 md:w-5 md:h-5 rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
                     </button>
                 </form>
             </footer>
@@ -142,24 +150,17 @@
 <script>
 // CONFIGURAÇÕES INICIAIS
 let chatAberto = false;
-let destinoId = 1; // Começa no GERAL
-let tipoDestinoAtual = 'grupo'; // NOVO: Controla se a conversa é grupo ou 1x1
+let destinoId = 1; 
+let tipoDestinoAtual = 'grupo'; 
 let meuId = <?= $_SESSION['user_id'] ?>;
 let ultimoIdRecebido = 0;
 const somNotificacao = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
 
-// 0. O PING SILENCIOSO (Avisa o banco que você leu a sala ou pessoa)
 function avisarLeituraBanco(destinoId, tipo = 'grupo') {
     const fd = new FormData();
     fd.append('destino_id', destinoId);
-    fd.append('tipo', tipo); // NOVO: Passa o tipo pro banco
-
-    fetch('api/chat_engine.php?acao=marcar_lido', {
-        method: 'POST',
-        body: fd
-    })
-    .then(() => carregarListaGrupos()) 
-    .catch(err => console.error(err));
+    fd.append('tipo', tipo);
+    fetch('api/chat_engine.php?acao=marcar_lido', { method: 'POST', body: fd }).then(() => carregarListaGrupos()).catch(err => console.error(err));
 }
 
 const formatarDataLateral = (dataStr) => {
@@ -168,267 +169,153 @@ const formatarDataLateral = (dataStr) => {
     return p.length >= 5 ? p[2] + '/' + p[1] + ' ' + p[3] + ':' + p[4] : '';
 };
 
-// FILTRO DE BUSCA LATERAL (Agora revela os contatos escondidos ao pesquisar)
 function filtrarPessoasChat() {
     const termo = document.getElementById('busca-pessoas-chat').value.toLowerCase();
     const containerOutros = document.getElementById('container-outros-contatos');
-
-    // Se digitou algo, revela os contatos ocultos. Se apagou, esconde de novo.
-    if (termo.trim() !== '') {
-        if(containerOutros) containerOutros.classList.remove('hidden');
-    } else {
-        if(containerOutros) containerOutros.classList.add('hidden');
-    }
-
+    if (termo.trim() !== '') { if(containerOutros) containerOutros.classList.remove('hidden'); } else { if(containerOutros) containerOutros.classList.add('hidden'); }
     document.querySelectorAll('.chat-user-item').forEach(el => {
-        // Pega o nome do canal ou da pessoa
         const nome = el.querySelector('p.truncate').innerText.toLowerCase();
         el.style.display = nome.includes(termo) ? 'flex' : 'none';
     });
 }
 
-// 1. CARREGAR LISTA DE CANAIS E PESSOAS (LATERAL)
 function carregarListaGrupos() {
-    fetch('api/chat_engine.php?acao=listar_grupos')
-    .then(res => res.json())
-    .then(data => {
+    fetch('api/chat_engine.php?acao=listar_grupos').then(res => res.json()).then(data => {
         const container = document.getElementById('lista-grupos-chat'); 
         if(!container) return;
-        
         let htmlLateral = '<div class="px-4 py-2 mt-1 text-[10px] font-black text-slate-400 uppercase tracking-widest">Canais</div>';
-        
-        // --- 1. RENDERIZA OS CANAIS (SEMPRE VISÍVEIS) ---
         data.grupos.forEach(g => {
             const ativo = (g.id == destinoId && tipoDestinoAtual === 'grupo');
-            const bolinha = g.nao_lidas > 0 
-                ? `<span class="absolute top-1/2 -translate-y-1/2 right-3 w-5 h-5 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow-md animate-pulse">${g.nao_lidas}</span>` 
-                : '';
-
-            htmlLateral += `
-                <div onclick="selecionarChat(${g.id}, '${g.nome}', 'grupo')" class="chat-user-item ${ativo ? 'active' : ''}">
-                    <div class="w-10 h-10 rounded-xl bg-slate-200 flex items-center justify-center font-bold text-slate-500 shadow-inner shrink-0">${g.nome[0].toUpperCase()}</div>
-                    <div class="flex-1 pr-6 relative overflow-hidden">
-                        <p class="text-xs font-bold text-navy-900 uppercase truncate">${g.nome}</p>
-                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Setor</p>
-                    </div>
-                    ${bolinha}
-                </div>
-            `;
+            const bolinha = g.nao_lidas > 0 ? `<span class="absolute top-1/2 -translate-y-1/2 right-3 w-5 h-5 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow-md animate-pulse">${g.nao_lidas}</span>` : '';
+            htmlLateral += `<div onclick="selecionarChat(${g.id}, '${g.nome}', 'grupo')" class="chat-user-item ${ativo ? 'active' : ''}"><div class="w-10 h-10 rounded-xl bg-slate-200 flex items-center justify-center font-bold text-slate-500 shadow-inner shrink-0">${g.nome[0].toUpperCase()}</div><div class="flex-1 pr-6 relative overflow-hidden"><p class="text-xs font-bold text-navy-900 uppercase truncate">${g.nome}</p><p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Setor</p></div>${bolinha}</div>`;
         });
-
-        // --- 2. SEPARA QUEM TEM CONVERSA DE QUEM NÃO TEM ---
         const conversasRecentes = data.usuarios.filter(u => u.ultima_msg !== null);
         const outrosContatos = data.usuarios.filter(u => u.ultima_msg === null);
-
-        // --- 3. RENDERIZA CONVERSAS RECENTES (SEMPRE VISÍVEIS) ---
         if (conversasRecentes.length > 0) {
             htmlLateral += '<div class="px-4 py-2 mt-4 border-t border-slate-100/50 text-[10px] font-black text-slate-400 uppercase tracking-widest pt-4">Conversas Recentes</div>';
             conversasRecentes.forEach(u => {
                 const ativo = (u.id == destinoId && tipoDestinoAtual === 'usuario');
-                const bolinha = u.nao_lidas > 0 
-                    ? `<span class="absolute top-1/2 -translate-y-1/2 right-3 w-5 h-5 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow-md animate-pulse">${u.nao_lidas}</span>` 
-                    : '';
-
-                htmlLateral += `
-                    <div onclick="selecionarChat(${u.id}, '${u.nome}', 'usuario')" class="chat-user-item ${ativo ? 'active' : ''}">
-                        <div class="w-10 h-10 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center font-black text-blue-600 shadow-inner text-sm shrink-0">${u.nome[0].toUpperCase()}</div>
-                        <div class="flex-1 pr-6 relative overflow-hidden">
-                            <p class="text-xs font-bold text-slate-700 capitalize truncate">${u.nome}</p>
-                            <p class="text-[9px] text-blue-500 uppercase tracking-widest truncate font-bold">Última msg: ${formatarDataLateral(u.ultima_msg)}</p>
-                        </div>
-                        ${bolinha}
-                    </div>
-                `;
+                const bolinha = u.nao_lidas > 0 ? `<span class="absolute top-1/2 -translate-y-1/2 right-3 w-5 h-5 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow-md animate-pulse">${u.nao_lidas}</span>` : '';
+                htmlLateral += `<div onclick="selecionarChat(${u.id}, '${u.nome}', 'usuario')" class="chat-user-item ${ativo ? 'active' : ''}"><div class="w-10 h-10 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center font-black text-blue-600 shadow-inner text-sm shrink-0">${u.nome[0].toUpperCase()}</div><div class="flex-1 pr-6 relative overflow-hidden"><p class="text-xs font-bold text-slate-700 capitalize truncate">${u.nome}</p><p class="text-[9px] text-blue-500 uppercase tracking-widest truncate font-bold">Última msg: ${formatarDataLateral(u.ultima_msg)}</p></div>${bolinha}</div>`;
             });
         }
-
-        // --- 4. RENDERIZA OS OUTROS (ESCONDIDOS POR PADRÃO, APARECEM NA BUSCA) ---
         htmlLateral += `<div id="container-outros-contatos" class="hidden">`;
         if (outrosContatos.length > 0) {
             htmlLateral += '<div class="px-4 py-2 mt-4 border-t border-slate-100/50 text-[10px] font-black text-slate-400 uppercase tracking-widest pt-4">Outros Contatos</div>';
             outrosContatos.forEach(u => {
                 const ativo = (u.id == destinoId && tipoDestinoAtual === 'usuario');
-                htmlLateral += `
-                    <div onclick="selecionarChat(${u.id}, '${u.nome}', 'usuario')" class="chat-user-item ${ativo ? 'active' : ''}">
-                        <div class="w-10 h-10 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center font-black text-slate-400 shadow-inner text-sm shrink-0">${u.nome[0].toUpperCase()}</div>
-                        <div class="flex-1 pr-6 relative overflow-hidden">
-                            <p class="text-xs font-bold text-slate-600 capitalize truncate">${u.nome}</p>
-                            <p class="text-[9px] text-slate-300 uppercase tracking-widest truncate">Iniciar conversa</p>
-                        </div>
-                    </div>
-                `;
+                htmlLateral += `<div onclick="selecionarChat(${u.id}, '${u.nome}', 'usuario')" class="chat-user-item ${ativo ? 'active' : ''}"><div class="w-10 h-10 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center font-black text-slate-400 shadow-inner text-sm shrink-0">${u.nome[0].toUpperCase()}</div><div class="flex-1 pr-6 relative overflow-hidden"><p class="text-xs font-bold text-slate-600 capitalize truncate">${u.nome}</p><p class="text-[9px] text-slate-300 uppercase tracking-widest truncate">Iniciar conversa</p></div></div>`;
             });
         }
         htmlLateral += `</div>`;
-
         container.innerHTML = htmlLateral;
-        filtrarPessoasChat(); // Mantém o estado da pesquisa se a tela atualizar enquanto você digita
+        filtrarPessoasChat();
     }).catch(e => console.error("Erro na lista:", e));
 }
 
-// 2. MONITORAR MENSAGENS (O CORAÇÃO BLINDADO DO CHAT)
 function monitorarChat() {
     if(!destinoId) return;
-
-    fetch(`api/chat_engine.php?acao=buscar&destino=${destinoId}&ultimo_id=${ultimoIdRecebido}&tipo=${tipoDestinoAtual}`)
-    .then(async (res) => {
-        const texto = await res.text();
-        try { return JSON.parse(texto); } 
-        catch (e) { return null; } // Ignora falhas de JSON silenciosamente
-    })
-    .then(mensagens => {
+    fetch(`api/chat_engine.php?acao=buscar&destino=${destinoId}&ultimo_id=${ultimoIdRecebido}&tipo=${tipoDestinoAtual}`).then(async (res) => { const texto = await res.text(); try { return JSON.parse(texto); } catch (e) { return null; } }).then(mensagens => {
         if (!mensagens) return; 
-
         const feed = document.getElementById('chat-feed');
-        
-        // SACADA: Descobre se é a primeira vez que está carregando as mensagens desta sala
         const primeiraCarga = (ultimoIdRecebido === 0);
-        
         if(primeiraCarga) {
             feed.innerHTML = '';
-            if(!Array.isArray(mensagens) || mensagens.length === 0) {
-                feed.innerHTML = '<div class="flex justify-center p-10"><span class="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center leading-relaxed">Nenhuma mensagem ainda.<br>Seja o primeiro a enviar! 🚀</span></div>';
-            }
+            if(!Array.isArray(mensagens) || mensagens.length === 0) { feed.innerHTML = '<div class="flex justify-center p-10"><span class="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center leading-relaxed">Nenhuma mensagem ainda.<br>Seja o primeiro a enviar! 🚀</span></div>'; }
         }
-
         if (Array.isArray(mensagens) && mensagens.length > 0) {
             if(primeiraCarga) feed.innerHTML = ''; 
-
             mensagens.forEach(m => {
                 if (m.id > ultimoIdRecebido) {
                     renderizarBolha(m);
                     ultimoIdRecebido = m.id;
-                    
-                    // A TRAVA: Só toca o som se NÃO for o carregamento do histórico
-                    if (!primeiraCarga && deveNotificar(m)) {
-                        document.getElementById('chat-notif-badge').classList.remove('hidden');
-                        somNotificacao.play().catch(() => {});
-                    }
+                    if (!primeiraCarga && deveNotificar(m)) { document.getElementById('chat-notif-badge').classList.remove('hidden'); somNotificacao.play().catch(() => {}); }
                 }
             });
-            feed.scrollTo({
-                top: feed.scrollHeight,
-                behavior: 'smooth'
-            });
+            feed.scrollTo({ top: feed.scrollHeight, behavior: 'smooth' });
         }
-    })
-    .catch(() => {}); 
+    }).catch(() => {}); 
 }
 
-// 3. DESENHAR A BOLHA DE MENSAGEM
 function renderizarBolha(m) {
     const feed = document.getElementById('chat-feed');
     const souEu = (m.remetente_id == meuId);
     const bubble = document.createElement('div');
-    
-    // A HORA CORRETA: O PHP já manda a variável "hora" formatada!
     let horaFormatada = m.hora || "Agora";
-
     bubble.className = `flex flex-col ${souEu ? 'items-end' : 'items-start'} w-full mb-3 animate-in fade-in slide-in-from-bottom-2 duration-300`;
-    bubble.innerHTML = `
-        ${!souEu ? `<span class="text-[9px] font-black text-slate-400 mb-1 ml-2 uppercase tracking-widest">${m.nome || 'Equipe'}</span>` : ''}
-        <div class="${souEu ? 'bg-blue-600 text-white rounded-[1.5rem] rounded-tr-none' : 'bg-slate-100 text-slate-700 border border-slate-200 rounded-[1.5rem] rounded-tl-none'} p-4 shadow-sm max-w-[85%]">
-            <p class="text-xs font-medium leading-relaxed">${m.mensagem}</p>
-            <span class="text-[9px] ${souEu ? 'text-blue-200' : 'text-slate-400'} block text-right mt-1 font-bold tracking-wider">
-                ${horaFormatada}
-            </span>
-        </div>
-    `;
+    bubble.innerHTML = `${!souEu ? `<span class="text-[9px] font-black text-slate-400 mb-1 ml-2 uppercase tracking-widest">${m.nome || 'Equipe'}</span>` : ''}<div class="${souEu ? 'bg-blue-600 text-white rounded-[1.5rem] rounded-tr-none' : 'bg-slate-100 text-slate-700 border border-slate-200 rounded-[1.5rem] rounded-tl-none'} p-4 shadow-sm max-w-[85%]"><p class="text-xs font-medium leading-relaxed">${m.mensagem}</p><span class="text-[9px] ${souEu ? 'text-blue-200' : 'text-slate-400'} block text-right mt-1 font-bold tracking-wider">${horaFormatada}</span></div>`;
     feed.appendChild(bubble);
 }
 
-// 4. TROCA DE CANAL DINÂMICA
+// 🔥 LOGICA DE CONTROLE DE GAVETA E TELAS (MOBILE-FIRST)
+function toggleChatNavi() {
+    const janela = document.getElementById('janela-chat');
+    if (janela.classList.contains('hidden')) {
+        janela.classList.remove('hidden');
+        setTimeout(() => janela.classList.remove('translate-x-full'), 10);
+    } else {
+        janela.classList.add('translate-x-full');
+        setTimeout(() => janela.classList.add('hidden'), 500);
+    }
+}
+
 function selecionarChat(id, nome, tipo = 'grupo') {
     destinoId = id;
-    tipoDestinoAtual = tipo; // Guarda se é grupo ou pessoa
+    tipoDestinoAtual = tipo;
     ultimoIdRecebido = 0;
-    
-    avisarLeituraBanco(id, tipo);
-    
-    // NOVO: Verifica se o botão existe, e esconde se for o GERAL (1) ou se for um usuário (1x1)
-    const btnGerenciar = document.getElementById('btn-gerenciar-grupo');
-    if (btnGerenciar) {
-        if (id === 1 || tipo === 'usuario') btnGerenciar.classList.add('hidden');
-        else btnGerenciar.classList.remove('hidden');
+
+    // No celular, alterna da lista para a conversa pra não espremer
+    if (window.innerWidth < 768) {
+        document.getElementById('chat-sidebar').classList.add('hidden');
+        document.getElementById('chat-main').classList.remove('hidden');
+        document.getElementById('chat-main').classList.add('flex');
     }
 
     document.getElementById('chat-header-nome').innerText = nome;
-    document.getElementById('chat-feed').innerHTML = '<div class="flex justify-center p-10"><span class="text-[10px] font-black text-slate-400 uppercase animate-pulse">Carregando conversas...</span></div>';
+    document.getElementById('chat-feed').innerHTML = '<div class="flex justify-center p-10"><span class="text-[10px] font-black text-slate-400 uppercase animate-pulse">Carregando...</span></div>';
     
+    avisarLeituraBanco(id, tipo);
     carregarListaGrupos(); 
     monitorarChat();       
 }
 
-// 5. ENVIAR MENSAGEM INSTANTÂNEA
+function voltarParaListaChat() {
+    document.getElementById('chat-sidebar').classList.remove('hidden');
+    document.getElementById('chat-main').classList.add('hidden');
+    document.getElementById('chat-main').classList.remove('flex');
+}
+
 document.getElementById('form-chat-navi').onsubmit = function(e) {
     e.preventDefault();
     const input = document.getElementById('input-chat-msg');
     const msg = input.value.trim();
     if (!msg) return;
-
     const fd = new FormData();
     fd.append('mensagem', msg);
     fd.append('destino', destinoId);
-    fd.append('tipo', tipoDestinoAtual); // NOVO: Avisa se vai pro grupo ou pra pessoa
-
+    fd.append('tipo', tipoDestinoAtual);
     input.value = ''; 
-
-    fetch('api/chat_engine.php?acao=enviar', { method: 'POST', body: fd })
-    .then(() => monitorarChat()); 
+    fetch('api/chat_engine.php?acao=enviar', { method: 'POST', body: fd }).then(() => monitorarChat()); 
 };
 
-// 6. CONTROLE DE INTERFACE E NOTIFICAÇÃO
-function toggleChatNavi() {
-    const janela = document.getElementById('janela-chat');
-    janela.classList.toggle('hidden');
-    chatAberto = !janela.classList.contains('hidden');
-    
-    if (chatAberto) {
-        document.getElementById('chat-notif-badge').classList.add('hidden');
-        document.title = "NAVI Messenger";
-        const feed = document.getElementById('chat-feed');
-        feed.scrollTop = feed.scrollHeight;
-    }
-}
+function deveNotificar(m) { if (m.remetente_id == meuId) return false; return (!chatAberto || document.hidden); }
 
-function deveNotificar(m) {
-    if (m.remetente_id == meuId) return false;
-    return (!chatAberto || document.hidden);
-}
-
-// --- LÓGICA DE GERENCIAR MEMBROS ---
 function abrirModalGerenciarMembros() {
-    if(destinoId === 1) return; // Segurança extra
-    
+    if(destinoId === 1) return;
     document.getElementById('nome-grupo-gerenciar').innerText = document.getElementById('chat-header-nome').innerText;
     document.getElementById('modal-gerenciar-membros').classList.remove('hidden');
     document.getElementById('lista-usuarios-glpi').innerHTML = '<p class="text-xs text-center text-slate-400 py-4 uppercase font-bold animate-pulse">Carregando equipe...</p>';
-
-    // Pede pro PHP trazer todo mundo do GLPI e quem já está no grupo ao mesmo tempo
-    Promise.all([
-        fetch('api/chat_engine.php?acao=listar_usuarios_glpi').then(r => r.json()),
-        fetch(`api/chat_engine.php?acao=listar_membros_grupo&grupo_id=${destinoId}`).then(r => r.json())
-    ]).then(([usuarios, membrosAtuais]) => {
-        renderizarListaUsuarios(usuarios, membrosAtuais.map(Number));
-    });
+    Promise.all([ fetch('api/chat_engine.php?acao=listar_usuarios_glpi').then(r => r.json()), fetch(`api/chat_engine.php?acao=listar_membros_grupo&grupo_id=${destinoId}`).then(r => r.json()) ]).then(([usuarios, membrosAtuais]) => { renderizarListaUsuarios(usuarios, membrosAtuais.map(Number)); });
 }
 
-function fecharModalMembros() {
-    document.getElementById('modal-gerenciar-membros').classList.add('hidden');
-}
+function fecharModalMembros() { document.getElementById('modal-gerenciar-membros').classList.add('hidden'); }
 
 function renderizarListaUsuarios(usuarios, membrosAtuais) {
     const container = document.getElementById('lista-usuarios-glpi');
     container.innerHTML = '';
-    
     usuarios.forEach(u => {
         const isChecked = membrosAtuais.includes(Number(u.id)) ? 'checked' : '';
-        container.innerHTML += `
-            <label class="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-100 cursor-pointer hover:border-blue-300 transition-colors usuario-item-lista">
-                <input type="checkbox" name="membros_grupo[]" value="${u.id}" class="w-5 h-5 text-blue-600 rounded border-slate-300" ${isChecked}>
-                <span class="text-xs font-bold text-slate-700 uppercase nome-usuario-busca">${u.nome}</span>
-            </label>
-        `;
+        container.innerHTML += `<label class="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-100 cursor-pointer hover:border-blue-300 transition-colors usuario-item-lista"><input type="checkbox" name="membros_grupo[]" value="${u.id}" class="w-5 h-5 text-blue-600 rounded border-slate-300" ${isChecked}><span class="text-xs font-bold text-slate-700 uppercase nome-usuario-busca">${u.nome}</span></label>`;
     });
 }
 
@@ -445,26 +332,9 @@ function salvarMembros(e) {
     const form = document.getElementById('form-gerenciar-membros');
     const formData = new FormData(form);
     formData.append('grupo_id', destinoId);
-
-    // CORREÇÃO: Colocamos a "acao" direto na URL, igual fizemos nas outras funções!
-    fetch('api/chat_engine.php?acao=salvar_membros_grupo', { 
-        method: 'POST', 
-        body: formData 
-    })
-    .then(res => res.json())
-    .then(data => {
-        if(data.status === 'sucesso') {
-            fecharModalMembros();
-            alert('✅ Membros atualizados com sucesso!');
-        } else if (data.erro) {
-            // Se o PHP barrar por não ser Admin, avisa na tela
-            alert('Erro: ' + data.erro); 
-        }
-    })
-    .catch(err => console.error("Erro na resposta do servidor:", err));
+    fetch('api/chat_engine.php?acao=salvar_membros_grupo', { method: 'POST', body: formData }).then(res => res.json()).then(data => { if(data.status === 'sucesso') { fecharModalMembros(); alert('✅ Membros atualizados com sucesso!'); } else if (data.erro) { alert('Erro: ' + data.erro); } }).catch(err => console.error("Erro na resposta do servidor:", err));
 }
 
-// Função do botão de Emoji
 function addEmojiNavi(emoji) {
     const input = document.getElementById('input-chat-msg');
     input.value += emoji;
@@ -472,15 +342,12 @@ function addEmojiNavi(emoji) {
     document.getElementById('emoji-picker-navi').classList.add('hidden');
 }
 
-// INICIALIZAÇÃO ÚNICA (Sem loops concorrentes)
 document.addEventListener('DOMContentLoaded', function() {
     carregarListaGrupos();
     monitorarChat();
     setInterval(monitorarChat, 2000);
-    setInterval(carregarListaGrupos, 5000); // Fica varrendo a lateral a cada 5s para acender as bolinhas
+    setInterval(carregarListaGrupos, 5000);
 });
 </script>
-
-
 </body>
 </html>

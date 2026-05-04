@@ -17,10 +17,10 @@ if (is_dir($diretorio_docs)) {
 }
 sort($setores_disponiveis);
 
-// Verifica se o usuário tem acesso ao Marketing (Admin ou Setor Marketing)
+// Verifica se o usuário tem acesso ao Marketing (Admin ou Setor Marketing)[cite: 10]
 $acesso_marketing = ($_SESSION['is_admin'] || $_SESSION['setor_principal'] == 'MARKETING');
 
-// Descobre a pasta atual que está sendo visualizada para manter a sanfona aberta
+// Descobre a pasta atual que está sendo visualizada para manter a sanfona aberta[cite: 10]
 $pasta_url_atual = '';
 if (isset($_GET['path'])) {
     $partes_path = explode('/', urldecode($_GET['path']));
@@ -28,9 +28,22 @@ if (isset($_GET['path'])) {
 }
 ?>
 
-<aside class="w-64 bg-navy-900 flex flex-col h-full border-r border-navy-700 transition-all duration-300">
+<!-- OVERLAY: Fundo escuro que aparece atrás do menu no celular[cite: 10] -->
+<div id="mobile-overlay" onclick="toggleMobileMenu()" class="fixed inset-0 bg-black/60 z-40 hidden lg:hidden backdrop-blur-sm transition-opacity opacity-0"></div>
+
+<!-- ASIDE: Configurada como gaveta deslizante (transform -translate-x-full) no mobile[cite: 10] -->
+<aside id="sidebar-menu" class="fixed inset-y-0 left-0 z-50 w-64 bg-navy-900 flex flex-col h-full border-r border-navy-700 transition-transform duration-300 transform -translate-x-full lg:relative lg:translate-x-0 lg:flex shrink-0 shadow-2xl lg:shadow-none">
+    
+    <!-- Botão de fechar (X) visível apenas no celular[cite: 10] -->
+    <div class="flex justify-end p-4 lg:hidden">
+        <button onclick="toggleMobileMenu()" class="text-slate-400 hover:text-white p-2">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+    </div>
+
     <nav class="flex-1 px-4 py-6 space-y-8 overflow-y-auto custom-scrollbar">
         
+        <!-- MENU PRINCIPAL[cite: 10] -->
         <div>
             <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-3">Menu Principal</p>
             <ul class="space-y-1">
@@ -52,6 +65,7 @@ if (isset($_GET['path'])) {
             </ul>
         </div>
 
+        <!-- COMUNICAÇÃO[cite: 10] -->
         <?php 
             $tem_permissao_feed = ($_SESSION['is_admin'] || ($_SESSION['pode_postar_feed'] ?? false) || $_SESSION['setor_principal'] == 'MARKETING');
             if ($tem_permissao_feed): 
@@ -73,83 +87,69 @@ if (isset($_GET['path'])) {
         </div>
         <?php endif; ?>
 
+        <!-- DOCUMENTAÇÃO DINÂMICA[cite: 10] -->
         <div>
-    <button onclick="toggleDocs()" class="w-full flex items-center justify-between px-3 py-2.5 text-slate-400 hover:text-white hover:bg-navy-800 rounded-lg transition-all">
-        <div class="flex items-center gap-3">
-            <span>📂</span> <span class="text-sm font-semibold">Documentação</span>
-        </div>
-        <span id="docs-arrow" class="transition-transform duration-200 <?php echo $is_docs_active ? 'rotate-90' : ''; ?>">▶</span>
-    </button>
-    
-    <ul id="docs-menu" class="mt-2 space-y-1 pl-6 <?php echo $is_docs_active ? '' : 'hidden'; ?>">
-        <?php
-        foreach ($setores_disponiveis as $setor):
-            $tem_acesso = ($_SESSION['is_admin'] || 
-                           $_SESSION['setor_principal'] == $setor || 
-                           (isset($_SESSION['pastas_extras']) && in_array($setor, $_SESSION['pastas_extras'])));
-
-            if ($tem_acesso):
-                $diretorio_base = $_SERVER['DOCUMENT_ROOT'] . '/intranet/docs/'; 
-                $diretorio_setor = $diretorio_base . $setor;
-                
-                // CORREÇÃO 1: Agora busca arquivos .md E .pdf
-                $arquivos_docs = glob($diretorio_setor . '/*.{md,pdf}', GLOB_BRACE);
-                $id_setor_limpo = str_replace([' ', '&', '.'], '_', $setor);
-                
-                // Verifica se esta é a pasta que o usuário está visualizando agora para manter a sanfona aberta
-                $is_this_open = ($pasta_url_atual === $setor);
-        ?>
-            <li class="group">
-                <div class="flex items-center justify-between py-1 px-2 rounded hover:bg-navy-800 transition-all">
-                    <a href="view.php?path=<?php echo urlencode($setor); ?>" class="text-[11px] font-medium text-slate-500 hover:text-white transition-all uppercase flex-1 py-1">
-                        <?php echo $setor; ?>
-                    </a>
-                    
-                    <button onclick="event.preventDefault(); event.stopPropagation(); toggleSetor('sub_<?php echo $id_setor_limpo; ?>', 'arrow_<?php echo $id_setor_limpo; ?>')" 
-                            class="p-1 text-slate-600 hover:text-white transition-all">
-                        <span id="arrow_<?php echo $id_setor_limpo; ?>" class="text-[8px] transition-transform block" style="transform: <?php echo $is_this_open ? 'rotate(90deg)' : 'rotate(0deg)'; ?>">▶</span>
-                    </button>
+            <button onclick="toggleDocs()" class="w-full flex items-center justify-between px-3 py-2.5 text-slate-400 hover:text-white hover:bg-navy-800 rounded-lg transition-all">
+                <div class="flex items-center gap-3">
+                    <span>📂</span> <span class="text-sm font-semibold">Documentação</span>
                 </div>
+                <span id="docs-arrow" class="transition-transform duration-200 <?php echo $is_docs_active ? 'rotate-90' : ''; ?>">▶</span>
+            </button>
+            
+            <ul id="docs-menu" class="mt-2 space-y-1 pl-6 <?php echo $is_docs_active ? '' : 'hidden'; ?>">
+                <?php
+                foreach ($setores_disponiveis as $setor):
+                    $tem_acesso = ($_SESSION['is_admin'] || 
+                                   $_SESSION['setor_principal'] == $setor || 
+                                   (isset($_SESSION['pastas_extras']) && in_array($setor, $_SESSION['pastas_extras'])));
 
-                <ul id="sub_<?php echo $id_setor_limpo; ?>" class="<?php echo $is_this_open ? '' : 'hidden'; ?> pl-4 border-l border-slate-700 space-y-1 my-1">
-                    <?php 
-                    if (!$arquivos_docs || empty($arquivos_docs)): 
-                    ?>
-                        <li class="text-[10px] text-slate-600 italic py-1">Nenhum documento</li>
-                    <?php 
-                    else: 
-                        foreach ($arquivos_docs as $arq): 
-                            $ext = strtolower(pathinfo($arq, PATHINFO_EXTENSION));
-                            $nome_doc = str_replace(['.md', '.pdf'], '', basename($arq));
-                            $icone = ($ext == 'pdf') ? '📕' : '📄';
-                            
-                            // CORREÇÃO 2: Passa o caminho completo do arquivo para o view.php!
-                            $caminho_completo = $setor . '/' . basename($arq);
-                    ?>
-                        <li>
-                            <a href="view.php?path=<?php echo urlencode($caminho_completo); ?>" 
-                               class="block py-1 text-[10px] text-slate-500 hover:text-blue-400 transition-all truncate" title="<?php echo $nome_doc; ?>">
-                                <?php echo $icone; ?> <?php echo str_replace('_', ' ', $nome_doc); ?>
+                    if ($tem_acesso):
+                        $diretorio_base = $_SERVER['DOCUMENT_ROOT'] . '/intranet/docs/'; 
+                        $diretorio_setor = $diretorio_base . $setor;
+                        $arquivos_docs = glob($diretorio_setor . '/*.{md,pdf}', GLOB_BRACE);
+                        $id_setor_limpo = str_replace([' ', '&', '.'], '_', $setor);
+                        $is_this_open = ($pasta_url_atual === $setor);
+                ?>
+                    <li class="group">
+                        <div class="flex items-center justify-between py-1 px-2 rounded hover:bg-navy-800 transition-all">
+                            <a href="view.php?path=<?php echo urlencode($setor); ?>" class="text-[11px] font-medium text-slate-500 hover:text-white transition-all uppercase flex-1 py-1">
+                                <?php echo $setor; ?>
                             </a>
-                        </li>
-                    <?php 
-                        endforeach; 
-                    endif; 
-                    ?>
-                </ul>
-            </li>
-        <?php 
-            endif;
-        endforeach; 
-        ?>
-    </ul>
-</div>
+                            
+                            <button onclick="event.preventDefault(); event.stopPropagation(); toggleSetor('sub_<?php echo $id_setor_limpo; ?>', 'arrow_<?php echo $id_setor_limpo; ?>')" 
+                                    class="p-1 text-slate-600 hover:text-white transition-all">
+                                <span id="arrow_<?php echo $id_setor_limpo; ?>" class="text-[8px] transition-transform block" style="transform: <?php echo $is_this_open ? 'rotate(90deg)' : 'rotate(0deg)'; ?>">▶</span>
+                            </button>
+                        </div>
 
+                        <ul id="sub_<?php echo $id_setor_limpo; ?>" class="<?php echo $is_this_open ? '' : 'hidden'; ?> pl-4 border-l border-slate-700 space-y-1 my-1">
+                            <?php if (!$arquivos_docs || empty($arquivos_docs)): ?>
+                                <li class="text-[10px] text-slate-600 italic py-1">Nenhum documento</li>
+                            <?php else: 
+                                foreach ($arquivos_docs as $arq): 
+                                    $ext = strtolower(pathinfo($arq, PATHINFO_EXTENSION));
+                                    $nome_doc = str_replace(['.md', '.pdf'], '', basename($arq));
+                                    $icone = ($ext == 'pdf') ? '📕' : '📄';
+                                    $caminho_completo = $setor . '/' . basename($arq);
+                            ?>
+                                <li>
+                                    <a href="view.php?path=<?php echo urlencode($caminho_completo); ?>" 
+                                       class="block py-1 text-[10px] text-slate-500 hover:text-blue-400 transition-all truncate" title="<?php echo $nome_doc; ?>">
+                                        <?php echo $icone; ?> <?php echo str_replace('_', ' ', $nome_doc); ?>
+                                    </a>
+                                </li>
+                            <?php endforeach; endif; ?>
+                        </ul>
+                    </li>
+                <?php endif; endforeach; ?>
+            </ul>
+        </div>
+
+        <!-- ADMINISTRAÇÃO[cite: 10] -->
         <?php if ($_SESSION['is_admin'] || $_SESSION['pode_gerenciar_docs']): ?>
         <div>
             <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-3">Administração</p>
             <ul class="space-y-1">
-                
                 <?php if ($_SESSION['pode_gerenciar_docs']): ?>
                 <li>
                     <a href="admin_docs.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'admin_docs.php') ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/20' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>">
@@ -170,32 +170,29 @@ if (isset($_GET['path'])) {
                     </a>
                 </li>
                 <?php endif; ?>
-
             </ul>
         </div>
         <?php endif; ?>
-
     </nav>
 </aside>
 
 <script>
+// Funções de interface interna da Sidebar[cite: 10]
 function toggleDocs() {
     const menu = document.getElementById('docs-menu');
     const arrow = document.getElementById('docs-arrow');
-    menu.classList.toggle('hidden');
-    arrow.classList.toggle('rotate-90');
+    if(menu && arrow) {
+        menu.classList.toggle('hidden');
+        arrow.classList.toggle('rotate-90');
+    }
 }
 
 function toggleSetor(id, arrowId) {
     const submenu = document.getElementById(id);
     const arrow = document.getElementById(arrowId);
-
-    submenu.classList.toggle('hidden');
-    
-    if (submenu.classList.contains('hidden')) {
-        arrow.style.transform = 'rotate(0deg)';
-    } else {
-        arrow.style.transform = 'rotate(90deg)';
+    if(submenu && arrow) {
+        submenu.classList.toggle('hidden');
+        arrow.style.transform = submenu.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(90deg)';
     }
 }
 </script>

@@ -128,20 +128,45 @@ if (isset($_SESSION['user_id'])) {
                 }
             }
         }
+
+        // 🔥 FUNÇÃO GLOBAL UNIFICADA (Matadora de ReferenceError)[cite: 8, 9]
+        function toggleMobileMenu() {
+            const sidebar = document.getElementById('sidebar-menu');
+            const overlay = document.getElementById('mobile-overlay');
+            
+            if (!sidebar || !overlay) {
+                console.error("Erro Crítico: Elementos do menu (sidebar-menu ou mobile-overlay) não encontrados no DOM.");
+                return;
+            }
+
+            sidebar.classList.toggle('-translate-x-full');
+            
+            if (overlay.classList.contains('hidden')) {
+                overlay.classList.remove('hidden');
+                setTimeout(() => overlay.classList.remove('opacity-0'), 10);
+            } else {
+                overlay.classList.add('opacity-0');
+                setTimeout(() => overlay.classList.add('hidden'), 300);
+            }
+        }
     </script>
     <link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/style.css">
 </head>
+
 <body class="h-full bg-slate-100 font-sans antialiased">
     <div class="flex flex-col h-full">
         <header class="sticky top-0 z-50 bg-navy-900 border-b border-navy-700 shadow-lg px-6 py-3">
             <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-corporate-blue to-corporate-blueDark flex items-center justify-center">
-                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                    </div>
-                    <div>
-                        <h1 class="text-xl font-bold text-white tracking-tight leading-none">NAVI</h1>
-                        <p class="text-[10px] text-slate-400 uppercase tracking-widest mt-1">Portal Corporativo</p>
+                
+                <div class="flex items-center gap-4">
+                    <!-- BOTAO HAMBURGUER (Mantido para navegação mobile) -->
+                    <button onclick="toggleMobileMenu()" class="lg:hidden p-2 -ml-2 text-slate-400 hover:text-white focus:outline-none transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                    </button>
+
+                    <!-- 🔥 LOGO SOUZA: Agora maior e sem os textos laterais -->
+                    <div class="flex items-center py-1">
+                        <img src="img/logo.svg" alt="Logo Souza" class="h-12 md:h-16 w-auto object-contain transition-all">
                     </div>
                 </div>
 
@@ -213,6 +238,27 @@ if (isset($_SESSION['user_id'])) {
             }, 8000);
         }
 
+        // Função Global para controlar o Menu Mobile
+        function toggleMobileMenu() {
+            const sidebar = document.getElementById('sidebar-menu');
+            const overlay = document.getElementById('mobile-overlay');
+            
+            if (!sidebar || !overlay) {
+                console.warn("Elementos do menu não encontrados.");
+                return;
+            }
+
+            sidebar.classList.toggle('-translate-x-full');
+            
+            if (overlay.classList.contains('hidden')) {
+                overlay.classList.remove('hidden');
+                setTimeout(() => overlay.classList.remove('opacity-0'), 10);
+            } else {
+                overlay.classList.add('opacity-0');
+                setTimeout(() => overlay.classList.add('hidden'), 300);
+            }
+        }
+
         function monitorarLogins() {
             fetch('check_novos_acessos.php')
                 .then(res => res.json())
@@ -226,6 +272,8 @@ if (isset($_SESSION['user_id'])) {
                 });
         }
         setInterval(monitorarLogins, 10000);
+
+
         </script>
 
         <div class="flex flex-1 overflow-hidden">

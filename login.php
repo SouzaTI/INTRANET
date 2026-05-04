@@ -48,8 +48,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <body class="bg-slate-900 flex items-center justify-center h-screen">
     <div class="bg-white p-8 rounded-2xl shadow-2xl w-96">
         <div class="text-center mb-8">
-            <h1 class="text-2xl font-bold text-slate-800">NAVE</h1>
-            <p class="text-slate-500 text-sm">Portal de Documentação</p>
+            <h1 class="text-2xl font-bold text-slate-800">INTRANET | COMERCIAL SOUZA</h1>
+            <p class="text-slate-500 text-sm">Portal de comunicação interna e otimização de Processos.</p>
         </div>
         
         <?php if(isset($erro)) echo "<p class='text-red-500 text-xs mb-4 text-center'>$erro</p>"; ?>

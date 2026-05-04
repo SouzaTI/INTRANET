@@ -5,10 +5,8 @@ include 'includes/sidebar.php';
 
 $meu_id = $_SESSION['user_id'];
 
-// Verifica quem a gente clicou na lista. Se não clicar em ninguém, abre o GERAL (1)
 $destino_ativo = isset($_GET['destino']) ? (int)$_GET['destino'] : 1; 
 
-// Pega o nome da pessoa com quem estamos falando para mostrar no topo
 if ($destino_ativo == 1) {
     $nome_destino = "GRUPO GERAL";
 } else {
@@ -18,7 +16,6 @@ if ($destino_ativo == 1) {
     $nome_destino = $dest ? $dest['firstname'] . ' ' . $dest['realname'] : "Usuário Desconhecido";
 }
 
-// BUSCA OS CONTATOS ORDENADOS PELA ÚLTIMA MENSAGEM (O segredo tá aqui!)
 $sql_contatos = "
     SELECT u.id, u.firstname, u.realname,
            (SELECT MAX(data_hora) 
@@ -35,10 +32,12 @@ $stmt_contatos->execute(['meu_id' => $meu_id]);
 $contatos = $stmt_contatos->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
-<main class="flex-1 bg-slate-50 p-4 h-screen flex flex-col overflow-hidden">
-    <div class="max-w-7xl mx-auto w-full flex h-full bg-white rounded-[3rem] shadow-2xl border border-slate-200 overflow-hidden">
+<!-- AJUSTE: h-screen removido do main para evitar bugs de scroll no mobile -->
+<main class="flex-1 bg-slate-50 p-2 md:p-4 h-[calc(100vh-64px)] flex flex-col overflow-hidden">
+    <div class="max-w-7xl mx-auto w-full flex h-full bg-white rounded-[2rem] md:rounded-[3rem] shadow-2xl border border-slate-200 overflow-hidden">
         
-        <div class="w-1/3 bg-slate-50 border-r border-slate-200 flex flex-col">
+        <!-- COLUNA DE CONTATOS: Escondida no mobile se um destino estiver ativo -->
+        <div class="<?php echo isset($_GET['destino']) ? 'hidden' : 'flex'; ?> md:flex w-full md:w-1/3 bg-slate-50 border-r border-slate-200 flex-col">
             <div class="p-6 bg-navy-900 text-white">
                 <h2 class="text-xl font-black uppercase italic tracking-tighter">Mensagens Rápidas</h2>
             </div>
@@ -72,28 +71,33 @@ $contatos = $stmt_contatos->fetchAll(PDO::FETCH_ASSOC);
             </div>
         </div>
 
-        <div class="w-2/3 flex flex-col bg-white">
-            <div class="bg-white border-b border-slate-100 p-6 flex justify-between items-center shadow-sm z-10">
+        <!-- COLUNA DE MENSAGENS: Ocupa tudo no mobile se houver destino -->
+        <div class="<?php echo isset($_GET['destino']) ? 'flex' : 'hidden'; ?> md:flex w-full md:w-2/3 flex-col bg-white">
+            <div class="bg-white border-b border-slate-100 p-4 md:p-6 flex justify-between items-center shadow-sm z-10">
                 <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-blue-600/20">💬</div>
+                    <!-- Botão Voltar: Só aparece no Mobile para voltar à lista de contatos -->
+                    <a href="chat.php" class="md:hidden p-2 text-slate-400 hover:text-navy-900">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                    </a>
+                    <div class="w-10 h-10 md:w-12 md:h-12 bg-blue-600 rounded-xl md:rounded-2xl flex items-center justify-center text-xl md:text-2xl shadow-lg shadow-blue-600/20">💬</div>
                     <div>
-                        <h2 class="text-xl font-black uppercase italic tracking-tighter text-navy-900"><?= $nome_destino ?></h2>
-                        <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">Conectado como: <?= $_SESSION['user_name'] ?></p>
+                        <h2 class="text-sm md:text-xl font-black uppercase italic tracking-tighter text-navy-900 truncate max-w-[150px] md:max-w-none"><?= $nome_destino ?></h2>
+                        <p class="hidden md:block text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">Conectado como: <?= $_SESSION['user_name'] ?></p>
                     </div>
                 </div>
             </div>
 
-            <div id="chat-container" class="flex-1 p-6 overflow-y-auto space-y-4 custom-scrollbar bg-slate-50/50">
+            <div id="chat-container" class="flex-1 p-4 md:p-6 overflow-y-auto space-y-4 custom-scrollbar bg-slate-50/50">
                 <div class="flex justify-center py-10">
                     <p class="text-slate-400 text-[10px] font-black uppercase tracking-[0.3em]">Carregando histórico...</p>
                 </div>
             </div>
 
-            <div class="p-6 bg-white border-t border-slate-100">
-                <form id="form-chat" class="flex gap-3 items-center relative">
+            <div class="p-4 md:p-6 bg-white border-t border-slate-100">
+                <form id="form-chat" class="flex gap-2 md:gap-3 items-center relative">
                     
                     <div class="relative">
-                        <button type="button" onclick="document.getElementById('emoji-picker').classList.toggle('hidden')" class="p-3 text-slate-400 hover:text-amber-500 transition-all text-2xl hover:scale-110">
+                        <button type="button" onclick="document.getElementById('emoji-picker').classList.toggle('hidden')" class="p-2 md:p-3 text-slate-400 hover:text-amber-500 transition-all text-xl md:text-2xl hover:scale-110">
                             😀
                         </button>
                         <div id="emoji-picker" class="hidden absolute bottom-14 left-0 bg-white border border-slate-200 shadow-2xl rounded-2xl p-3 grid grid-cols-6 gap-2 z-50 w-64">
@@ -106,11 +110,11 @@ $contatos = $stmt_contatos->fetchAll(PDO::FETCH_ASSOC);
                         </div>
                     </div>
 
-                    <input type="text" id="input-mensagem" autocomplete="off" placeholder="Digite sua mensagem aqui..." 
-                        class="flex-1 bg-slate-50 border border-slate-200 p-4 rounded-2xl text-sm font-medium outline-none focus:ring-4 focus:ring-blue-600/10 transition-all">
+                    <input type="text" id="input-mensagem" autocomplete="off" placeholder="Mensagem..." 
+                        class="flex-1 bg-slate-50 border border-slate-200 p-3 md:p-4 rounded-2xl text-xs md:text-sm font-medium outline-none focus:ring-4 focus:ring-blue-600/10 transition-all">
                     
-                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-600/20 transition-all transform hover:scale-105 shrink-0">
-                        <svg class="w-6 h-6 rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-600/20 transition-all transform hover:scale-105 shrink-0">
+                        <svg class="w-5 h-5 md:w-6 md:h-6 rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
                     </button>
                 </form>
             </div>
@@ -127,7 +131,6 @@ $contatos = $stmt_contatos->fetchAll(PDO::FETCH_ASSOC);
     const formChat = document.getElementById('form-chat');
     const inputMsg = document.getElementById('input-mensagem');
 
-    // Função para jogar o emoji dentro do campo de texto
     function addEmoji(emoji) {
         inputMsg.value += emoji;
         inputMsg.focus();
@@ -145,21 +148,19 @@ $contatos = $stmt_contatos->fetchAll(PDO::FETCH_ASSOC);
                     const souEu = (m.remetente_id == meuId);
                     const bubble = document.createElement('div');
                     
-                    // Formata a data (Ex: 23/04/2026 14:30)
                     const dataMsg = new Date(m.data_hora);
                     const strData = dataMsg.toLocaleDateString('pt-BR') + ' ' + dataMsg.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
 
                     bubble.className = `flex ${souEu ? 'justify-end' : 'justify-start'} w-full animate-in fade-in slide-in-from-bottom-2 duration-300`;
                     
                     bubble.innerHTML = `
-                        <div class="max-w-[70%]">
+                        <div class="max-w-[85%] md:max-w-[70%]">
                             <div class="flex items-center gap-2 mb-1 ${souEu ? 'justify-end' : 'justify-start'}">
                                 <span class="text-[9px] font-black uppercase text-slate-400">${m.nome}</span>
                             </div>
-                            <div class="p-4 rounded-[1.5rem] text-sm shadow-sm font-medium ${souEu ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-white text-slate-700 border border-slate-200 rounded-tl-none'} relative group">
+                            <div class="p-3 md:p-4 rounded-[1.2rem] md:rounded-[1.5rem] text-xs md:text-sm shadow-sm font-medium ${souEu ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-white text-slate-700 border border-slate-200 rounded-tl-none'} relative group">
                                 ${m.mensagem}
-                                
-                                <span class="block mt-2 text-[9px] ${souEu ? 'text-blue-200' : 'text-slate-400'} text-right font-bold">
+                                <span class="block mt-2 text-[8px] md:text-[9px] ${souEu ? 'text-blue-200' : 'text-slate-400'} text-right font-bold">
                                     ${strData}
                                 </span>
                             </div>
@@ -172,7 +173,7 @@ $contatos = $stmt_contatos->fetchAll(PDO::FETCH_ASSOC);
                 
                 chatContainer.scrollTop = chatContainer.scrollHeight;
             } else if (ultimoIdRecebido === 0) {
-                chatContainer.innerHTML = '<div class="flex justify-center py-10"><p class="text-slate-400 text-[10px] font-black uppercase tracking-[0.3em]">Nenhuma mensagem ainda. Envie um oi!</p></div>';
+                chatContainer.innerHTML = '<div class="flex justify-center py-10"><p class="text-slate-400 text-[10px] font-black uppercase tracking-[0.3em]">Nenhuma mensagem ainda.</p></div>';
             }
         })
         .catch(err => console.error("Erro ao buscar:", err));
