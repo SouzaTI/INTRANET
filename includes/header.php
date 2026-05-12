@@ -63,7 +63,7 @@ if (isset($_SESSION['user_id'])) {
         $pode_acessos   = !empty($perm_indiv['pode_gerenciar_acessos']) || !empty($perm_grupo['g_acessos']);
 
         // D. Guarda no crachá (Sessão)
-        $_SESSION['is_admin']               = ($is_intra_admin || $is_glpi_admin);
+        $_SESSION['is_admin'] = (bool)$is_intra_admin;
         $_SESSION['pode_gerenciar_docs']    = ($_SESSION['is_admin'] || $pode_docs);
         $_SESSION['pode_postar_feed']       = ($_SESSION['is_admin'] || $pode_feed);
         $_SESSION['pode_gerenciar_acessos'] = ($_SESSION['is_admin'] || $pode_acessos);

@@ -2,146 +2,171 @@
 require_once 'config.php';
 
 // =====================================================================
-// 1. PROCESSAMENTO DE FORMULÁRIOS (Backend embutido com LOGS)
+// 1. PROCESSAMENTO DE FORMULÁRIOS (Padrão PRG Aplicado)
 // =====================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
     
     $admin_id = $_SESSION['user_id'] ?? 0;
     $admin_ip = $_SERVER['REMOTE_ADDR'];
 
-    // A. SALVAR USUÁRIO
-    if ($_POST['acao'] === 'salvar_usuario') {
-        $uid = $_POST['user_id'];
+    try {
+        // A. SALVAR USUÁRIO
+        if ($_POST['acao'] === 'salvar_usuario') {
+            $uid = $_POST['user_id'];
+            
+            $p_admin = isset($_POST['p_admin']) ? 1 : 0;
+            $p_docs  = isset($_POST['p_docs']) ? 1 : 0;
+            $p_feed  = isset($_POST['p_feed']) ? 1 : 0;
+            $p_aces  = isset($_POST['p_acessos']) ? 1 : 0;
+            
+            $sql_perm = "INSERT INTO usuarios_permissoes (usuario_id, is_admin, pode_gerenciar_docs, pode_postar_feed, pode_gerenciar_acessos) 
+                         VALUES (?, ?, ?, ?, ?) 
+                         ON DUPLICATE KEY UPDATE 
+                         is_admin = VALUES(is_admin), pode_gerenciar_docs = VALUES(pode_gerenciar_docs), 
+                         pode_postar_feed = VALUES(pode_postar_feed), pode_gerenciar_acessos = VALUES(pode_gerenciar_acessos)";
+            $pdo_intra->prepare($sql_perm)->execute([$uid, $p_admin, $p_docs, $p_feed, $p_aces]);
+
+            $pdo_intra->prepare("DELETE FROM usuarios_grupos WHERE usuario_id = ?")->execute([$uid]);
+            if (!empty($_POST['grupos'])) {
+                $stmt_g = $pdo_intra->prepare("INSERT INTO usuarios_grupos (usuario_id, grupo_id) VALUES (?, ?)");
+                foreach ($_POST['grupos'] as $gid) { $stmt_g->execute([$uid, $gid]); }
+            }
+
+            $pdo_intra->prepare("DELETE FROM permissoes_pastas WHERE user_id = ?")->execute([$uid]);
+            if (!empty($_POST['pastas'])) {
+                $stmt_p = $pdo_intra->prepare("INSERT INTO permissoes_pastas (user_id, pasta_nome) VALUES (?, ?)");
+                foreach ($_POST['pastas'] as $pasta) { $stmt_p->execute([$uid, $pasta]); }
+            }
+            
+            $pdo_intra->prepare("DELETE FROM permissoes_videos WHERE user_id = ?")->execute([$uid]);
+            if (!empty($_POST['videos'])) {
+                $stmt_v = $pdo_intra->prepare("INSERT INTO permissoes_videos (user_id, pasta_video) VALUES (?, ?)");
+                foreach ($_POST['videos'] as $video) { $stmt_v->execute([$uid, $video]); }
+            }
+
+            $pdo_intra->prepare("DELETE FROM permissoes_sistemas WHERE user_id = ?")->execute([$uid]);
+            if (!empty($_POST['sistemas'])) {
+                $stmt_s = $pdo_intra->prepare("INSERT INTO permissoes_sistemas (user_id, sistema_id) VALUES (?, ?)");
+                foreach ($_POST['sistemas'] as $sid) { $stmt_s->execute([$uid, $sid]); }
+            }
+            
+            registrarLog($pdo_intra, 'ALTEROU ACESSOS', "Modificou a matriz de permissões/grupos do usuário ID: $uid", $admin_id, $admin_ip);
+            
+            header("Location: admin_gestao.php?sucesso=" . urlencode("Permissões do usuário atualizadas com sucesso!"));
+            exit;
+        }
+
+        // B. SALVAR GRUPO
+        if ($_POST['acao'] === 'salvar_grupo') {
+            $gid = $_POST['grupo_id'];
+            $nome = strtoupper(trim($_POST['nome_grupo'])); 
+
+            $g_admin = isset($_POST['g_admin']) ? 1 : 0;
+            $g_docs  = isset($_POST['g_docs']) ? 1 : 0;
+            $g_feed  = isset($_POST['g_feed']) ? 1 : 0;
+            $g_aces  = isset($_POST['g_acessos']) ? 1 : 0; 
+
+            if (empty($gid)) {
+                // TRAVA DE ENGENHARIA: Verifica se já existe um grupo com esse nome
+                $stmt_check = $pdo_intra->prepare("SELECT id FROM grupos_intranet WHERE nome = ?");
+                $stmt_check->execute([$nome]);
+                if ($stmt_check->fetch()) {
+                    header("Location: admin_gestao.php?erro=" . urlencode("Já existe um grupo com o nome '$nome'."));
+                    exit;
+                }
+
+                $sql = "INSERT INTO grupos_intranet (nome, is_admin, pode_gerenciar_docs, pode_postar_feed, pode_gerenciar_acessos) VALUES (?, ?, ?, ?, ?)";
+                $pdo_intra->prepare($sql)->execute([$nome, $g_admin, $g_docs, $g_feed, $g_aces]);
+                $gid = $pdo_intra->lastInsertId();
+                registrarLog($pdo_intra, 'CRIOU GRUPO', "Criou o novo grupo de acessos: $nome", $admin_id, $admin_ip);
+            } else {
+                $sql = "UPDATE grupos_intranet SET nome = ?, is_admin = ?, pode_gerenciar_docs = ?, pode_postar_feed = ?, pode_gerenciar_acessos = ? WHERE id = ?";
+                $pdo_intra->prepare($sql)->execute([$nome, $g_admin, $g_docs, $g_feed, $g_aces, $gid]);
+                registrarLog($pdo_intra, 'EDITOU GRUPO', "Alterou as regras do grupo: $nome", $admin_id, $admin_ip);
+            }
+
+            $pdo_intra->prepare("DELETE FROM grupos_pastas WHERE grupo_id = ?")->execute([$gid]);
+            if (!empty($_POST['pastas_grupo'])) {
+                $stmt_p = $pdo_intra->prepare("INSERT INTO grupos_pastas (grupo_id, pasta_nome) VALUES (?, ?)");
+                foreach ($_POST['pastas_grupo'] as $pasta) { $stmt_p->execute([$gid, $pasta]); }
+            }
+
+            $pdo_intra->prepare("DELETE FROM grupos_videos WHERE grupo_id = ?")->execute([$gid]);
+            if (!empty($_POST['videos_grupo'])) {
+                $stmt_v = $pdo_intra->prepare("INSERT INTO grupos_videos (grupo_id, pasta_video) VALUES (?, ?)");
+                foreach ($_POST['videos_grupo'] as $video) { $stmt_v->execute([$gid, $video]); }
+            }
+
+            $pdo_intra->prepare("DELETE FROM grupos_sistemas WHERE grupo_id = ?")->execute([$gid]);
+            if (!empty($_POST['sistemas_grupo'])) {
+                $stmt_s = $pdo_intra->prepare("INSERT INTO grupos_sistemas (grupo_id, sistema_id) VALUES (?, ?)");
+                foreach ($_POST['sistemas_grupo'] as $sid) { $stmt_s->execute([$gid, $sid]); }
+            }
+            
+            header("Location: admin_gestao.php?sucesso=" . urlencode("Grupo '$nome' salvo com sucesso!"));
+            exit;
+        }
+
+        // C. EXCLUIR GRUPO
+        if ($_POST['acao'] === 'excluir_grupo') {
+            $gid = $_POST['grupo_id'];
+            $pdo_intra->prepare("DELETE FROM grupos_intranet WHERE id = ?")->execute([$gid]);
+            $pdo_intra->prepare("DELETE FROM grupos_pastas WHERE grupo_id = ?")->execute([$gid]);
+            $pdo_intra->prepare("DELETE FROM grupos_videos WHERE grupo_id = ?")->execute([$gid]);
+            $pdo_intra->prepare("DELETE FROM usuarios_grupos WHERE grupo_id = ?")->execute([$gid]);
+            $pdo_intra->prepare("DELETE FROM grupos_sistemas WHERE grupo_id = ?")->execute([$gid]);
+            registrarLog($pdo_intra, 'EXCLUIU GRUPO', "Deletou o grupo de ID: $gid", $admin_id, $admin_ip);
+            
+            header("Location: admin_gestao.php?sucesso=" . urlencode("Grupo excluído com sucesso!"));
+            exit;
+        }
+
+        // D. SALVAR SISTEMA
+        if ($_POST['acao'] === 'salvar_sistema') {
+            $nome = trim($_POST['sys_nome']);
+            $url = trim($_POST['sys_url']);
+            $icone = trim($_POST['sys_icone']);
+            $cor = trim($_POST['sys_cor']);
+            $sid = $_POST['sistema_id'] ?? '';
+
+            if(empty($sid)){
+                $pdo_intra->prepare("INSERT INTO sistemas_lista (nome, url, icone, cor) VALUES (?, ?, ?, ?)")->execute([$nome, $url, $icone, $cor]);
+                registrarLog($pdo_intra, 'CRIOU SISTEMA', "Criou o sistema: $nome", $admin_id, $admin_ip);
+            } else {
+                $pdo_intra->prepare("UPDATE sistemas_lista SET nome=?, url=?, icone=?, cor=? WHERE id=?")->execute([$nome, $url, $icone, $cor, $sid]);
+            }
+            
+            header("Location: admin_gestao.php?sucesso=" . urlencode("Sistema salvo com sucesso!"));
+            exit;
+        }
         
-        $p_admin = isset($_POST['p_admin']) ? 1 : 0;
-        $p_docs  = isset($_POST['p_docs']) ? 1 : 0;
-        $p_feed  = isset($_POST['p_feed']) ? 1 : 0;
-        $p_aces  = isset($_POST['p_acessos']) ? 1 : 0;
-        
-        $sql_perm = "INSERT INTO usuarios_permissoes (usuario_id, is_admin, pode_gerenciar_docs, pode_postar_feed, pode_gerenciar_acessos) 
-                     VALUES (?, ?, ?, ?, ?) 
-                     ON DUPLICATE KEY UPDATE 
-                     is_admin = VALUES(is_admin), pode_gerenciar_docs = VALUES(pode_gerenciar_docs), 
-                     pode_postar_feed = VALUES(pode_postar_feed), pode_gerenciar_acessos = VALUES(pode_gerenciar_acessos)";
-        $pdo_intra->prepare($sql_perm)->execute([$uid, $p_admin, $p_docs, $p_feed, $p_aces]);
-
-        $pdo_intra->prepare("DELETE FROM usuarios_grupos WHERE usuario_id = ?")->execute([$uid]);
-        if (!empty($_POST['grupos'])) {
-            $stmt_g = $pdo_intra->prepare("INSERT INTO usuarios_grupos (usuario_id, grupo_id) VALUES (?, ?)");
-            foreach ($_POST['grupos'] as $gid) { $stmt_g->execute([$uid, $gid]); }
+        // E. EXCLUIR SISTEMA
+        if ($_POST['acao'] === 'excluir_sistema') {
+            $sid = $_POST['sistema_id'];
+            $pdo_intra->prepare("DELETE FROM sistemas_lista WHERE id = ?")->execute([$sid]);
+            $pdo_intra->prepare("DELETE FROM permissoes_sistemas WHERE sistema_id = ?")->execute([$sid]);
+            $pdo_intra->prepare("DELETE FROM grupos_sistemas WHERE sistema_id = ?")->execute([$sid]);
+            registrarLog($pdo_intra, 'EXCLUIU SISTEMA', "Deletou o sistema ID: $sid", $admin_id, $admin_ip);
+            
+            header("Location: admin_gestao.php?sucesso=" . urlencode("Sistema excluído com sucesso!"));
+            exit;
         }
 
-        $pdo_intra->prepare("DELETE FROM permissoes_pastas WHERE user_id = ?")->execute([$uid]);
-        if (!empty($_POST['pastas'])) {
-            $stmt_p = $pdo_intra->prepare("INSERT INTO permissoes_pastas (user_id, pasta_nome) VALUES (?, ?)");
-            foreach ($_POST['pastas'] as $pasta) { $stmt_p->execute([$uid, $pasta]); }
-        }
-        
-        // NOVO: SALVA AS PERMISSÕES DE VÍDEOS DO USUÁRIO
-        $pdo_intra->prepare("DELETE FROM permissoes_videos WHERE user_id = ?")->execute([$uid]);
-        if (!empty($_POST['videos'])) {
-            $stmt_v = $pdo_intra->prepare("INSERT INTO permissoes_videos (user_id, pasta_video) VALUES (?, ?)");
-            foreach ($_POST['videos'] as $video) { $stmt_v->execute([$uid, $video]); }
-        }
-
-        // SALVA AS BOLINHAS PERMITIDAS PARA O USUÁRIO
-        $pdo_intra->prepare("DELETE FROM permissoes_sistemas WHERE user_id = ?")->execute([$uid]);
-        if (!empty($_POST['sistemas'])) {
-            $stmt_s = $pdo_intra->prepare("INSERT INTO permissoes_sistemas (user_id, sistema_id) VALUES (?, ?)");
-            foreach ($_POST['sistemas'] as $sid) { $stmt_s->execute([$uid, $sid]); }
-        }
-        
-        registrarLog($pdo_intra, 'ALTEROU ACESSOS', "Modificou a matriz de permissões/grupos do usuário ID: $uid", $admin_id, $admin_ip);
-        $msg_sucesso = "✅ Permissões do usuário atualizadas com sucesso!";
-    }
-
-    // B. SALVAR GRUPO
-    if ($_POST['acao'] === 'salvar_grupo') {
-        $gid = $_POST['grupo_id'];
-        $nome = strtoupper(trim($_POST['nome_grupo'])); 
-
-        $g_admin = isset($_POST['g_admin']) ? 1 : 0;
-        $g_docs  = isset($_POST['g_docs']) ? 1 : 0;
-        $g_feed  = isset($_POST['g_feed']) ? 1 : 0;
-        $g_aces  = isset($_POST['g_acessos']) ? 1 : 0; 
-
-        if (empty($gid)) {
-            $sql = "INSERT INTO grupos_intranet (nome, is_admin, pode_gerenciar_docs, pode_postar_feed, pode_gerenciar_acessos) VALUES (?, ?, ?, ?, ?)";
-            $pdo_intra->prepare($sql)->execute([$nome, $g_admin, $g_docs, $g_feed, $g_aces]);
-            $gid = $pdo_intra->lastInsertId();
-            registrarLog($pdo_intra, 'CRIOU GRUPO', "Criou o novo grupo de acessos: $nome", $admin_id, $admin_ip);
-        } else {
-            $sql = "UPDATE grupos_intranet SET nome = ?, is_admin = ?, pode_gerenciar_docs = ?, pode_postar_feed = ?, pode_gerenciar_acessos = ? WHERE id = ?";
-            $pdo_intra->prepare($sql)->execute([$nome, $g_admin, $g_docs, $g_feed, $g_aces, $gid]);
-            registrarLog($pdo_intra, 'EDITOU GRUPO', "Alterou as regras do grupo: $nome", $admin_id, $admin_ip);
-        }
-
-        $pdo_intra->prepare("DELETE FROM grupos_pastas WHERE grupo_id = ?")->execute([$gid]);
-        if (!empty($_POST['pastas_grupo'])) {
-            $stmt_p = $pdo_intra->prepare("INSERT INTO grupos_pastas (grupo_id, pasta_nome) VALUES (?, ?)");
-            foreach ($_POST['pastas_grupo'] as $pasta) { $stmt_p->execute([$gid, $pasta]); }
-        }
-
-        // NOVO: SALVA AS PERMISSÕES DE VÍDEOS DO GRUPO
-        $pdo_intra->prepare("DELETE FROM grupos_videos WHERE grupo_id = ?")->execute([$gid]);
-        if (!empty($_POST['videos_grupo'])) {
-            $stmt_v = $pdo_intra->prepare("INSERT INTO grupos_videos (grupo_id, pasta_video) VALUES (?, ?)");
-            foreach ($_POST['videos_grupo'] as $video) { $stmt_v->execute([$gid, $video]); }
-        }
-
-        // SALVA AS BOLINHAS DO GRUPO
-        $pdo_intra->prepare("DELETE FROM grupos_sistemas WHERE grupo_id = ?")->execute([$gid]);
-        if (!empty($_POST['sistemas_grupo'])) {
-            $stmt_s = $pdo_intra->prepare("INSERT INTO grupos_sistemas (grupo_id, sistema_id) VALUES (?, ?)");
-            foreach ($_POST['sistemas_grupo'] as $sid) { $stmt_s->execute([$gid, $sid]); }
-        }
-        
-        $msg_sucesso = "✅ Grupo salvo com sucesso!";
-    }
-
-    // C. EXCLUIR GRUPO
-    if ($_POST['acao'] === 'excluir_grupo') {
-        $gid = $_POST['grupo_id'];
-        $pdo_intra->prepare("DELETE FROM grupos_intranet WHERE id = ?")->execute([$gid]);
-        $pdo_intra->prepare("DELETE FROM grupos_pastas WHERE grupo_id = ?")->execute([$gid]);
-        $pdo_intra->prepare("DELETE FROM grupos_videos WHERE grupo_id = ?")->execute([$gid]);
-        $pdo_intra->prepare("DELETE FROM usuarios_grupos WHERE grupo_id = ?")->execute([$gid]);
-        $pdo_intra->prepare("DELETE FROM grupos_sistemas WHERE grupo_id = ?")->execute([$gid]);
-        registrarLog($pdo_intra, 'EXCLUIU GRUPO', "Deletou o grupo de ID: $gid", $admin_id, $admin_ip);
-        $msg_sucesso = "🗑️ Grupo excluído com sucesso!";
-    }
-
-    // D. SALVAR NOVO SISTEMA (BOLINHA)
-    if ($_POST['acao'] === 'salvar_sistema') {
-        $nome = trim($_POST['sys_nome']);
-        $url = trim($_POST['sys_url']);
-        $icone = trim($_POST['sys_icone']);
-        $cor = trim($_POST['sys_cor']);
-        $sid = $_POST['sistema_id'] ?? '';
-
-        if(empty($sid)){
-            $pdo_intra->prepare("INSERT INTO sistemas_lista (nome, url, icone, cor) VALUES (?, ?, ?, ?)")->execute([$nome, $url, $icone, $cor]);
-            registrarLog($pdo_intra, 'CRIOU SISTEMA', "Criou o sistema: $nome", $admin_id, $admin_ip);
-        } else {
-            $pdo_intra->prepare("UPDATE sistemas_lista SET nome=?, url=?, icone=?, cor=? WHERE id=?")->execute([$nome, $url, $icone, $cor, $sid]);
-        }
-        $msg_sucesso = "🚀 Sistema (Launchpad) salvo com sucesso!";
-    }
-    
-    // E. EXCLUIR SISTEMA
-    if ($_POST['acao'] === 'excluir_sistema') {
-        $sid = $_POST['sistema_id'];
-        $pdo_intra->prepare("DELETE FROM sistemas_lista WHERE id = ?")->execute([$sid]);
-        $pdo_intra->prepare("DELETE FROM permissoes_sistemas WHERE sistema_id = ?")->execute([$sid]);
-        $pdo_intra->prepare("DELETE FROM grupos_sistemas WHERE sistema_id = ?")->execute([$sid]);
-        registrarLog($pdo_intra, 'EXCLUIU SISTEMA', "Deletou o sistema ID: $sid", $admin_id, $admin_ip);
-        $msg_sucesso = "🗑️ Sistema excluído com sucesso!";
+    } catch (Exception $e) {
+        // Redireciona com erro genérico se algo falhar no banco
+        header("Location: admin_gestao.php?erro=" . urlencode("Erro no banco de dados ao salvar as informações."));
+        exit;
     }
 }
+
+// RECUPERA AS MENSAGENS DA URL
+$msg_sucesso = $_GET['sucesso'] ?? '';
+$msg_erro = $_GET['erro'] ?? '';
 
 include 'includes/header.php';
 include 'includes/sidebar.php';
 
+// TRAVA DE SEGURANÇA DA PÁGINA
 if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
     if (!isset($_SESSION['pode_gerenciar_acessos']) || $_SESSION['pode_gerenciar_acessos'] !== true) {
         die("<script>window.location.href='index.php';</script>");
@@ -160,7 +185,6 @@ if (is_dir($diretorio_docs)) {
     }
 }
 
-// --- LEITOR DE PASTAS DE VÍDEO ---
 $diretorio_videos = __DIR__ . '/videos/';
 $pastas_videos = [];
 if (is_dir($diretorio_videos)) {
@@ -170,7 +194,6 @@ if (is_dir($diretorio_videos)) {
     }
 }
 
-// Busca todos os Sistemas Criados
 $sistemas_db = $pdo_intra->query("SELECT * FROM sistemas_lista ORDER BY nome")->fetchAll(PDO::FETCH_ASSOC);
 
 $grupos = $pdo_intra->query("SELECT * FROM grupos_intranet ORDER BY nome")->fetchAll(PDO::FETCH_ASSOC);
@@ -180,18 +203,17 @@ foreach ($grupos as &$g) {
     $stmt->execute([$g['id']]);
     $g['pastas'] = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-    // Busca vídeos do grupo
     $stmt_vid = $pdo_intra->prepare("SELECT pasta_video FROM grupos_videos WHERE grupo_id = ?");
     $stmt_vid->execute([$g['id']]);
     $g['videos'] = $stmt_vid->fetchAll(PDO::FETCH_COLUMN);
 
-    // Busca sistemas do grupo
     $stmt_sys = $pdo_intra->prepare("SELECT sistema_id FROM grupos_sistemas WHERE grupo_id = ?");
     $stmt_sys->execute([$g['id']]);
     $g['sistemas'] = $stmt_sys->fetchAll(PDO::FETCH_COLUMN);
 
     $grupos_map[$g['id']] = $g;
 }
+unset($g);
 
 $usuarios = $pdo_glpi->query("
     SELECT u.id, u.name as login, u.firstname, u.realname, l.name as setor 
@@ -211,7 +233,6 @@ foreach ($usuarios as &$u) {
     $stmt_pastas->execute([$u['id']]);
     $u['pastas_indiv'] = $stmt_pastas->fetchAll(PDO::FETCH_COLUMN);
 
-    // Busca vídeos do usuário
     $stmt_vid_u = $pdo_intra->prepare("SELECT pasta_video FROM permissoes_videos WHERE user_id = ?");
     $stmt_vid_u->execute([$u['id']]);
     $u['videos_indiv'] = $stmt_vid_u->fetchAll(PDO::FETCH_COLUMN);
@@ -220,7 +241,6 @@ foreach ($usuarios as &$u) {
     $stmt_ug->execute([$u['id']]);
     $u['meus_grupos'] = $stmt_ug->fetchAll(PDO::FETCH_COLUMN);
 
-    // Busca sistemas do usuario
     $stmt_usys = $pdo_intra->prepare("SELECT sistema_id FROM permissoes_sistemas WHERE user_id = ?");
     $stmt_usys->execute([$u['id']]);
     $u['meus_sistemas'] = $stmt_usys->fetchAll(PDO::FETCH_COLUMN);
@@ -235,6 +255,11 @@ foreach ($usuarios as &$u) {
         <?php if(!empty($msg_sucesso)): ?>
             <div class="mb-6 bg-emerald-50 text-emerald-700 p-4 rounded-2xl font-bold border border-emerald-100 shadow-sm animate-pulse">
                 <?php echo $msg_sucesso; ?>
+            </div>
+        <?php endif; ?>
+        <?php if(!empty($msg_erro)): ?>
+            <div class="mb-6 bg-red-50 text-red-700 p-4 rounded-2xl font-bold border border-red-100 shadow-sm animate-pulse">
+                <?php echo $msg_erro; ?>
             </div>
         <?php endif; ?>
 

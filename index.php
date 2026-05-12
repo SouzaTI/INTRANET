@@ -1,29 +1,45 @@
 <?php 
 require_once 'config.php'; 
+require_once 'api/auth_check.php';
 include 'includes/header.php'; 
 
-// Tenta pegar o nome de 'usuario_nome' ou 'user_name'. Se não houver nenhum, usa 'Colaborador'
+// 1. Pega o nome bruto da sessão
 $nome_completo = $_SESSION['usuario_nome'] ?? $_SESSION['user_name'] ?? 'Colaborador';
 
-// Garante que o explode receba uma string válida (evita o erro Fatal)
-$partes_nome = explode(' ', trim((string)$nome_completo));
-$primeiro_nome = $partes_nome[0];
-$segundo_nome = $partes_nome[1] ?? '';
+// 2. Transforma em array e define o que ignorar (Conectivos)
+$palavras = explode(' ', trim((string)$nome_completo));
+$conectivos = ['DE', 'DA', 'DO', 'DAS', 'DOS'];
+
+// 3. O primeiro nome é sempre a primeira posição
+$primeiro_nome = mb_convert_case($palavras[0], MB_CASE_TITLE, "UTF-8");
+$segundo_nome = '';
+
+// 4. Lógica para achar o sobrenome real (pulando os conectivos)
+for ($i = 1; $i < count($palavras); $i++) {
+    $palavra_atual = mb_strtoupper($palavras[$i], 'UTF-8');
+    
+    // Se a palavra for um conectivo, pula para a próxima
+    if (in_array($palavra_atual, $conectivos)) {
+        continue;
+    }
+    
+    // Achou o primeiro sobrenome real? Guarda e para o laço
+    $segundo_nome = mb_convert_case($palavras[$i], MB_CASE_TITLE, "UTF-8");
+    break;
+}
 
 $nome_exibicao = trim($primeiro_nome . ' ' . $segundo_nome);
 
-// Define valores padrão para outras variáveis de sessão que podem causar avisos no Header
+// --- MANTENDO SUAS CONFIGURAÇÕES ATUAIS (NÃO REMOVER) ---
 $_SESSION['is_admin'] = $_SESSION['is_admin'] ?? false;
 $_SESSION['setor_principal'] = $_SESSION['setor_principal'] ?? 'GERAL';
-$user_id_logado = $_SESSION['user_id'] ?? 0; // Necessário para a query do feed
-// -----------------------------------------------------
+$user_id_logado = $_SESSION['user_id'] ?? 0; 
 
-// Registro de log de acesso único por sessão
 if (!isset($_SESSION['logado_nesta_sessao'])) {
     registrarLog($pdo_intra, 'ACESSO AO PORTAL', 'O usuário carregou a página inicial da Intranet.');
     $_SESSION['logado_nesta_sessao'] = true;
 }
-
+// -----------------------------------------------------
 include 'includes/sidebar.php'; 
 
 $hoje = date('Y-m-d');
@@ -102,7 +118,7 @@ if (empty($aniversariantes)) {
 
                 <div class="relative z-10 p-10 h-full flex flex-col justify-center">
                     <div class="animate-slide-up">
-                        <h1 class="text-white text-3xl font-black tracking-tighter mb-1 drop-shadow-2xl">
+                        <h1 class="text-white text-2xl md:text-3xl font-black tracking-tighter mb-1 drop-shadow-2xl whitespace-normal leading-tight">
                             Olá, <?php echo $nome_exibicao; ?>! <span class="inline-block animate-wave">👋</span>
                         </h1>
                         <p class="text-blue-50 text-base font-medium drop-shadow-lg italic opacity-90">
@@ -165,69 +181,77 @@ if (empty($aniversariantes)) {
                     </div>
 
                     <div class="grid grid-cols-1 gap-6 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-                        <?php foreach ($comunicados as $com): 
-                            $cor_setor = ['TI' => 'bg-blue-500', 'RH' => 'bg-emerald-500', 'Marketing' => 'bg-amber-500'][$com['categoria']] ?? 'bg-slate-500';
-                        ?>
-                        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition-all">
-                            <div class="flex items-start justify-between mb-4">
-                                <div class="flex items-center gap-4">
-                                    <div class="w-10 h-10 <?php echo $cor_setor; ?> rounded-xl flex items-center justify-center text-white font-black shadow-md">
-                                        <?php echo substr($com['categoria'], 0, 1); ?>
-                                    </div>
-                                    <div>
-                                        <p class="font-black text-navy-900 italic text-xs">
-                                            <?php 
-                                            // Inteligência para não escrever "Equipe de IMPORTANTE"
-                                            if (in_array($com['categoria'], ['IMPORTANTE', 'AVISO GERAL'])) {
-                                                echo "📢 Comunicado Oficial";
-                                            } else {
-                                                echo "Equipe de <span class='uppercase'>" . $com['categoria'] . "</span>";
-                                            }
-                                            ?> 
-                                            • <span class="text-slate-400 font-medium not-italic text-[10px]"><?php echo date('d/m H:i', strtotime($com['data_postagem'])); ?></span>
-                                        </p>
-                                        <h4 class="text-lg font-black text-navy-900 tracking-tight leading-tight"><?php echo $com['titulo']; ?></h4>
-                                    </div>
-                                </div>
-                                
-                                <span class="bg-slate-100 text-slate-500 border border-slate-200 text-[9px] font-black px-3 py-1 rounded-full uppercase">
-                                    <?php echo $com['categoria']; ?>
-                                </span>
+                        
+                        <?php if (empty($comunicados)): ?>
+                            <div class="bg-white rounded-2xl p-10 shadow-sm border border-slate-100 text-center flex flex-col items-center justify-center transition-all hover:shadow-md h-64">
+                                <div class="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center text-3xl mb-4 shadow-inner">📬</div>
+                                <h4 class="text-lg font-black text-navy-900 tracking-tight mb-2">Nada de novo por aqui!</h4>
+                                <p class="text-slate-500 text-sm font-medium leading-relaxed">Estamos aguardando novas atualizações.<br>Pode deixar que informaremos você em breve!</p>
                             </div>
-                            <p class="text-slate-500 text-sm leading-relaxed mb-6"><?php echo $com['resumo']; ?></p>
-                            <div class="pt-4 border-t border-slate-50">
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center gap-6">
-                                        <button onclick="toggleCurtida(<?php echo $com['id']; ?>, this)" 
-                                                class="flex items-center gap-2 transition-colors <?php echo $com['ja_curtiu'] ? 'text-rose-500' : 'text-slate-400'; ?> hover:text-red-500">
-                                            <span class="text-lg icone-coracao"><?php echo $com['ja_curtiu'] ? '❤️' : '🤍'; ?></span> 
-                                            <span class="text-xs font-bold contador-curtidas"><?php echo $com['total_curtidas']; ?></span>
-                                        </button>
-
-                                        <button onclick="toggleComentarios(<?php echo $com['id']; ?>)" class="flex items-center gap-2 text-slate-400 hover:text-blue-500 transition-colors">
-                                            <span class="text-lg">💬</span> 
-                                            <span class="text-xs font-bold contador-comentarios"><?php echo $com['total_comentarios']; ?></span>
-                                        </button>
+                        <?php else: ?>
+                            <?php foreach ($comunicados as $com): 
+                                $cor_setor = ['TI' => 'bg-blue-500', 'RH' => 'bg-emerald-500', 'Marketing' => 'bg-amber-500'][$com['categoria']] ?? 'bg-slate-500';
+                            ?>
+                            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition-all">
+                                <div class="flex items-start justify-between mb-4">
+                                    <div class="flex items-center gap-4">
+                                        <div class="w-10 h-10 <?php echo $cor_setor; ?> rounded-xl flex items-center justify-center text-white font-black shadow-md">
+                                            <?php echo substr($com['categoria'], 0, 1); ?>
+                                        </div>
+                                        <div>
+                                            <p class="font-black text-navy-900 italic text-xs">
+                                                <?php 
+                                                // Inteligência para não escrever "Equipe de IMPORTANTE"
+                                                if (in_array($com['categoria'], ['IMPORTANTE', 'AVISO GERAL'])) {
+                                                    echo "📢 Comunicado Oficial";
+                                                } else {
+                                                    echo "Equipe de <span class='uppercase'>" . $com['categoria'] . "</span>";
+                                                }
+                                                ?> 
+                                                • <span class="text-slate-400 font-medium not-italic text-[10px]"><?php echo date('d/m H:i', strtotime($com['data_postagem'])); ?></span>
+                                            </p>
+                                            <h4 class="text-lg font-black text-navy-900 tracking-tight leading-tight"><?php echo $com['titulo']; ?></h4>
+                                        </div>
                                     </div>
-                                    <button class="text-slate-400 hover:text-navy-900 text-lg">🔖</button>
+                                    
+                                    <span class="bg-slate-100 text-slate-500 border border-slate-200 text-[9px] font-black px-3 py-1 rounded-full uppercase">
+                                        <?php echo $com['categoria']; ?>
+                                    </span>
                                 </div>
+                                <p class="text-slate-500 text-sm leading-relaxed mb-6"><?php echo $com['resumo']; ?></p>
+                                <div class="pt-4 border-t border-slate-50">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-6">
+                                            <button onclick="toggleCurtida(<?php echo $com['id']; ?>, this)" 
+                                                    class="flex items-center gap-2 transition-colors <?php echo $com['ja_curtiu'] ? 'text-rose-500' : 'text-slate-400'; ?> hover:text-red-500">
+                                                <span class="text-lg icone-coracao"><?php echo $com['ja_curtiu'] ? '❤️' : '🤍'; ?></span> 
+                                                <span class="text-xs font-bold contador-curtidas"><?php echo $com['total_curtidas']; ?></span>
+                                            </button>
 
-                                <div id="comentarios-post-<?php echo $com['id']; ?>" class="hidden mt-4 pt-4 border-t border-slate-50">
-                                    <div class="lista-comentarios space-y-3 mb-4 max-h-40 overflow-y-auto custom-scrollbar-compact pr-2">
-                                        <p class="text-center text-[10px] text-slate-400 italic">Carregando...</p>
+                                            <button onclick="toggleComentarios(<?php echo $com['id']; ?>)" class="flex items-center gap-2 text-slate-400 hover:text-blue-500 transition-colors">
+                                                <span class="text-lg">💬</span> 
+                                                <span class="text-xs font-bold contador-comentarios"><?php echo $com['total_comentarios']; ?></span>
+                                            </button>
+                                        </div>
+                                        <button class="text-slate-400 hover:text-navy-900 text-lg">🔖</button>
                                     </div>
-                                    <form onsubmit="enviarComentario(event, <?php echo $com['id']; ?>, this)" class="flex gap-2 relative">
-                                        <input type="text" name="texto_comentario" placeholder="Escreva um comentário..." required autocomplete="off" 
-                                            class="flex-1 bg-slate-50 border border-slate-100 rounded-xl pl-4 pr-12 py-3 text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-700">
-                                        <button type="submit" class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-blue-600 text-white rounded-lg flex items-center justify-center hover:bg-navy-900 transition-colors shadow-md">
-                                            <svg class="w-3 h-3 rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
-                                        </button>
-                                    </form>
+
+                                    <div id="comentarios-post-<?php echo $com['id']; ?>" class="hidden mt-4 pt-4 border-t border-slate-50">
+                                        <div class="lista-comentarios space-y-3 mb-4 max-h-40 overflow-y-auto custom-scrollbar-compact pr-2">
+                                            <p class="text-center text-[10px] text-slate-400 italic">Carregando...</p>
+                                        </div>
+                                        <form onsubmit="enviarComentario(event, <?php echo $com['id']; ?>, this)" class="flex gap-2 relative">
+                                            <input type="text" name="texto_comentario" placeholder="Escreva um comentário..." required autocomplete="off" 
+                                                class="flex-1 bg-slate-50 border border-slate-100 rounded-xl pl-4 pr-12 py-3 text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-700">
+                                            <button type="submit" class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-blue-600 text-white rounded-lg flex items-center justify-center hover:bg-navy-900 transition-colors shadow-md">
+                                                <svg class="w-3 h-3 rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                                            </button>
+                                        </form>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <?php endforeach; ?>
-                    </div>                    
+                            <?php endforeach; ?>
+                        <?php endif; ?> </div>                    
                 </div>
             </div>
 
