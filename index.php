@@ -3,7 +3,7 @@ require_once 'config.php';
 include 'includes/header.php'; 
 
 // Tenta pegar o nome de 'usuario_nome' ou 'user_name'. Se não houver nenhum, usa 'Colaborador'
-$nome_completo = $_SESSION['usuario_nome'] ?? $_SESSION['user_name'] ?? 'Colaborador Navi';
+$nome_completo = $_SESSION['usuario_nome'] ?? $_SESSION['user_name'] ?? 'Colaborador';
 
 // Garante que o explode receba uma string válida (evita o erro Fatal)
 $partes_nome = explode(' ', trim((string)$nome_completo));
@@ -106,7 +106,7 @@ if (empty($aniversariantes)) {
                             Olá, <?php echo $nome_exibicao; ?>! <span class="inline-block animate-wave">👋</span>
                         </h1>
                         <p class="text-blue-50 text-base font-medium drop-shadow-lg italic opacity-90">
-                            Sua central de comunicação corporativa <span class="font-bold text-white uppercase">Navi</span>.
+                            Sua central de comunicação corporativa <span class="font-bold text-white uppercase">Intranet</span>.
                         </p>
                     </div>
                 </div>
@@ -431,7 +431,7 @@ if (empty($aniversariantes)) {
         <div id="gridSistemasSub" class="hidden grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar-compact"></div>
 
         <div class="mt-8 pt-4 border-t border-white/5 flex justify-between items-center text-[9px] font-bold text-white/20 uppercase tracking-widest">
-            <span>Navi</span>
+            <span>Intranet</span>
             <span>Comercial Souza Atacado</span>
         </div>
     </div>

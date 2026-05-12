@@ -51,7 +51,7 @@ $logs = $stmt->fetchAll();
     <div class="max-w-6xl mx-auto">
         <div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
-                <h2 class="text-3xl font-black text-navy-900 tracking-tight uppercase italic">Auditoria Navi</h2>
+                <h2 class="text-3xl font-black text-navy-900 tracking-tight uppercase italic">Auditoria</h2>
                 <p class="text-slate-500 mt-1 font-medium">Rastreamento completo de ações no sistema.</p>
             </div>
             

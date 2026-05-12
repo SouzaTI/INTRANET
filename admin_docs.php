@@ -143,7 +143,7 @@ usort($pastas, function($a, $b) { return strcasecmp($a, $b); });
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>NAVI | Editor Dinâmico</title>
+    <title>Editor Dinâmico</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
@@ -173,7 +173,7 @@ usort($pastas, function($a, $b) { return strcasecmp($a, $b); });
         <div class="flex items-center gap-4">
             <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-xl shadow-lg shadow-blue-500/20">📝</div>
             <div>
-                <h1 class="text-lg font-black tracking-tighter uppercase italic leading-none">Editor NAVI PRO</h1>
+                <h1 class="text-lg font-black tracking-tighter uppercase italic leading-none">Editor PRO</h1>
                 <p class="text-blue-400 text-[9px] font-bold uppercase tracking-widest mt-1">Dinamismo & Performance</p>
             </div>
         </div>
