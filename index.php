@@ -307,7 +307,7 @@ if (empty($aniversariantes)) {
                             <div class="absolute -right-4 -bottom-4 opacity-[0.15] text-7xl grayscale">🛑</div>
                             <div class="flex items-center gap-2 mb-1 relative z-10">
                                 <span class="text-white text-sm">⚠️</span>
-                                <span class="text-white font-black text-[10px] uppercase tracking-widest">PROCESSO TRAVADO</span>
+                                <span class="text-white font-black text-[10px] uppercase tracking-widest">PROCESSO EM ANDAMENTO</span>
                             </div>
                             <p class="text-red-50 text-[10px] font-bold leading-tight relative z-10 line-clamp-2">
                                 <?php echo $proj_principal['motivo_bloqueio'] ?: 'Aguardando liberação da diretoria.'; ?>
@@ -556,7 +556,7 @@ if (empty($aniversariantes)) {
                     <?php if (isset($proj['status_implantacao']) && $proj['status_implantacao'] === 'TRAVADO'): ?>
                         <div class="bg-red-500/20 rounded-xl p-3 border border-red-500/40 relative overflow-hidden animate-pulse">
                             <span class="text-red-500 font-black text-[9px] uppercase tracking-widest block mb-1 flex items-center gap-1">
-                                ⚠️ Pausado
+                                ⚠️ EM ANDAMENTO
                             </span>
                             <p class="text-red-100 text-[10px] font-medium leading-tight line-clamp-2" title="<?php echo htmlspecialchars($proj['motivo_bloqueio']); ?>">
                                 <?php echo $proj['motivo_bloqueio'] ?: 'Aguardando liberação.'; ?>

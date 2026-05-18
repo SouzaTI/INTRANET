@@ -1,5 +1,6 @@
 <?php 
 require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../api/auth_check.php';
 
 global $pdo_glpi, $pdo_intra;
 
