@@ -274,6 +274,16 @@ function selecionarChat(id, nome, tipo = 'grupo') {
     document.getElementById('chat-header-nome').innerText = nome;
     document.getElementById('chat-feed').innerHTML = '<div class="flex justify-center p-10"><span class="text-[10px] font-black text-slate-400 uppercase animate-pulse">Carregando...</span></div>';
     
+    // 🔥 CORREÇÃO: Mostra o botão de Gerenciar Membros SE for um grupo e NÃO for o GERAL (ID 1)
+    const btnGerenciar = document.getElementById('btn-gerenciar-grupo');
+    if (btnGerenciar) {
+        if (tipo === 'grupo' && id !== 1) { 
+            btnGerenciar.classList.remove('hidden');
+        } else {
+            btnGerenciar.classList.add('hidden');
+        }
+    }
+
     avisarLeituraBanco(id, tipo);
     carregarListaGrupos(); 
     monitorarChat();       

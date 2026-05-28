@@ -89,15 +89,41 @@ try {
             break;
 
         case 'listar_grupos':
-            // 1. Traz os Grupos (Canais)
-            $sql_grupos = "SELECT g.id, g.nome,
-                    (SELECT COUNT(m.id) FROM chat_mensagens m WHERE m.destino_id = g.id AND m.tipo = 'grupo'
-                     AND m.data_hora > COALESCE((SELECT ultima_leitura FROM chat_leituras WHERE user_id = ? AND destino_id = g.id AND tipo = 'grupo'), '2000-01-01')
-                     AND m.remetente_id != ?) AS nao_lidas
-                    FROM chat_grupos g LEFT JOIN chat_grupos_membros cgm ON g.id = cgm.grupo_id
-                    WHERE g.id = 1 OR cgm.usuario_id = ? GROUP BY g.id ORDER BY CASE WHEN g.id = 1 THEN 0 ELSE 1 END, g.nome ASC";
-            $stmtG = $pdo_intra->prepare($sql_grupos);
-            $stmtG->execute([$user_id, $user_id, $user_id]); 
+            // =========================================================
+            // LISTA VIP DE GOD MODE (Visão Global de todos os canais)
+            // =========================================================
+            // Insira aqui os IDs numéricos exatos que podem ver tudo.
+            // Exemplo: se o seu ID for 2 e o do outro chefe for 45, deixe: [2, 45]
+            $admins_supremos = [2, 40, 44]; // Altere aqui com os IDs corretos!
+
+            // SE FOR ADMIN SUPREMO: Enxerga todos os grupos da empresa
+            if (in_array($user_id, $admins_supremos)) {
+                $sql_grupos = "SELECT g.id, g.nome,
+                        (SELECT COUNT(m.id) FROM chat_mensagens m WHERE m.destino_id = g.id AND m.tipo = 'grupo'
+                         AND m.data_hora > COALESCE((SELECT ultima_leitura FROM chat_leituras WHERE user_id = ? AND destino_id = g.id AND tipo = 'grupo'), '2000-01-01')
+                         AND m.remetente_id != ?) AS nao_lidas
+                        FROM chat_grupos g
+                        ORDER BY CASE WHEN g.id = 1 THEN 0 ELSE 1 END, g.nome ASC";
+                
+                $stmtG = $pdo_intra->prepare($sql_grupos);
+                $stmtG->execute([$user_id, $user_id]); 
+            } 
+            // SE FOR USUÁRIO NORMAL: Bate na catraca e só vê os grupos que ele pertence
+            else {
+                $sql_grupos = "SELECT g.id, g.nome,
+                        (SELECT COUNT(m.id) FROM chat_mensagens m WHERE m.destino_id = g.id AND m.tipo = 'grupo'
+                         AND m.data_hora > COALESCE((SELECT ultima_leitura FROM chat_leituras WHERE user_id = ? AND destino_id = g.id AND tipo = 'grupo'), '2000-01-01')
+                         AND m.remetente_id != ?) AS nao_lidas
+                        FROM chat_grupos g 
+                        LEFT JOIN chat_grupos_membros cgm ON g.id = cgm.grupo_id
+                        WHERE g.id = 1 OR cgm.usuario_id = ? 
+                        GROUP BY g.id 
+                        ORDER BY CASE WHEN g.id = 1 THEN 0 ELSE 1 END, g.nome ASC";
+                
+                $stmtG = $pdo_intra->prepare($sql_grupos);
+                $stmtG->execute([$user_id, $user_id, $user_id]); 
+            }
+            
             $grupos = $stmtG->fetchAll(PDO::FETCH_ASSOC);
 
             $ids_escondidos = "2, 6, 9";
