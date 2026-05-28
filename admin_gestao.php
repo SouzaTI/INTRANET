@@ -127,19 +127,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             exit;
         }
 
-        // D. SALVAR SISTEMA
+        // D. SALVAR SISTEMA COM SUPORTE A HIERARQUIA
         if ($_POST['acao'] === 'salvar_sistema') {
-            $nome = trim($_POST['sys_nome']);
-            $url = trim($_POST['sys_url']);
-            $icone = trim($_POST['sys_icone']);
-            $cor = trim($_POST['sys_cor']);
-            $sid = $_POST['sistema_id'] ?? '';
+            $nome   = trim($_POST['sys_nome']);
+            $url    = trim($_POST['sys_url']);
+            $icone  = trim($_POST['sys_icone']);
+            $cor    = trim($_POST['sys_cor']);
+            $sid    = $_POST['sistema_id'] ?? '';
+            
+            // Se não escolher nenhum pai, o valor gravado será NULL (Vira bolinha raiz)
+            $pai_id = !empty($_POST['sys_pai_id']) ? (int)$_POST['sys_pai_id'] : null;
 
-            if(empty($sid)){
-                $pdo_intra->prepare("INSERT INTO sistemas_lista (nome, url, icone, cor) VALUES (?, ?, ?, ?)")->execute([$nome, $url, $icone, $cor]);
+            if (empty($sid)) {
+                $pdo_intra->prepare("INSERT INTO sistemas_lista (nome, url, icone, cor, pai_id) VALUES (?, ?, ?, ?, ?)")
+                          ->execute([$nome, $url, $icone, $cor, $pai_id]);
                 registrarLog($pdo_intra, 'CRIOU SISTEMA', "Criou o sistema: $nome", $admin_id, $admin_ip);
             } else {
-                $pdo_intra->prepare("UPDATE sistemas_lista SET nome=?, url=?, icone=?, cor=? WHERE id=?")->execute([$nome, $url, $icone, $cor, $sid]);
+                $pdo_intra->prepare("UPDATE sistemas_lista SET nome=?, url=?, icone=?, cor=?, pai_id=? WHERE id=?")
+                          ->execute([$nome, $url, $icone, $cor, $pai_id, $sid]);
+                registrarLog($pdo_intra, 'EDITOU SISTEMA', "Editou as regras do sistema ID: $sid", $admin_id, $admin_ip);
             }
             
             header("Location: admin_gestao.php?sucesso=" . urlencode("Sistema salvo com sucesso!"));
@@ -501,23 +507,55 @@ foreach ($usuarios as &$u) {
                 <button type="button" onclick="fecharModais()" class="text-white/50 hover:text-white text-2xl font-bold">&times;</button>
             </div>
             
-            <div class="p-8 space-y-4">
+            <div class="p-8 space-y-4 max-h-[65vh] overflow-y-auto custom-scrollbar-compact relative">
                 <div>
-                    <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-3">Nome da Bolinha</label>
-                    <input type="text" name="sys_nome" id="msys_nome" required class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-sm font-bold uppercase">
+                    <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-3">Nome do Sistema / Grupo</label>
+                    <input type="text" name="sys_nome" id="msys_nome" required placeholder="Ex: T.I ou POWER BI" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-sm font-bold uppercase focus:ring-2 focus:ring-blue-500/20 outline-none">
                 </div>
+                
                 <div>
                     <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-3">Link/URL do Sistema</label>
-                    <input type="text" name="sys_url" id="msys_url" required placeholder="Ex: http://totvs..." class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-sm">
+                    <input type="text" name="sys_url" id="msys_url" placeholder="Ex: http://192.168.0.50/sistema" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none">
+                    <p class="text-[10px] text-amber-600 font-bold mt-1.5 ml-2 bg-amber-50 border border-amber-200/60 px-3 py-1.5 rounded-lg flex items-center gap-1.5 animate-pulse">
+                        💡 <span><b>DICA:</b> Digite apenas <b>#</b> neste campo para que este item vire um <b>Grupo/Pasta</b></span>
+                    </p>
                 </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-3">Emoji/Ícone</label>
-                        <input type="text" name="sys_icone" id="msys_icone" required placeholder="Ex: 📊" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xl text-center">
+
+                <div>
+                    <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-3">Vincular ao Módulo (Se for um subitem)</label>
+                    <select name="sys_pai_id" id="msys_pai_id" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-sm font-bold text-slate-600 focus:ring-2 focus:ring-blue-500/20 outline-none appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23475569%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:10px_auto] bg-[right_14px_center] bg-no-repeat pr-8">
+                        <option value="">📁 NENHUM </option>
+                        <?php 
+                        foreach ($sistemas_db as $possivel_pai) {
+                            if ($possivel_pai['url'] === '#') {
+                                echo "<option value='{$possivel_pai['id']}'>📦 GRUPO: " . mb_strtoupper($possivel_pai['nome'], 'UTF-8') . "</option>";
+                            }
+                        }
+                        ?>
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 items-end relative">
+                    <div class="relative">
+                        <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-3 block mb-1">Emoji / Ícone</label>
+                        <button type="button" onclick="document.getElementById('picker-emoji-modal-sys').classList.toggle('hidden')" id="btn-gatilho-emoji-sys" class="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl text-xl text-center hover:bg-slate-100 transition-colors shadow-sm flex items-center justify-center gap-2">
+                            💻 <span class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">(Mudar)</span>
+                        </button>
+                        <input type="hidden" name="sys_icone" id="msys_icone" value="💻">
+                        
+                        <div id="picker-emoji-modal-sys" class="hidden absolute left-0 bottom-14 bg-white border border-slate-200 shadow-2xl rounded-2xl p-3 grid grid-cols-5 gap-1.5 z-[200] w-56 animate-in fade-in duration-150">
+                            <?php 
+                            $icones_corporativos = ['💻','🛠️','📦','📊','💼','📢','🎨','📞','🎓','📂','🚀','🎯','📝','📅','👍','🔥','🚨','🌐','💰','🛒'];
+                            foreach($icones_corporativos as $emo): 
+                            ?>
+                                <button type="button" onclick="definirEmojiFormLaunchpad('<?= $emo ?>')" class="hover:bg-slate-100 p-1.5 rounded-xl text-lg transition-colors flex items-center justify-center"><?= $emo ?></button>
+                            <?php endforeach; ?>
+                        </div>
                     </div>
+
                     <div>
-                        <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-3">Cor de Fundo</label>
-                        <select name="sys_cor" id="msys_cor" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-sm font-bold">
+                        <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-3">Cor de Borda</label>
+                        <select name="sys_cor" id="msys_cor" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-sm font-bold text-slate-600 appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23475569%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:10px_auto] bg-[right_14px_center] bg-no-repeat pr-8">
                             <option value="bg-blue-600">Azul</option>
                             <option value="bg-emerald-600">Verde</option>
                             <option value="bg-amber-500">Amarelo</option>
@@ -530,7 +568,7 @@ foreach ($usuarios as &$u) {
             </div>
             
             <div class="p-6 bg-slate-50 border-t border-slate-200 flex gap-4">
-                <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-700">Salvar Sistema</button>
+                <button type="submit" class="w-full bg-blue-600 text-white py-3.5 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-700 shadow-md transition-all active:scale-95">Salvar Configuração</button>
             </div>
         </form>
     </div>
@@ -861,20 +899,34 @@ foreach ($usuarios as &$u) {
         document.getElementById('msys_id').value = '';
         document.getElementById('msys_nome').value = '';
         document.getElementById('msys_url').value = '';
-        document.getElementById('msys_icone').value = '';
+        document.getElementById('msys_pai_id').value = ''; // Reseta o seletor de pai
         
         if(dados !== 0) {
             document.getElementById('msys_id').value = dados.id;
             document.getElementById('msys_nome').value = dados.nome;
             document.getElementById('msys_url').value = dados.url;
-            document.getElementById('msys_icone').value = dados.icone;
             document.getElementById('msys_cor').value = dados.cor;
+            document.getElementById('msys_icone').value = dados.icone;
+            document.getElementById('btn-gatilho-emoji-sys').innerHTML = `${dados.icone} <span class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">(Mudar)</span>`;
+            
+            // Seta dinamicamente o pai caso a linha possua pai_id no banco
+            document.getElementById('msys_pai_id').value = dados.pai_id ? dados.pai_id : '';
+            
             document.getElementById('msys_titulo').innerText = "Editar Sistema";
         } else {
             document.getElementById('msys_titulo').innerText = "Novo Sistema";
         }
 
         document.getElementById('modalSistema').classList.replace('hidden', 'flex');
+    }
+
+    function definirEmojiFormLaunchpad(emoji) {
+        // Atualiza o valor oculto que vai para o banco
+        document.getElementById('msys_icone').value = emoji;
+        // Atualiza a pré-visualização do botão com o texto auxiliar de mudar
+        document.getElementById('btn-gatilho-emoji-sys').innerHTML = `${emoji} <span class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">(Mudar)</span>`;
+        // Esconde o picker
+        document.getElementById('picker-emoji-modal-sys').classList.add('hidden');
     }
 
     // =====================================================================
