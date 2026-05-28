@@ -407,22 +407,23 @@ if (empty($aniversariantes)) {
 <div id="modalSistemas" class="fixed inset-0 z-[1000] hidden items-center justify-center p-4 backdrop-blur-xl bg-navy-900/40 transition-all duration-500">
     <div class="relative bg-navy-900/90 border border-white/10 w-full max-w-4xl rounded-[2rem] p-8 shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden">
         
-        <button id="btnVoltarModal" onclick="exibirPrincipalSistemas()" class="hidden absolute top-5 left-6 text-blue-400 hover:text-white transition-colors text-xs font-black flex items-center gap-2">
+        <button id="btnVoltarModal" onclick="exibirPrincipalSistemas()" class="hidden absolute top-6 left-6 text-blue-400 hover:text-white hover:scale-105 transition-all text-xs font-black flex items-center gap-2 z-30 bg-white/5 border border-white/10 px-4 py-2 rounded-xl backdrop-blur-md">
             ⬅️ VOLTAR
         </button>
 
         <div class="absolute -top-24 -right-24 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl"></div>
+        <button onclick="fecharModalSistemas()" class="absolute top-5 right-6 text-white/30 hover:text-white transition-colors text-3xl font-light z-30">&times;</button>
 
-        <button onclick="fecharModalSistemas()" class="absolute top-5 right-6 text-white/30 hover:text-white transition-colors text-3xl font-light">&times;</button>
-
-        <div class="mb-8 text-left border-b border-white/5 pb-4">
+        <div class="mb-8 text-left border-b border-white/5 pb-4 mt-4 md:mt-0">
             <h2 id="tituloModalSistemas" class="text-white text-xl font-black tracking-tighter uppercase italic">Sistemas de Navegação</h2>
-            <p id="subtituloModalSistemas" class="text-blue-400 text-[10px] font-bold uppercase tracking-widest">Selecione o sistema desejado</p>
+            <p id="subtituloModalSistemas" class="text-blue-400 text-[10px] font-bold uppercase tracking-widest">Sistemas e ferramentas autorizados para seu perfil</p>
         </div>
 
         <?php 
             $sistemas_permitidos = [];
-            if ($_SESSION['is_admin']) {
+            
+            // RBAC: Resgata as permissões associadas ao usuário
+            if (isset($_SESSION['is_admin']) && $_SESSION['is_admin'] === true) {
                 $stmt_sys = $pdo_intra->query("SELECT * FROM sistemas_lista ORDER BY nome");
                 $sistemas_permitidos = $stmt_sys->fetchAll(PDO::FETCH_ASSOC);
             } else {
@@ -434,32 +435,69 @@ if (empty($aniversariantes)) {
                     WHERE ps.user_id IS NOT NULL OR ug.usuario_id IS NOT NULL
                     ORDER BY sl.nome
                 ");
-                $stmt_sys->execute([$_SESSION['user_id'], $_SESSION['user_id']]);
+                $stmt_sys->execute([$user_id_logado, $user_id_logado]);
                 $sistemas_permitidos = $stmt_sys->fetchAll(PDO::FETCH_ASSOC);
+            }
+
+            $sistemas_raiz = [];
+            $sistemas_filhos = [];
+
+            foreach ($sistemas_permitidos as $sys) {
+                if (!empty($sys['pai_id'])) {
+                    $sistemas_filhos[$sys['pai_id']][] = $sys;
+                } else {
+                    $sistemas_raiz[] = $sys;
+                }
             }
         ?>
 
-        <div id="gridSistemasPrincipal" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar-compact">
-            <?php foreach ($sistemas_permitidos as $sys): ?>
-                <a href="<?php echo htmlspecialchars($sys['url']); ?>" target="_blank" class="group flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-white/5 transition-all duration-300">
-                    <div class="w-14 h-14 rounded-full <?php echo $sys['cor']; ?>/20 border border-<?php echo $sys['cor']; ?>/30 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 group-hover:<?php echo str_replace('bg-', 'text-', $sys['cor']); ?> transition-all duration-300">
-                        <?php echo $sys['icone']; ?>
-                    </div>
-                    <span class="mt-2 text-white/70 font-bold text-[9px] uppercase tracking-tighter text-center leading-tight group-hover:text-white">
-                        <?php echo htmlspecialchars($sys['nome']); ?>
-                    </span>
-                </a>
-            <?php endforeach; ?>
+        <div id="gridSistemasPrincipal" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar-compact animate-in fade-in duration-300">
+            <?php if (empty($sistemas_raiz)): ?>
+                <div class="col-span-full text-center py-10 text-white/40 text-xs font-bold uppercase tracking-widest">
+                    ⚠️ NENHUM ACESSO LIBERADO PARA SEU PERFIL.
+                </div>
+            <?php else: ?>
+                <?php foreach ($sistemas_raiz as $sys): 
+                    $is_grupo = ($sys['url'] === '#');
+                    
+                    // Tratamento dinâmico para as bordas de cores vindas do banco
+                    $cor_base = !empty($sys['cor']) ? str_replace('bg-', '', $sys['cor']) : 'slate-600';
+                ?>
+                    <?php if ($is_grupo): 
+                        $sub_json = isset($sistemas_filhos[$sys['id']]) ? json_encode($sistemas_filhos[$sys['id']], JSON_HEX_APOS | JSON_HEX_QUOT) : '[]';
+                    ?>
+                        <div onclick='abrirPastaSistemas("<?php echo htmlspecialchars($sys['nome'], ENT_QUOTES, 'UTF-8'); ?>", <?php echo $sub_json; ?>)' class="cursor-pointer group flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-white/5 transition-all duration-300">
+                            <div class="w-14 h-14 rounded-full bg-white/5 border-2 border-dashed border-<?= $cor_base ?>/40 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 group-hover:bg-white/10 group-hover:border-solid group-hover:ring-4 group-hover:ring-<?= $cor_base ?>/20 transition-all duration-300 relative">
+                                <?php echo $sys['icone']; ?>
+                                <span class="absolute top-0 right-0 w-2.5 h-2.5 bg-blue-500 rounded-full border border-navy-900 shadow-sm"></span>
+                            </div>
+                            <span class="mt-2 text-white/70 font-bold text-[10px] uppercase tracking-tighter text-center leading-tight group-hover:text-white">
+                                <?php echo htmlspecialchars($sys['nome']); ?>
+                            </span>
+                        </div>
+                    <?php else: ?>
+                        <a href="<?php echo htmlspecialchars($sys['url']); ?>" target="_blank" class="group flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-white/5 transition-all duration-300">
+                            <div class="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 group-hover:bg-white/10 group-hover:border-<?= $cor_base ?>/60 transition-all duration-300">
+                                <?php echo $sys['icone']; ?>
+                            </div>
+                            <span class="mt-2 text-white/50 font-semibold text-[10px] uppercase tracking-tighter text-center leading-tight group-hover:text-white">
+                                <?php echo htmlspecialchars($sys['nome']); ?>
+                            </span>
+                        </a>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            <?php endif; ?>
         </div>
 
-        <div id="gridSistemasSub" class="hidden grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar-compact"></div>
+        <div id="gridSistemasSub" class="hidden grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar-compact animate-in slide-in-from-right-5 duration-300"></div>
 
         <div class="mt-8 pt-4 border-t border-white/5 flex justify-between items-center text-[9px] font-bold text-white/20 uppercase tracking-widest">
-            <span>Intranet</span>
+            <span>Launchpad de Aplicações</span>
             <span>Comercial Souza Atacado</span>
         </div>
     </div>
 </div>
+
 
 <div id="modalAgendamento" class="fixed inset-0 z-[1100] hidden items-center justify-center p-4 backdrop-blur-md bg-navy-900/40">
     <div class="relative bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl flex flex-col md:flex-row overflow-hidden animate-in zoom-in-95 duration-300">
@@ -612,39 +650,53 @@ if (totalSlides <= 1) return;
 if (totalSlides > 1) { setInterval(() => moverCarrossel(1), 7000); }
 
 
-function abrirGrupoSistemas(grupo) {
-    const principal = document.getElementById('gridSistemasPrincipal');
-    const sub = document.getElementById('gridSistemasSub');
+function abrirPastaSistemas(nomePasta, subitens) {
+    const gridPrincipal = document.getElementById('gridSistemasPrincipal');
+    const gridSub = document.getElementById('gridSistemasSub');
     const btnVoltar = document.getElementById('btnVoltarModal');
     const titulo = document.getElementById('tituloModalSistemas');
     const subtitulo = document.getElementById('subtituloModalSistemas');
 
-    principal.classList.add('hidden');
-    sub.classList.remove('hidden');
+    // 1. Chaveamento de visibilidade
+    gridPrincipal.classList.add('hidden');
+    gridSub.classList.remove('hidden');
     btnVoltar.classList.remove('hidden');
 
-    titulo.innerText = grupo.nome;
-    subtitulo.innerText = "Subitens do Grupo";
+    // 2. Atualização dos textos do Header do Modal
+    titulo.innerText = nomePasta;
+    subtitulo.innerText = "Módulo interno • Aplicações liberadas para seu perfil";
 
-    sub.innerHTML = '';
-    grupo.subitens.forEach(item => {
-        sub.innerHTML += `
-            <a href="${item.link}" class="group flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-white/5 transition-all duration-300">
-                <div class="w-14 h-14 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 group-hover:bg-blue-600 transition-all duration-300">
-                    ${item.icon}
+    // 3. Validação de segurança
+    if (!subitens || subitens.length === 0) {
+        gridSub.innerHTML = `
+            <div class="col-span-full text-center py-12">
+                <span class="text-xl block mb-2">📭</span>
+                <p class="text-[10px] text-white/30 font-black uppercase tracking-widest">Nenhuma aplicação vinculada a este grupo ainda.</p>
+            </div>`;
+        return;
+    }
+
+    // 4. Renderização limpa e padronizada dos filhos
+    gridSub.innerHTML = subitens.map(item => {
+        const corBase = item.cor ? item.cor.replace('bg-', '') : 'white/10';
+        return `
+            <a href="${item.url}" target="_blank" class="group flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-white/5 transition-all duration-300">
+                <div class="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 group-hover:bg-white/10 group-hover:border-${corBase} transition-all duration-300">
+                    ${item.icone}
                 </div>
-                <span class="mt-2 text-white/70 font-bold text-[9px] uppercase tracking-tighter text-center leading-tight group-hover:text-white">
+                <span class="mt-2 text-white/60 font-semibold text-[10px] uppercase tracking-tighter text-center leading-tight group-hover:text-white">
                     ${item.nome}
                 </span>
             </a>
         `;
-    });
+    }).join('');
 }
 
 function exibirPrincipalSistemas() {
     document.getElementById('gridSistemasPrincipal').classList.remove('hidden');
     document.getElementById('gridSistemasSub').classList.add('hidden');
     document.getElementById('btnVoltarModal').classList.add('hidden');
+    
     document.getElementById('tituloModalSistemas').innerText = "Sistemas de Navegação";
     document.getElementById('subtituloModalSistemas').innerText = "Selecione o sistema desejado";
 }

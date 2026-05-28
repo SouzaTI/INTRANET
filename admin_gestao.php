@@ -44,10 +44,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 foreach ($_POST['videos'] as $video) { $stmt_v->execute([$uid, $video]); }
             }
 
+            // Limpa permissões antigas
             $pdo_intra->prepare("DELETE FROM permissoes_sistemas WHERE user_id = ?")->execute([$uid]);
+            
+            // Grava as novas permissões individuais de forma explícita
             if (!empty($_POST['sistemas'])) {
-                $stmt_s = $pdo_intra->prepare("INSERT INTO permissoes_sistemas (user_id, sistema_id) VALUES (?, ?)");
-                foreach ($_POST['sistemas'] as $sid) { $stmt_s->execute([$uid, $sid]); }
+                // Forçamos o insert ignorando conflito de índices antigos se houver
+                $stmt_s = $pdo_intra->prepare("INSERT IGNORE INTO permissoes_sistemas (user_id, sistema_id) VALUES (?, ?)");
+                foreach ($_POST['sistemas'] as $sid) { 
+                    $stmt_s->execute([$uid, (int)$sid]); 
+                }
             }
             
             registrarLog($pdo_intra, 'ALTEROU ACESSOS', "Modificou a matriz de permissões/grupos do usuário ID: $uid", $admin_id, $admin_ip);
