@@ -48,17 +48,17 @@ if (isset($_GET['path'])) {
             <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-3">Menu Principal</p>
             <ul class="space-y-1">
                 <li>
-                    <a href="index.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'index.php') ? 'bg-corporate-blue text-white' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>">
+                    <a href="index.php" id="tour-inicio" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'index.php') ? 'bg-corporate-blue text-white' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>">
                         <span>🏠</span> <span class="text-sm font-semibold">Início</span>
                     </a>
                 </li>
                 <li>
-                    <a href="matriz.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'matriz.php') ? 'bg-corporate-blue text-white' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>">
+                    <a href="matriz.php" id="tour-matriz" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'matriz.php') ? 'bg-corporate-blue text-white' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>">
                         <span>📞</span> <span class="text-sm font-semibold">Matriz de Comunicação</span>
                     </a>
                 </li>
                 <li>
-                    <a href="treinamento.php" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-navy-800 rounded-lg transition-all">
+                    <a href="treinamento.php" id="tour-cursos" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-navy-800 rounded-lg transition-all">
                         <span>🎓</span> <span class="text-sm font-semibold">Cursos & Treinamentos</span>
                     </a>
                 </li>    
@@ -89,7 +89,7 @@ if (isset($_GET['path'])) {
 
         <!-- DOCUMENTAÇÃO DINÂMICA[cite: 10] -->
         <div>
-            <button onclick="toggleDocs()" class="w-full flex items-center justify-between px-3 py-2.5 text-slate-400 hover:text-white hover:bg-navy-800 rounded-lg transition-all">
+            <button onclick="toggleDocs()" id="tour-documentacao" class="w-full flex items-center justify-between px-3 py-2.5 text-slate-400 hover:text-white hover:bg-navy-800 rounded-lg transition-all">
                 <div class="flex items-center gap-3">
                     <span>📂</span> <span class="text-sm font-semibold">Documentação</span>
                 </div>

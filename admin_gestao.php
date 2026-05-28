@@ -152,6 +152,79 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             exit;
         }
 
+        // 🔥 GATILHO PARA RESETAR SENHAS EM MASSA (MÚLTIPLOS SELECIONADOS)
+        if ($_POST['acao'] === 'resetar_senha_massa') {
+            if (!isset($_POST['usuarios_ids']) || !is_array($_POST['usuarios_ids'])) {
+                echo "Erro: Nenhum colaborador selecionado.";
+                exit;
+            }
+
+            // Sanitiza os IDs recebidos para garantir inteiros seguros
+            $ids_selecionados = array_map('intval', $_POST['usuarios_ids']);
+            
+            // 1. Gera o Hash Bcrypt padrão corporativo (Souza@123)
+            $senha_padrao_hash = password_hash('Souza@123', PASSWORD_BCRYPT);
+            
+            // Cria os placeholders dinâmicos (?,?,?) para a query SQL IN
+            $placeholders = implode(',', array_fill(0, count($ids_selecionados), '?'));
+
+            // 2. Atualiza em lote na tabela do GLPI
+            $sql_glpi = "UPDATE glpi_users SET password = ? WHERE id IN ($placeholders)";
+            $stmt_glpi = $pdo_glpi->prepare($sql_glpi);
+            // Mescla o hash da senha como primeiro parâmetro com o array de IDs
+            $stmt_glpi->execute(array_merge([$senha_padrao_hash], $ids_selecionados));
+
+            // 3. Força o estado de primeiro login em lote na Intranet
+            $sql_intra = "INSERT INTO usuarios_permissoes (usuario_id, primeiro_login) VALUES ";
+            $valores_query = [];
+            $pares_query = [];
+            
+            foreach ($ids_selecionados as $id_u) {
+                $pares_query[] = "(?, 1)";
+                $valores_query[] = $id_u;
+            }
+            
+            $sql_intra .= implode(', ', $pares_query) . " ON DUPLICATE KEY UPDATE primeiro_login = 1";
+            $stmt_intra = $pdo_intra->prepare($sql_intra);
+            $stmt_intra->execute($valores_query);
+
+            // Grava a auditoria dos múltiplos resets nos logs
+            $qtd_afetados = count($ids_selecionados);
+            registrarLog($pdo_intra, 'RESET EM MASSA', "Resetou a senha de $qtd_afetados colaboradores em lote para Souza@123", $admin_id, $admin_ip);
+
+            echo "sucesso";
+            exit;
+        }
+
+        // 🔥 GATILHO INDIVIDUAL: RESETAR SENHA DE APENAS UM USUÁRIO (Botão 🔄)
+        if ($_POST['acao'] === 'resetar_senha_usuario') {
+            $uid = filter_input(INPUT_POST, 'user_id', FILTER_VALIDATE_INT);
+            if (!$uid) {
+                echo "Erro: ID inválido.";
+                exit;
+            }
+            
+            // 1. Gera o Hash Bcrypt padrão para "Souza@123"
+            $senha_padrao_hash = password_hash('Souza@123', PASSWORD_BCRYPT);
+            
+            // 2. Atualiza direto no banco do GLPI
+            $stmt_glpi = $pdo_glpi->prepare("UPDATE glpi_users SET password = ? WHERE id = ?");
+            $stmt_glpi->execute([$senha_padrao_hash, $uid]);
+            
+            // 3. Marca na intranet para forçar a troca no primeiro login
+            $stmt_intra = $pdo_intra->prepare("
+                INSERT INTO usuarios_permissoes (usuario_id, primeiro_login) 
+                VALUES (?, 1) 
+                ON DUPLICATE KEY UPDATE primeiro_login = 1
+            ");
+            $stmt_intra->execute([$uid]);
+            
+            registrarLog($pdo_intra, 'RESET SENHA', "Resetou a senha do usuário ID $uid de forma individual para Souza@123", $admin_id, $admin_ip);
+
+            echo "sucesso";
+            exit;
+        }
+
     } catch (Exception $e) {
         // Redireciona com erro genérico se algo falhar no banco
         header("Location: admin_gestao.php?erro=" . urlencode("Erro no banco de dados ao salvar as informações."));
@@ -216,11 +289,11 @@ foreach ($grupos as &$g) {
 unset($g);
 
 $usuarios = $pdo_glpi->query("
-    SELECT u.id, u.name as login, u.firstname, u.realname, l.name as setor 
+    SELECT u.id, u.name as login, u.firstname, u.realname, l.name AS setor 
     FROM glpi_users u 
     LEFT JOIN glpi_locations l ON u.locations_id = l.id 
     WHERE u.is_deleted = 0 AND u.is_active = 1
-    ORDER BY u.firstname ASC
+    ORDER BY u.firstname ASC, u.realname ASC
 ")->fetchAll(PDO::FETCH_ASSOC);
 
 $usuarios_json = [];
@@ -276,16 +349,51 @@ foreach ($usuarios as &$u) {
             </div>
         </div>
 
+        <?php 
+        $setores_usuarios = [];
+        foreach ($usuarios as $u) {
+            $setor_limpo = isset($u['setor']) ? trim($u['setor']) : '';
+            if (!empty($setor_limpo)) {
+                $setores_usuarios[mb_strtoupper($setor_limpo, 'UTF-8')] = $setor_limpo;
+            }
+        }
+        ksort($setores_usuarios);
+        ?>
+
         <div id="tab-usuarios" class="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden transition-all duration-500">
-            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                <h3 class="font-bold text-navy-900">Colaboradores do GLPI</h3>
-                <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-black"><?php echo count($usuarios); ?> ativos</span>
+            <div class="px-6 py-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center bg-slate-50/50 gap-4">
+                <div>
+                    <h3 class="font-bold text-navy-900 leading-tight">Colaboradores do GLPI</h3>
+                    <span class="bg-blue-100 text-blue-700 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider mt-1 inline-block"><?php echo count($usuarios); ?> ativos</span>
+                </div>
+                
+                <div class="w-full md:w-auto flex flex-col sm:flex-row gap-2 items-center flex-1 justify-end">
+                    
+                    <button type="button" id="btn-reset-massa" onclick="executarResetEmMassa()" class="hidden bg-rose-600 hover:bg-rose-500 text-white text-xs font-black uppercase tracking-wider px-4 py-2.5 rounded-xl transition-all shadow-md shadow-rose-900/20 animate-fade-in">
+                        💥 Resetar Selecionados (<span id="contador-massa">0</span>)
+                    </button>
+
+                    <select id="filtro-setor" class="w-full sm:w-48 bg-white border border-slate-200 focus:border-corporate-blue focus:ring-1 focus:ring-corporate-blue text-xs rounded-xl px-3 py-2.5 outline-none font-bold text-slate-600 shadow-sm cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23475569%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:10px_auto] bg-[right_12px_center] bg-no-repeat pr-8">
+                        <option value="">🏢 TODOS OS SETORES</option>
+                        <?php foreach($setores_usuarios as $key => $nome_setor): ?>
+                            <option value="<?php echo strtolower($key); ?>"><?php echo mb_strtoupper($nome_setor, 'UTF-8'); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+
+                    <div class="w-full sm:w-64 relative">
+                        <input type="text" id="busca-colaborador" placeholder="🔍 Buscar por nome ou login..." 
+                            class="w-full bg-white border border-slate-200 focus:border-corporate-blue focus:ring-1 focus:ring-corporate-blue text-xs rounded-xl pl-4 pr-10 py-2.5 outline-none font-medium text-slate-700 placeholder-slate-400 transition-all shadow-sm">
+                    </div>
+                </div>
             </div>
             
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">
                     <thead>
                         <tr class="bg-white border-b border-slate-100">
+                            <th class="px-4 py-4 w-10 text-center">
+                                <input type="checkbox" id="chk-selecionar-todos" onchange="toggleSelecionarTodos(this)" class="w-4 h-4 text-corporate-blue rounded border-slate-300 focus:ring-corporate-blue cursor-pointer">
+                            </th>
                             <th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Colaborador</th>
                             <th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Setor Raiz</th>
                             <th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Grupos Atribuídos</th>
@@ -295,6 +403,9 @@ foreach ($usuarios as &$u) {
                     <tbody class="divide-y divide-slate-50">
                         <?php foreach ($usuarios as $u): ?>
                         <tr class="hover:bg-slate-50/50 transition-colors group">
+                            <td class="px-4 py-4 text-center">
+                                <input type="checkbox" value="<?php echo $u['id']; ?>" class="chk-usuario-massa w-4 h-4 text-corporate-blue rounded border-slate-300 focus:ring-corporate-blue cursor-pointer" onchange="atualizarInterfaceMassa()">
+                            </td>
                             <td class="px-6 py-4">
                                 <div class="font-bold text-navy-900 text-sm"><?php echo $u['firstname'] . ' ' . $u['realname']; ?></div>
                                 <div class="text-[10px] text-slate-400 font-medium">@<?php echo $u['login']; ?></div>
@@ -308,8 +419,12 @@ foreach ($usuarios as &$u) {
                                     <?php endforeach; ?>
                                 </div>
                             </td>
-                            <td class="px-6 py-4 text-center">
+                            <td class="px-6 py-4 text-center flex items-center justify-center gap-1.5">
                                 <button onclick="abrirModalUser(<?php echo $u['id']; ?>)" class="text-[10px] bg-white border border-slate-200 text-slate-600 hover:bg-corporate-blue hover:text-white hover:border-corporate-blue px-3 py-1.5 rounded-lg font-bold uppercase transition-all shadow-sm">Ajustar</button>
+                                
+                                <button type="button" onclick="resetarSenhaUsuario(<?php echo $u['id']; ?>, '<?php echo htmlspecialchars($u['firstname'] . ' ' . $u['realname']); ?>')" class="bg-amber-50 hover:bg-amber-500 text-amber-600 hover:text-white border border-amber-200 hover:border-amber-500 text-[11px] w-8 h-8 rounded-lg flex items-center justify-center transition-all shadow-sm" title="Resetar Senha para Souza@123">
+                                    🔄
+                                </button>
                             </td>
                         </tr>
                         <?php endforeach; ?>
@@ -417,7 +532,7 @@ foreach ($usuarios as &$u) {
 
 <div id="modalUser" class="fixed inset-0 bg-navy-900/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
     <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-300">
-        <form method="POST" class="flex flex-col h-full">
+        <form method="POST" class="flex flex-col h-full overflow-hidden min-h-0">
             <input type="hidden" name="acao" value="salvar_usuario">
             <input type="hidden" name="user_id" id="mu_id">
             
@@ -755,6 +870,147 @@ foreach ($usuarios as &$u) {
 
         document.getElementById('modalSistema').classList.replace('hidden', 'flex');
     }
+
+    // =====================================================================
+    // 🔍 MOTOR DE FILTRAGEM CRUZADA: BUSCA POR NOME + SETOR (Sem Reload)
+    // =====================================================================
+    const inputBuscaNome = document.getElementById('busca-colaborador');
+    const selectFiltroSetor = document.getElementById('filtro-setor');
+    const linhasUsuarios = document.querySelectorAll('#tab-usuarios tbody tr');
+
+    function aplicarFiltrosCombinados() {
+        const termoNome = inputBuscaNome ? inputBuscaNome.value.toLowerCase().trim() : '';
+        const termoSetor = selectFiltroSetor ? selectFiltroSetor.value.toLowerCase().trim() : '';
+
+        linhasUsuarios.forEach(linha => {
+            // 🔥 CORREÇÃO DE ÍNDICES: Avançamos 1 casa por causa da nova coluna do Checkbox
+            const tdNome = linha.querySelector('td:nth-child(2)');  // Segunda coluna (Nome/Login)
+            const tdSetor = linha.querySelector('td:nth-child(3)'); // Terceira coluna (Setor Raiz)
+
+            if (tdNome && tdSetor) {
+                const textoNomeCompleto = tdNome.textContent.toLowerCase();
+                const textoSetorCompleto = tdSetor.textContent.toLowerCase().trim();
+
+                const bateuNome = termoNome === '' || textoNomeCompleto.includes(termoNome);
+                // Valida o setor buscando pelo texto original ou se o campo possui o valor selecionado
+                const bateuSetor = termoSetor === '' || textoSetorCompleto === termoSetor || textoSetorCompleto.includes(termoSetor);
+
+                if (bateuNome && bateuSetor) {
+                    linha.style.display = '';
+                } else {
+                    linha.style.display = 'none';
+                }
+            }
+        });
+    }
+
+    if (inputBuscaNome) inputBuscaNome.addEventListener('input', aplicarFiltrosCombinados);
+    if (selectFiltroSetor) selectFiltroSetor.addEventListener('change', aplicarFiltrosCombinados);
+
+    // =====================================================================
+    // 🔑 REQUISIÇÃO AJAX PARA RESET DE SENHA (Sem recarregar a tela)
+    // =====================================================================
+    function resetarSenhaUsuario(userId, nomeCompleto) {
+        if (confirm(`Atenção: Deseja realmente redefinir a senha de "${nomeCompleto}" para o padrão corporativo (Souza@123)?\n\nO colaborador será bloqueado e obrigado a criar uma nova senha pessoal no próximo login.`)) {
+            
+            const formData = new FormData();
+            formData.append('acao', 'resetar_senha_usuario');
+            formData.append('user_id', userId);
+
+            fetch('admin_gestao.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.text())
+            .then(resposta => {
+                if (resposta.trim() === 'sucesso') {
+                    alert('Senha redefinida com sucesso!\nO usuário foi configurado para o estado de Primeiro Login obrigatório.');
+                    window.location.reload();
+                } else {
+                    alert('Erro retornado pelo servidor: ' + resposta);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Erro de conexão ao tentar redefinir a senha.');
+            });
+        }
+    }
+
+    // =====================================================================
+    // 💥 MOTOR DE SELEÇÃO E RESET DE SENHAS EM MASSA (LOTE)
+    // =====================================================================
+    
+    // 1. Marca ou desmarca todos os checkboxes baseado no cabeçalho master
+    function toggleSelecionarTodos(masterCheckbox) {
+        // Seleciona apenas os checkboxes individuais que estão visíveis na tela atualmente
+        const checkboxes = document.querySelectorAll('.chk-usuario-massa');
+        
+        checkboxes.forEach(cb => {
+            // Só altera se a linha não estiver escondida por algum filtro de setor ou busca
+            if (cb.closest('tr').style.display !== 'none') {
+                cb.checked = masterCheckbox.checked;
+            }
+        });
+        atualizarInterfaceMassa();
+    }
+
+    // 2. Controla o estado do botão vermelho baseado em quantas caixas estão marcadas
+    function atualizarInterfaceMassa() {
+        const marcados = document.querySelectorAll('.chk-usuario-massa:checked');
+        const btnMassa = document.getElementById('btn-reset-massa');
+        const contador = document.getElementById('contador-massa');
+
+        if (marcados.length > 0) {
+            contador.innerText = marcados.length;
+            btnMassa.classList.remove('hidden');
+            btnMassa.classList.add('inline-block');
+        } else {
+            btnMassa.classList.add('hidden');
+            btnMassa.classList.remove('inline-block');
+            
+            // Desmarca o master caso o usuário limpe manualmente os itens
+            const chkMaster = document.getElementById('chk-selecionar-todos');
+            if (chkMaster) chkMaster.checked = false;
+        }
+    }
+
+    // 3. Dispara o AJAX enviando o array com todos os IDs selecionados
+    function executarResetEmMassa() {
+        const marcados = document.querySelectorAll('.chk-usuario-massa:checked');
+        if (marcados.length === 0) return;
+
+        if (confirm(`⚠️ ALERTA DE SEGURANÇA:\nDeseja realmente resetar a senha de ${marcados.length} colaboradores selecionados de uma única vez para o padrão (Souza@123)?\n\nTodos eles serão configurados para a redefinição de primeiro login obrigatório.`)) {
+            
+            const formData = new FormData();
+            formData.append('acao', 'resetar_senha_massa');
+            
+            // Injeta cada ID marcado dentro da estrutura de array do FormData
+            marcados.forEach(cb => {
+                formData.append('usuarios_ids[]', cb.value);
+            });
+
+            // Envia para o processamento em lote
+            fetch('admin_gestao.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.text())
+            .then(resposta => {
+                if (resposta.trim() === 'sucesso') {
+                    alert(`Sucesso! As senhas de ${marcados.length} usuários foram redefinidas em lote.`);
+                    window.location.reload();
+                } else {
+                    alert('Erro retornado pelo servidor: ' + resposta);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Erro na rede ao tentar processar o reset em lote.');
+            });
+        }
+    }
+
 </script>
 
 <?php include 'includes/footer.php'; ?>

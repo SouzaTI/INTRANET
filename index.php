@@ -59,7 +59,7 @@ $sql_feed = "SELECT c.*,
             (SELECT COUNT(*) FROM feed_curtidas WHERE comunicado_id = c.id AND user_id = ?) as ja_curtiu
             FROM comunicados c 
             WHERE c.ativo = 1 
-            AND c.data_postagem >= DATE_SUB(CURRENT_DATE(), INTERVAL 15 DAY) /* A MÁGICA DA EXPIRAÇÃO AQUI */
+            AND c.data_postagem >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY) /* A MÁGICA DA EXPIRAÇÃO AQUI */
             ORDER BY c.data_postagem DESC 
             LIMIT 10"; // Aumentei o limite para 10, já que as antigas vão sumir sozinhas
 
@@ -177,7 +177,7 @@ if (empty($aniversariantes)) {
                 <div class="space-y-6">
                     <div class="flex items-center justify-between px-4">
                         <h3 class="text-navy-900 font-black text-xl uppercase tracking-tighter italic">Feed de Notícias</h3>
-                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Últimas 24 horas</span>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Última Semana</span>
                     </div>
 
                     <div class="grid grid-cols-1 gap-6 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
@@ -947,4 +947,240 @@ setInterval(function() {
 
 </script>
 
+<?php
+// Consulta rápida para ver se o usuário já fez o tour
+$stmt_tut = $pdo_intra->prepare("SELECT tutorial_visto FROM usuarios_permissoes WHERE usuario_id = ?");
+$stmt_tut->execute([$user_id_logado]);
+$tut = $stmt_tut->fetch();
+$tutorial_visto = $tut ? (int)$tut['tutorial_visto'] : 0;
+?>
+
 <?php include 'includes/footer.php'; ?>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.css"/>
+<script src="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.js.iife.js"></script>
+
+<style>
+    /* Oculta o controle de avanço na etapa de interação obrigatória */
+    .driver-popover-next-btn.ocultar-botao {
+        display: none !important;
+    }
+    
+    /* Configuração estrutural do Mascote Interno para Ganho de Espaço */
+    .container-mascote-tour {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        min-height: 120px;
+    }
+    .mascote-tour-interno {
+        height: 130px; /* Aumentado consideravelmente para dar destaque */
+        width: auto;
+        flex-shrink: 0;
+        object-fit: contain;
+    }
+    .texto-tour-interno {
+        flex-1;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    /* Altera o fundo do balão para cinza claro, destacando as luvas brancas */
+    .driver-popover {
+        background-color: #f8fafc !important;
+        border: 1px solid #e2e8f0 !important;
+    }
+
+    /* Garante que a setinha do balão também mude de cor para acompanhar o fundo */
+    .driver-popover-arrow-side-left { border-right-color: #f8fafc !important; }
+    .driver-popover-arrow-side-right { border-left-color: #f8fafc !important; }
+    .driver-popover-arrow-side-top { border-bottom-color: #f8fafc !important; }
+    .driver-popover-arrow-side-bottom { border-top-color: #f8fafc !important; }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tutorialVisto = <?php echo (int)$tutorial_visto; ?>;
+
+    if (tutorialVisto === 0) {
+        const driver = window.driver.js.driver;
+        let chatObserver = null;
+
+        const driverObj = driver({
+            showProgress: true,
+            animate: true,
+            nextBtnText: 'Próximo ➔',
+            prevBtnText: '⬅ Voltar',
+            doneBtnText: 'Começar! 🚀', // Botão final alterado
+            
+            onDestroyStarted: () => {
+                if (chatObserver) chatObserver.disconnect();
+                
+                // Agora o último passo é o índice 7 (8ª tela)
+                if (driverObj.getActiveIndex() === 7) {
+                    marcarTutorialComoVisto();
+                }
+                
+                driverObj.destroy();
+            },
+            steps: [
+                { 
+                    popover: { 
+                        title: 'Bem-vindo à Intranet! 🎉', 
+                        description: `
+                            <div class="container-mascote-tour">
+                                <img src="assets/1.png" class="mascote-tour-interno">
+                                <div class="texto-tour-interno">
+                                    Apresentação técnica das ferramentas de produtividade da plataforma.<br><br>
+                                    <b>Nota:</b> Para desativar este guia nos próximos acessos, conclua o passo a passo.
+                                </div>
+                            </div>`
+                    } 
+                },
+                { 
+                    element: '#tour-inicio', 
+                    popover: { 
+                        title: '🏠 Painel Central', 
+                        description: `
+                            <div class="container-mascote-tour">
+                                <img src="assets/3.png" class="mascote-tour-interno">
+                                <div class="texto-tour-interno">
+                                    Centralização de comunicados internos, murais institucionais e cronogramas de atividades corporativas.
+                                </div>
+                            </div>`, 
+                        side: "right", 
+                        align: 'start' 
+                    } 
+                },
+                { 
+                    element: '#tour-matriz', 
+                    popover: { 
+                        title: '📞 Matriz de Comunicação', 
+                        description: `
+                            <div class="container-mascote-tour">
+                                <img src="assets/1.png" class="mascote-tour-interno">
+                                <div class="texto-tour-interno">
+                                    Consulta unificada de contatos internos, listagem oficial de ramais, e-mails e telefones de colaboradores.
+                                </div>
+                            </div>`, 
+                        side: "right", 
+                        align: 'start' 
+                    } 
+                },
+                { 
+                    element: '#tour-cursos', 
+                    popover: { 
+                        title: '🎓 Capacitação Profissional', 
+                        description: `
+                            <div class="container-mascote-tour">
+                                <img src="assets/1.png" class="mascote-tour-interno">
+                                <div class="texto-tour-interno">
+                                    Conexão direta com a Academia Winthor, centralizando as trilhas de aprendizado vinculadas ao setor.
+                                </div>
+                            </div>`, 
+                        side: "right", 
+                        align: 'start' 
+                    } 
+                },
+                { 
+                    element: '#tour-documentacao', 
+                    popover: { 
+                        title: '📂 Repositório de Documentos', 
+                        description: `
+                            <div class="container-mascote-tour">
+                                <img src="assets/3.png" class="mascote-tour-interno">
+                                <div class="texto-tour-interno">
+                                    Central de arquivos estruturada com validação automatizada de permissões por departamento.
+                                </div>
+                            </div>`, 
+                        side: "right", 
+                        align: 'start' 
+                    } 
+                },
+                { 
+                    element: '#tour-btn-chat', 
+                    popover: { 
+                        title: '💬 Comunicação Instantânea', 
+                        description: `
+                            <div class="container-mascote-tour">
+                                <img src="assets/1.png" class="mascote-tour-interno">
+                                <div class="texto-tour-interno">
+                                    👉 <b>CLIQUE NO ÍCONE DO CHAT PARA CONTINUAR</b><br><br>
+                                    É obrigatório realizar a abertura do Messenger corporativo no botão indicado ao lado.
+                                </div>
+                            </div>`, 
+                        side: "left", 
+                        align: 'end' 
+                    },
+                    onHighlighted: () => {
+                        const nextBtn = document.querySelector('.driver-popover-next-btn');
+                        if (nextBtn) nextBtn.style.display = 'none';
+
+                        const janelaChat = document.getElementById('janela-chat');
+                        if (janelaChat) {
+                            chatObserver = new MutationObserver((mutations) => {
+                                mutations.forEach((mutation) => {
+                                    if (mutation.attributeName === 'class' && !janelaChat.classList.contains('hidden')) {
+                                        chatObserver.disconnect(); 
+                                        setTimeout(() => {
+                                            driverObj.moveNext();
+                                        }, 500); 
+                                    }
+                                });
+                            });
+                            chatObserver.observe(janelaChat, { attributes: true });
+                        }
+                    },
+                    onDeselected: () => {
+                        const nextBtn = document.querySelector('.driver-popover-next-btn');
+                        if (nextBtn) nextBtn.style.display = '';
+                    }
+                },
+                { 
+                    element: '#janela-chat', 
+                    popover: { 
+                        title: 'Interface Operacional', 
+                        description: `
+                            <div class="container-mascote-tour">
+                                <img src="assets/4.png" class="mascote-tour-interno">
+                                <div class="texto-tour-interno">
+                                    Módulo de chat ativo para interações em tempo real entre colaboradores e canais departamentais.
+                                </div>
+                            </div>`, 
+                        side: "left", 
+                        align: 'start' 
+                    } 
+                },
+                // NOVO PASSO: Celebração e Conclusão!
+                { 
+                    popover: { 
+                        title: 'Parabéns! 🏆', 
+                        description: `
+                            <div class="container-mascote-tour">
+                                <img src="assets/3.png" class="mascote-tour-interno">
+                                <div class="texto-tour-interno">
+                                    Você concluiu o tutorial básico com sucesso!<br><br>
+                                    Aproveite ao máximo a nova Intranet. Clique em <b>"Começar"</b> para finalizar.
+                                </div>
+                            </div>`
+                    } 
+                }
+            ]
+        });
+
+        setTimeout(() => { driverObj.drive(); }, 1000);
+    }
+
+    function marcarTutorialComoVisto() {
+        const fd = new FormData();
+        fd.append('acao', 'marcar_visto');
+        
+        fetch('ajax_tutorial.php', { method: 'POST', body: fd })
+            .then(res => res.text()) // Agora pegamos o texto que o PHP vai devolver
+            .then(texto => {
+                console.log('RESPOSTA DO BANCO DE DADOS:', texto);
+            })
+            .catch(err => console.error('Erro no fetch:', err));
+    }
+});
+</script>

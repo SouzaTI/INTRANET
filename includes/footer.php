@@ -92,7 +92,7 @@
         </main>
     </div>
 
-    <button onclick="toggleChatNavi()" class="hover-float group relative">
+    <button onclick="toggleChatNavi()" id="tour-btn-chat" class="hover-float group relative">
         <div class="w-16 h-16 rounded-2xl flex items-center justify-center relative shadow-lg bg-navy-900 border border-white/10 transition-transform group-hover:scale-105">
             <svg class="w-8 h-8 text-white" viewbox="0 0 24 24" fill="currentColor">
                 <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.2L4 17.2V4h16v12z" />

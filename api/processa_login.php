@@ -36,6 +36,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         registrarLog($pdo_intra, 'LOGIN', "Sessão iniciada com sucesso.", $user['id'], $ip_acesso);
 
+        // 🔥 NOVA VALIDAÇÃO: Verifica se é o primeiro login ou se a senha foi resetada por você
+        $stmt_check = $pdo_intra->prepare("SELECT primeiro_login FROM usuarios_permissoes WHERE usuario_id = ?");
+        $stmt_check->execute([$user['id']]);
+        $check_senha = $stmt_check->fetch();
+
+        if ($check_senha && $check_senha['primeiro_login'] == 1) {
+            // Se o admin resetou ou é o primeiro acesso, manda obrigatoriamente para redefinir
+            header("Location: ../nova_senha.php");
+            exit;
+        }
+
+        // Se estiver tudo certo (primeiro_login = 0 ou não registrado), segue para a home normalmente
         header("Location: ../index.php");
         exit;
     }else {
