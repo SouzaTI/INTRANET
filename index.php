@@ -259,13 +259,11 @@ if (empty($aniversariantes)) {
 
                 <?php
                 $projetos_ativos = [];
-                try {
-                    // Conecta no seu banco de projetos do Winthor (porta 3307 como vi no seu config)
-                    $pdo_proj = new PDO("mysql:host=127.0.0.1;port=3307;dbname=gerenciador_projetos_db;charset=utf8mb4", "root", "");
-                    $pdo_proj->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+                    try {
+                        $pdo_proj = $pdo_projetos; 
 
-                    // Busca todos os projetos que têm data de virada configurada
-                    $stmtProj = $pdo_proj->query("SELECT * FROM projetos WHERE data_virada IS NOT NULL ORDER BY data_virada ASC");
+                        // Busca todos os projetos que têm data de virada configurada
+                        $stmtProj = $pdo_proj->query("SELECT * FROM projetos WHERE data_virada IS NOT NULL ORDER BY data_virada ASC");
                     $projetos_ativos = $stmtProj->fetchAll(PDO::FETCH_ASSOC);
 
                     // Calcula o progresso real de TODOS eles
