@@ -99,10 +99,18 @@ $todos_banners = $pdo_intra->query("SELECT * FROM banners_marketing ORDER BY id 
                                         <?php echo $status_label; ?>
                                     </span>
                                 </td>
-                                <td class="px-4 py-3 rounded-r-2xl text-right">
+                                <td class="px-4 py-3 rounded-r-2xl text-right flex justify-end gap-2">
+                                    <!-- Botão de Editar -->
+                                    <button type="button" 
+                                        onclick="abrirModalEdicaoBanner(<?php echo $b['id']; ?>, '<?php echo htmlspecialchars($b['titulo'], ENT_QUOTES); ?>', '<?php echo $b['data_inicio']; ?>', '<?php echo $b['data_fim']; ?>')"
+                                        class="bg-white p-2.5 rounded-xl border border-slate-200 text-blue-500 hover:bg-blue-500 hover:text-white transition-all shadow-sm" title="Editar Datas">
+                                        ✏️
+                                    </button>
+
+                                    <!-- Botão de Excluir (O seu original) -->
                                     <a href="api/excluir_banner.php?id=<?php echo $b['id']; ?>" 
                                     onclick="return confirm('Deseja realmente remover esta campanha?')"
-                                    class="bg-white p-2.5 rounded-xl border border-slate-200 text-red-500 hover:bg-red-500 hover:text-white transition-all inline-block shadow-sm">
+                                    class="bg-white p-2.5 rounded-xl border border-slate-200 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm" title="Excluir">
                                         🗑️
                                     </a>
                                 </td>
@@ -115,5 +123,62 @@ $todos_banners = $pdo_intra->query("SELECT * FROM banners_marketing ORDER BY id 
         </div>
     </div>
 </main>
+
+<!-- MODAL DE EDICÃO DE BANNER -->
+<div id="modal-edita-banner" class="hidden fixed inset-0 bg-navy-900/60 backdrop-blur-sm z-[1000] flex items-center justify-center p-4">
+    <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-300">
+        <form action="api/editar_banner.php" method="POST">
+            <!-- ID oculto para o banco saber quem atualizar -->
+            <input type="hidden" name="id" id="edit_banner_id">
+            
+            <div class="px-8 py-6 bg-purple-600 text-white flex justify-between items-center">
+                <h3 class="text-xl font-black italic uppercase">Editar Campanha</h3>
+                <button type="button" onclick="fecharModalEdicaoBanner()" class="text-white/50 hover:text-white text-2xl font-bold">&times;</button>
+            </div>
+            
+            <div class="p-8 space-y-4">
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Título do Banner</label>
+                    <input type="text" name="titulo" id="edit_banner_titulo" required class="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-purple-400 transition-all font-bold text-navy-900">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Data Início</label>
+                        <input type="date" name="data_inicio" id="edit_banner_inicio" required class="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none text-slate-700">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Data Fim</label>
+                        <input type="date" name="data_fim" id="edit_banner_fim" required class="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none text-slate-700">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-6 bg-slate-50 border-t border-slate-200 flex gap-4">
+                <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-4 rounded-2xl font-black uppercase tracking-widest shadow-md transition-all active:scale-95">
+                    💾 Salvar Alterações
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function abrirModalEdicaoBanner(id, titulo, inicio, fim) {
+        document.getElementById('edit_banner_id').value = id;
+        document.getElementById('edit_banner_titulo').value = titulo;
+        document.getElementById('edit_banner_inicio').value = inicio;
+        document.getElementById('edit_banner_fim').value = fim;
+        
+        const modal = document.getElementById('modal-edita-banner');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+
+    function fecharModalEdicaoBanner() {
+        const modal = document.getElementById('modal-edita-banner');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+</script>
 
 <?php include 'includes/footer.php'; ?>
