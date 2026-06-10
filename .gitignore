@@ -12,5 +12,6 @@ Thumbs.db
 
 # Ignorar arquivos pesados de mídia e documentos
 videos/
+uploads_fluxo
 *.mp4
 *.pdf

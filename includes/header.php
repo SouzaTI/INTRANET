@@ -115,6 +115,7 @@ if (isset($_SESSION['user_id'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>INTRANET</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>   
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
@@ -152,6 +153,7 @@ if (isset($_SESSION['user_id'])) {
         }
     </script>
     <link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/style.css">
+    
 </head>
 
 <body class="h-full bg-slate-100 font-sans antialiased">
@@ -206,6 +208,7 @@ if (isset($_SESSION['user_id'])) {
                     </div>
                 </div>
             </div>
+ 
         </header>
 
         <div id="toast-container" class="fixed bottom-8 right-8 z-[9999] pointer-events-none flex flex-col gap-3"></div>
