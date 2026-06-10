@@ -12,6 +12,7 @@ Thumbs.db
 
 # Ignorar arquivos pesados de mídia e documentos
 videos/
-uploads_fluxo
+uploads_fluxo/
+templates/
 *.mp4
 *.pdf

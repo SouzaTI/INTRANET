@@ -208,9 +208,15 @@ include 'includes/sidebar.php';
                                     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                                         <div class="px-4 py-3 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
                                             <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                                                <?= $eh_video ? '🎥 PLAYER DE VÍDEO' : ($eh_pdf || $eh_imagem ? '📄 VISUALIZADOR WEB' : '📦 ARQUIVO PARA DOWNLOAD') ?>
+                                                <?= $eh_video ? '🎥 PLAYER DE VÍDEO' : '📄 VISUALIZADOR SEGURO' ?>
                                             </span>
-                                            <a href="<?= $url_arquivo ?>" target="_blank" class="text-xs font-bold text-blue-600 hover:text-blue-700">Abrir Original ↗</a>
+                                            
+                                            <!-- Link passando pelo guardião -->
+                                            <a href="serve_documento.php?id=<?= $doc['id'] ?>&modo=visualizar" 
+                                            target="_blank" 
+                                            class="text-xs font-bold text-blue-600 hover:text-blue-700">
+                                            Abrir no Visualizador ↗
+                                            </a>
                                         </div>
 
                                         <template x-if="aberto">
@@ -222,7 +228,7 @@ include 'includes/sidebar.php';
                                                     </video>
 
                                                 <?php elseif($eh_pdf): ?>
-                                                    <iframe src="<?= $url_arquivo ?>#toolbar=0" class="w-full h-80" frameborder="0"></iframe>
+                                                    <iframe src="serve_documento.php?id=<?= $doc['id'] ?>&modo=visualizar" class="w-full h-80" frameborder="0"></iframe>
 
                                                 <?php elseif($eh_imagem): ?>
                                                     <img src="<?= $url_arquivo ?>" class="max-w-full max-h-80 object-contain p-2">

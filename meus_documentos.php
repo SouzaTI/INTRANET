@@ -127,18 +127,50 @@ include 'includes/sidebar.php';
                     $badges = [
                         'Pendente T.I'       => 'bg-amber-100 text-amber-700',
                         'Em Análise'         => 'bg-purple-100 text-purple-700',
-                        'Aguardando Ajustes' => 'bg-orange-100 text-orange-700 animate-pulse', // Pisca pra chamar atenção
+                        'Aguardando Ajustes' => 'bg-orange-100 text-orange-700 animate-pulse',
                         'Aprovado'           => 'bg-emerald-100 text-emerald-700',
                         'Recusado'           => 'bg-red-100 text-red-700',
                     ];
                     $cor_status = $badges[$doc['status']] ?? 'bg-slate-100 text-slate-500';
                     $historico_doc = $historico_agrupado[$doc['id']] ?? [];
+
+                    // ==========================================
+                    // 🧠 LÓGICA DE RASTREIO (SLA DO USUÁRIO)
+                    // ==========================================
+                    $data_ref = new DateTime($doc['data_atualizacao'] ?? $doc['data_envio']);
+                    $hoje = new DateTime();
+                    $dias_parados = $hoje->diff($data_ref)->days;
+
+                    $sla_cor = 'text-slate-400';
+                    $sla_icone = '⚪ Concluído';
+                    $sla_texto = '';
+
+                    // Se a bola estiver com a T.I
+                    if (in_array($doc['status'], ['Pendente T.I', 'Em Análise'])) {
+                        $sla_cor = 'text-blue-500';
+                        $sla_icone = '⏳ Na fila da T.I';
+                        $sla_texto = "há $dias_parados dias";
+                    } 
+                    // Se a bola estiver com o Usuário (Aguardando Ajustes)
+                    elseif ($doc['status'] === 'Aguardando Ajustes') {
+                        // Se ele demorar mais de 3 dias, fica vermelho pra alertar o risco de expirar
+                        $sla_cor = $dias_parados > 3 ? 'text-red-500 font-black animate-pulse' : 'text-orange-500';
+                        $sla_icone = '⚠️ Ação Necessária';
+                        $sla_texto = "parado com você há $dias_parados dias";
+                    }
                 ?>
                 
                 <tbody x-data="{ aberto: false }">
                     <tr class="border-b border-slate-50 hover:bg-slate-50/80 transition-colors cursor-pointer group" @click="aberto = !aberto">
                         <td class="py-5 px-6 font-bold text-navy-900"><?= htmlspecialchars($doc['titulo']) ?></td>
-                        <td class="py-5 px-4 text-xs font-bold text-slate-500"><?= date('d/m/Y H:i', strtotime($doc['data_atualizacao'])) ?></td>
+                        <td class="py-5 px-4">
+                            <div class="text-xs font-bold text-slate-500">
+                                <?= date('d/m/Y H:i', strtotime($doc['data_atualizacao'] ?? $doc['data_envio'])) ?>
+                            </div>
+                            <div class="text-[9px] font-bold uppercase mt-1 <?= $sla_cor ?>">
+                                <?= $sla_icone ?> <?= $sla_texto ?>
+                            </div>
+                        </td>
                         <td class="py-5 px-4 text-center">
                             <span class="bg-slate-100 text-slate-600 px-2 py-1 rounded-md text-xs font-black">V<?= $doc['versao_atual'] ?></span>
                         </td>
@@ -185,9 +217,26 @@ include 'includes/sidebar.php';
                                 <div class="space-y-4 h-fit">
                                     <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm text-center">
                                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Arquivo Atual</p>
-                                        <a href="uploads_fluxo/<?= htmlspecialchars($doc['nome_arquivo']) ?>" target="_blank" class="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors">
-                                            <span>📥</span> Baixar Versão V<?= $doc['versao_atual'] ?>
-                                        </a>
+                                        
+                                        <?php if ($doc['status'] === 'Aprovado'): ?>
+                                            <!-- Documento homologado: apenas visualização segura -->
+                                            <a href="serve_documento.php?id=<?= $doc['id'] ?>&modo=visualizar" 
+                                            target="_blank" 
+                                            class="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-50 hover:bg-emerald-100 
+                                                    text-emerald-700 text-xs font-bold rounded-xl transition-colors border border-emerald-200">
+                                                <span>👁️</span> Visualizar V<?= $doc['versao_atual'] ?> (Aprovado)
+                                            </a>
+                                            <p class="text-[10px] text-slate-400 mt-2 italic">
+                                                🔒 Documento homologado — download desabilitado
+                                            </p>
+                                        <?php else: ?>
+                                            <!-- Em fluxo: download liberado para o dono -->
+                                            <a href="serve_documento.php?id=<?= $doc['id'] ?>&modo=baixar" 
+                                            class="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-100 hover:bg-slate-200 
+                                                    text-slate-700 text-xs font-bold rounded-xl transition-colors">
+                                                <span>📥</span> Baixar Versão V<?= $doc['versao_atual'] ?>
+                                            </a>
+                                        <?php endif; ?>
                                     </div>
 
                                     <?php if($doc['status'] === 'Aguardando Ajustes'): ?>
@@ -241,6 +290,26 @@ include 'includes/sidebar.php';
             <div>
                 <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Título do Procedimento</label>
                 <input type="text" name="titulo" required placeholder="Ex: POP_Financeiro_Contas_Pagar" class="w-full p-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 outline-none">
+            </div>
+
+            <!-- 🔥 POKA-YOKE: Área de Download dos Modelos Oficiais -->
+            <div class="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-lg">💡</span>
+                    <h4 class="text-[10px] font-black text-blue-800 uppercase tracking-widest">Modelos Oficiais (Evite Retrabalho)</h4>
+                </div>
+                <p class="text-xs text-blue-600 mb-3 font-medium">Garanta a aprovação rápida da T.I utilizando nossos templates já formatados nas normas:</p>
+                <div class="flex flex-wrap gap-2">
+                    
+                    <a href="templates/modelo_pop_padrao.docx" download class="px-3 py-2 bg-white border border-blue-200 text-blue-700 text-[10px] font-bold rounded-lg hover:bg-blue-600 hover:border-blue-600 hover:text-white transition-colors flex items-center gap-1 shadow-sm">
+                        📄 POP Padrão (5W2H + ABNT + ISO 9000 + LEAN OFFICE)
+                    </a>
+                    
+                    <a href="templates/padrao_fluxograma.vsdx" download class="px-3 py-2 bg-white border border-blue-200 text-blue-700 text-[10px] font-bold rounded-lg hover:bg-blue-600 hover:border-blue-600 hover:text-white transition-colors flex items-center gap-1 shadow-sm">
+                        🔀 Fluxograma Padrão
+                    </a>
+                    
+                </div>
             </div>
             
             <div>

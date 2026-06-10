@@ -1,6 +1,6 @@
 <?php
 class DocumentoFluxo {
-    const MAX_CICLOS = 3; // Limite do Claude para evitar loop infinito de vai-e-vem
+    const MAX_CICLOS = 3; 
     private $pdo;
 
     public function __construct($pdo_conexao) {
@@ -12,11 +12,10 @@ class DocumentoFluxo {
      */
     public function transitar(int $doc_id, string $acao, int $usuario_id, string $mensagem = '', array $dados_extras = [], string $arquivo_novo = null): bool {
         try {
-            // Inicia uma Transação no banco para garantir consistência total
             $this->pdo->beginTransaction();
 
-            // 1. Busca o estado atual do documento travando a linha para evitar concorrência (FOR UPDATE)
-            $stmt = $this->pdo->prepare("SELECT status, versao_atual, ciclos_revisao, usuario_id FROM docs_fluxo_simples WHERE id = ? FOR UPDATE");
+            // 1. Busca o estado atual do documento (FOR UPDATE trava a linha)
+            $stmt = $this->pdo->prepare("SELECT status, versao_atual, ciclos_revisao, usuario_id, nome_arquivo FROM docs_fluxo_simples WHERE id = ? FOR UPDATE");
             $stmt->execute([$doc_id]);
             $doc = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -28,52 +27,68 @@ class DocumentoFluxo {
             $novo_status = $estado_atual;
             $nova_versao = $doc['versao_atual'];
             $novos_ciclos = $doc['ciclos_revisao'];
+            $hash = null; // Inicializa variável para o hash
 
-            // 2. Máquina de Estados: Define o destino com base na ação executada
+            // 2. Máquina de Estados
             if ($acao === 'assumir' && $estado_atual === 'Pendente T.I') {
                 $novo_status = 'Em Análise';
-            } elseif ($acao === 'aprovar' && $estado_atual === 'Em Análise') {
+            } 
+            elseif ($acao === 'aprovar' && $estado_atual === 'Em Análise') {
+                // LÓGICA DO LACRE (ISO 9000 - Integridade)
+                $caminho_fisico = __DIR__ . '/../uploads_fluxo/' . $doc['nome_arquivo'];
+                $hash = file_exists($caminho_fisico) ? hash_file('sha256', $caminho_fisico) : null;
+                
                 $novo_status = 'Aprovado';
-            } elseif ($acao === 'recusar' && $estado_atual === 'Em Análise') {
+                
+                // Atualiza com os campos de auditoria
+                $stmt_up = $this->pdo->prepare("
+                    UPDATE docs_fluxo_simples 
+                    SET status = ?, hash_arquivo = ?, publicado_em = NOW(), aprovado_por = ? 
+                    WHERE id = ?
+                ");
+                $stmt_up->execute([$novo_status, $hash, $usuario_id, $doc_id]);
+            } 
+            elseif ($acao === 'recusar' && $estado_atual === 'Em Análise') {
                 $novo_status = 'Recusado';
-            } elseif ($acao === 'devolver' && $estado_atual === 'Em Análise') {
-                // Valida o limite de ciclos do Claude
+            } 
+            elseif ($acao === 'devolver' && $estado_atual === 'Em Análise') {
                 if ($doc['ciclos_revisao'] >= self::MAX_CICLOS) {
                     $novo_status = 'Recusado';
                     $mensagem .= " (Recusado automaticamente: Limite de " . self::MAX_CICLOS . " revisões excedido).";
                 } else {
                     $novo_status = 'Aguardando Ajustes';
-                    $novos_ciclos++; // Incrementa o ciclo de idas e vindas
+                    $novos_ciclos++;
                 }
-            } elseif ($acao === 'reenviar' && $estado_atual === 'Aguardando Ajustes') {
+            } 
+            elseif ($acao === 'reenviar' && $estado_atual === 'Aguardando Ajustes') {
                 $novo_status = 'Pendente T.I';
-                $nova_versao++; // Incrementa a versão do arquivo (V2, V3...)
+                $nova_versao++;
             } else {
                 throw new Exception("Transição de estado inválida de '$estado_atual' com a ação '$acao'.");
             }
 
-            // 3. Atualiza a tabela principal do documento
-            $sql_update = "UPDATE docs_fluxo_simples SET status = ?, versao_atual = ?, ciclos_revisao = ? WHERE id = ?";
-            $this->pdo->prepare($sql_update)->execute([$novo_status, $nova_versao, $novos_ciclos, $doc_id]);
+            // Se a ação não foi 'aprovar' (que já deu update acima), fazemos o update padrão
+            if ($acao !== 'aprovar') {
+                $sql_update = "UPDATE docs_fluxo_simples SET status = ?, versao_atual = ?, ciclos_revisao = ? WHERE id = ?";
+                $this->pdo->prepare($sql_update)->execute([$novo_status, $nova_versao, $novos_ciclos, $doc_id]);
+            }
 
-            // Se um novo arquivo foi enviado na revisão, atualiza o ponteiro do arquivo atual
+            // Atualiza arquivo se necessário
             if ($arquivo_novo) {
                 $this->pdo->prepare("UPDATE docs_fluxo_simples SET nome_arquivo = ? WHERE id = ?")->execute([$arquivo_novo, $doc_id]);
             }
 
-            // 4. Grava o log imutável na tabela de histórico filha (Audit Trail)
+            // 4. Grava o log imutável
             $tipo_acao_historico = strtoupper($acao);
             $json_extras = !empty($dados_extras) ? json_encode($dados_extras) : null;
 
             $sql_hist = "INSERT INTO docs_fluxo_historico (doc_id, usuario_id, tipo_acao, mensagem, arquivo_novo, dados_extras) VALUES (?, ?, ?, ?, ?, ?)";
             $this->pdo->prepare($sql_hist)->execute([$doc_id, $usuario_id, $tipo_acao_historico, $mensagem, $arquivo_novo, $json_extras]);
 
-            // Confirma todas as alterações no banco de dados de uma vez só!
             $this->pdo->commit();
             return true;
 
         } catch (Exception $e) {
-            // Desfaz qualquer alteração se houver um erro no meio do caminho
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }

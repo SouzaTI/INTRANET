@@ -26,15 +26,28 @@ if (isset($_GET['path'])) {
     $partes_path = explode('/', urldecode($_GET['path']));
     $pasta_url_atual = strtoupper($partes_path[0]);
 }
+
+// --- INTEGRAÇÃO: BUSCA DE PROCESSOS HOMOLOGADOS ---
+$stmt_aprovados = $pdo_intra->prepare("
+    SELECT 
+        d.id,
+        d.titulo,
+        d.versao_atual,
+        d.publicado_em
+    FROM docs_fluxo_simples d
+    WHERE d.status = 'Aprovado'
+      AND d.publicado_em IS NOT NULL
+    ORDER BY d.publicado_em DESC
+    LIMIT 50
+");
+$stmt_aprovados->execute();
+$docs_aprovados = $stmt_aprovados->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
-<!-- OVERLAY: Fundo escuro que aparece atrás do menu no celular[cite: 10] -->
 <div id="mobile-overlay" onclick="toggleMobileMenu()" class="fixed inset-0 bg-black/60 z-40 hidden lg:hidden backdrop-blur-sm transition-opacity opacity-0"></div>
 
-<!-- ASIDE: Configurada como gaveta deslizante (transform -translate-x-full) no mobile[cite: 10] -->
 <aside id="sidebar-menu" class="fixed inset-y-0 left-0 z-50 w-64 bg-navy-900 flex flex-col h-full border-r border-navy-700 transition-transform duration-300 transform -translate-x-full lg:relative lg:translate-x-0 lg:flex shrink-0 shadow-2xl lg:shadow-none">
     
-    <!-- Botão de fechar (X) visível apenas no celular[cite: 10] -->
     <div class="flex justify-end p-4 lg:hidden">
         <button onclick="toggleMobileMenu()" class="text-slate-400 hover:text-white p-2">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -43,34 +56,16 @@ if (isset($_GET['path'])) {
 
     <nav class="flex-1 px-4 py-6 space-y-8 overflow-y-auto custom-scrollbar">
         
-        <!-- MENU PRINCIPAL[cite: 10] -->
         <div>
             <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-3">Menu Principal</p>
             <ul class="space-y-1">
-                <li>
-                    <a href="index.php" id="tour-inicio" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'index.php') ? 'bg-corporate-blue text-white' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>">
-                        <span>🏠</span> <span class="text-sm font-semibold">Início</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="matriz.php" id="tour-matriz" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'matriz.php') ? 'bg-corporate-blue text-white' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>">
-                        <span>📞</span> <span class="text-sm font-semibold">Matriz de Comunicação</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="treinamento.php" id="tour-cursos" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-navy-800 rounded-lg transition-all">
-                        <span>🎓</span> <span class="text-sm font-semibold">Cursos & Treinamentos</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="meus_documentos.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'meus_documentos.php') ? 'bg-corporate-blue text-white' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>">
-                        <span>📤</span> <span class="text-sm font-semibold">Envio de Processos</span>
-                    </a>
-                </li>    
+                <li><a href="index.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'index.php') ? 'bg-corporate-blue text-white' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>"><span>🏠</span> <span class="text-sm font-semibold">Início</span></a></li>
+                <li><a href="matriz.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'matriz.php') ? 'bg-corporate-blue text-white' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>"><span>📞</span> <span class="text-sm font-semibold">Matriz de Comunicação</span></a></li>
+                <li><a href="treinamento.php" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-navy-800 rounded-lg transition-all"><span>🎓</span> <span class="text-sm font-semibold">Cursos & Treinamentos</span></a></li>
+                <li><a href="meus_documentos.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'meus_documentos.php') ? 'bg-corporate-blue text-white' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>"><span>📤</span> <span class="text-sm font-semibold">Envio de Processos</span></a></li>    
             </ul>
         </div>
 
-        <!-- COMUNICAÇÃO[cite: 10] -->
         <?php 
             $tem_permissao_feed = ($_SESSION['is_admin'] || ($_SESSION['pode_postar_feed'] ?? false) || $_SESSION['setor_principal'] == 'MARKETING');
             if ($tem_permissao_feed): 
@@ -78,36 +73,20 @@ if (isset($_GET['path'])) {
         <div>
             <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-3">Comunicação</p>
             <ul class="space-y-1">
-                <li>
-                    <a href="admin_marketing.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'admin_marketing.php') ? 'bg-amber-500 text-white shadow-lg shadow-amber-900/20' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>">
-                        <span>🎨</span> <span class="text-sm font-semibold">Gestão Marketing</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="admin_feed.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'admin_feed.php') ? 'bg-amber-500 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>">
-                        <span>📢</span> <span class="text-sm font-semibold">Gestão do Feed</span>
-                    </a>
-                </li>
+                <li><a href="admin_marketing.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'admin_marketing.php') ? 'bg-amber-500 text-white shadow-lg shadow-amber-900/20' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>"><span>🎨</span> <span class="text-sm font-semibold">Gestão Marketing</span></a></li>
+                <li><a href="admin_feed.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'admin_feed.php') ? 'bg-amber-500 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>"><span>📢</span> <span class="text-sm font-semibold">Gestão do Feed</span></a></li>
             </ul>
         </div>
         <?php endif; ?>
 
-        <!-- DOCUMENTAÇÃO DINÂMICA[cite: 10] -->
         <div>
             <button onclick="toggleDocs()" id="tour-documentacao" class="w-full flex items-center justify-between px-3 py-2.5 text-slate-400 hover:text-white hover:bg-navy-800 rounded-lg transition-all">
-                <div class="flex items-center gap-3">
-                    <span>📂</span> <span class="text-sm font-semibold">Documentação</span>
-                </div>
+                <div class="flex items-center gap-3"><span>📂</span> <span class="text-sm font-semibold">Documentação</span></div>
                 <span id="docs-arrow" class="transition-transform duration-200 <?php echo $is_docs_active ? 'rotate-90' : ''; ?>">▶</span>
             </button>
-            
             <ul id="docs-menu" class="mt-2 space-y-1 pl-6 <?php echo $is_docs_active ? '' : 'hidden'; ?>">
-                <?php
-                foreach ($setores_disponiveis as $setor):
-                    $tem_acesso = ($_SESSION['is_admin'] || 
-                                   $_SESSION['setor_principal'] == $setor || 
-                                   (isset($_SESSION['pastas_extras']) && in_array($setor, $_SESSION['pastas_extras'])));
-
+                <?php foreach ($setores_disponiveis as $setor):
+                    $tem_acesso = ($_SESSION['is_admin'] || $_SESSION['setor_principal'] == $setor || (isset($_SESSION['pastas_extras']) && in_array($setor, $_SESSION['pastas_extras'])));
                     if ($tem_acesso):
                         $diretorio_base = $_SERVER['DOCUMENT_ROOT'] . '/intranet/docs/'; 
                         $diretorio_setor = $diretorio_base . $setor;
@@ -117,32 +96,19 @@ if (isset($_GET['path'])) {
                 ?>
                     <li class="group">
                         <div class="flex items-center justify-between py-1 px-2 rounded hover:bg-navy-800 transition-all">
-                            <a href="view.php?path=<?php echo urlencode($setor); ?>" class="text-[11px] font-medium text-slate-500 hover:text-white transition-all uppercase flex-1 py-1">
-                                <?php echo $setor; ?>
-                            </a>
-                            
-                            <button onclick="event.preventDefault(); event.stopPropagation(); toggleSetor('sub_<?php echo $id_setor_limpo; ?>', 'arrow_<?php echo $id_setor_limpo; ?>')" 
-                                    class="p-1 text-slate-600 hover:text-white transition-all">
+                            <a href="view.php?path=<?php echo urlencode($setor); ?>" class="text-[11px] font-medium text-slate-500 hover:text-white transition-all uppercase flex-1 py-1"><?php echo $setor; ?></a>
+                            <button onclick="event.preventDefault(); event.stopPropagation(); toggleSetor('sub_<?php echo $id_setor_limpo; ?>', 'arrow_<?php echo $id_setor_limpo; ?>')" class="p-1 text-slate-600 hover:text-white transition-all">
                                 <span id="arrow_<?php echo $id_setor_limpo; ?>" class="text-[8px] transition-transform block" style="transform: <?php echo $is_this_open ? 'rotate(90deg)' : 'rotate(0deg)'; ?>">▶</span>
                             </button>
                         </div>
-
                         <ul id="sub_<?php echo $id_setor_limpo; ?>" class="<?php echo $is_this_open ? '' : 'hidden'; ?> pl-4 border-l border-slate-700 space-y-1 my-1">
-                            <?php if (!$arquivos_docs || empty($arquivos_docs)): ?>
-                                <li class="text-[10px] text-slate-600 italic py-1">Nenhum documento</li>
-                            <?php else: 
+                            <?php if (!$arquivos_docs || empty($arquivos_docs)): ?><li class="text-[10px] text-slate-600 italic py-1">Nenhum documento</li><?php else: 
                                 foreach ($arquivos_docs as $arq): 
                                     $ext = strtolower(pathinfo($arq, PATHINFO_EXTENSION));
                                     $nome_doc = str_replace(['.md', '.pdf'], '', basename($arq));
                                     $icone = ($ext == 'pdf') ? '📕' : '📄';
-                                    $caminho_completo = $setor . '/' . basename($arq);
                             ?>
-                                <li>
-                                    <a href="view.php?path=<?php echo urlencode($caminho_completo); ?>" 
-                                       class="block py-1 text-[10px] text-slate-500 hover:text-blue-400 transition-all truncate" title="<?php echo $nome_doc; ?>">
-                                        <?php echo $icone; ?> <?php echo str_replace('_', ' ', $nome_doc); ?>
-                                    </a>
-                                </li>
+                                <li><a href="view.php?path=<?php echo urlencode($setor . '/' . basename($arq)); ?>" class="block py-1 text-[10px] text-slate-500 hover:text-blue-400 transition-all truncate"><?php echo $icone; ?> <?php echo str_replace('_', ' ', $nome_doc); ?></a></li>
                             <?php endforeach; endif; ?>
                         </ul>
                     </li>
@@ -150,35 +116,37 @@ if (isset($_GET['path'])) {
             </ul>
         </div>
 
-        <!-- ADMINISTRAÇÃO[cite: 10] -->
+        <div>
+            <button onclick="toggleProcessos()" class="w-full flex items-center justify-between px-3 py-2.5 text-slate-400 hover:text-white hover:bg-navy-800 rounded-lg transition-all">
+                <div class="flex items-center gap-3"><span>✅</span> <span class="text-sm font-semibold">Processos Homologados</span></div>
+                <span id="processos-arrow" class="transition-transform duration-200">▶</span>
+            </button>
+            <ul id="processos-menu" class="mt-2 space-y-1 pl-6 hidden">
+                <?php if (empty($docs_aprovados)): ?>
+                    <li class="text-[10px] text-slate-600 italic py-1 px-2">Nenhum processo oficial.</li>
+                <?php else: foreach ($docs_aprovados as $doc_ap): ?>
+                    <li>
+                        <a href="serve_documento.php?id=<?= $doc_ap['id'] ?>&modo=visualizar" target="_blank" class="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-navy-800 transition-all group">
+                            <span class="text-emerald-500 text-[10px]">📋</span>
+                            <span class="text-[11px] font-medium text-slate-400 group-hover:text-white truncate transition-all flex-1"><?= htmlspecialchars($doc_ap['titulo']) ?></span>
+                            <span class="text-[9px] text-slate-600 shrink-0">V<?= $doc_ap['versao_atual'] ?></span>
+                        </a>
+                    </li>
+                <?php endforeach; endif; ?>
+            </ul>
+        </div>
+
         <?php if ($_SESSION['is_admin'] || $_SESSION['pode_gerenciar_docs']): ?>
         <div>
             <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-3">Administração</p>
             <ul class="space-y-1">
                 <?php if ($_SESSION['pode_gerenciar_docs']): ?>
-                <li>
-                    <a href="admin_docs.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'admin_docs.php') ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/20' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>">
-                        <span>📝</span> <span class="text-sm font-semibold">Gestão de Manuais</span>
-                    </a>
-                </li>
+                <li><a href="admin_docs.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'admin_docs.php') ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/20' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>"><span>📝</span> <span class="text-sm font-semibold">Gestão de Manuais</span></a></li>
                 <?php endif; ?>
-
                 <?php if ($_SESSION['is_admin']): ?>
-                <li>
-                    <a href="admin_gestao.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'admin_gestao.php') ? 'bg-corporate-blue text-white' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>">
-                        <span>🛡️</span> <span class="text-sm font-semibold">Gestão de Acessos</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="admin_logs.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'admin_logs.php') ? 'bg-corporate-blue text-white' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>">
-                        <span>📋</span> <span class="text-sm font-semibold">Logs de Auditoria</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="gestao_fluxo.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'gestao_fluxo.php') ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/20' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>">
-                        <span>🛠️</span> <span class="text-sm font-semibold">Aprovações de Processos</span>
-                    </a>
-                </li>
+                <li><a href="admin_gestao.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'admin_gestao.php') ? 'bg-corporate-blue text-white' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>"><span>🛡️</span> <span class="text-sm font-semibold">Gestão de Acessos</span></a></li>
+                <li><a href="admin_logs.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'admin_logs.php') ? 'bg-corporate-blue text-white' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>"><span>📋</span> <span class="text-sm font-semibold">Logs de Auditoria</span></a></li>
+                <li><a href="gestao_fluxo.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'gestao_fluxo.php') ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/20' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>"><span>🛠️</span> <span class="text-sm font-semibold">Aprovações de Processos</span></a></li>
                 <?php endif; ?>
             </ul>
         </div>
@@ -192,6 +160,15 @@ function toggleDocs() {
     const menu = document.getElementById('docs-menu');
     const arrow = document.getElementById('docs-arrow');
     if(menu && arrow) {
+        menu.classList.toggle('hidden');
+        arrow.classList.toggle('rotate-90');
+    }
+}
+
+function toggleProcessos() {
+    const menu  = document.getElementById('processos-menu');
+    const arrow = document.getElementById('processos-arrow');
+    if (menu && arrow) {
         menu.classList.toggle('hidden');
         arrow.classList.toggle('rotate-90');
     }
