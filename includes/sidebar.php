@@ -61,6 +61,11 @@ if (isset($_GET['path'])) {
                     <a href="treinamento.php" id="tour-cursos" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-navy-800 rounded-lg transition-all">
                         <span>🎓</span> <span class="text-sm font-semibold">Cursos & Treinamentos</span>
                     </a>
+                </li>
+                <li>
+                    <a href="meus_documentos.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'meus_documentos.php') ? 'bg-corporate-blue text-white' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>">
+                        <span>📤</span> <span class="text-sm font-semibold">Envio de Processos</span>
+                    </a>
                 </li>    
             </ul>
         </div>
@@ -167,6 +172,11 @@ if (isset($_GET['path'])) {
                 <li>
                     <a href="admin_logs.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'admin_logs.php') ? 'bg-corporate-blue text-white' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>">
                         <span>📋</span> <span class="text-sm font-semibold">Logs de Auditoria</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="gestao_fluxo.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'gestao_fluxo.php') ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/20' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>">
+                        <span>🛠️</span> <span class="text-sm font-semibold">Aprovações de Processos</span>
                     </a>
                 </li>
                 <?php endif; ?>

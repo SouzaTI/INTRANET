@@ -332,6 +332,8 @@ foreach ($usuarios as &$u) {
 
     $usuarios_json[$u['id']] = $u;
 }
+
+unset($u);
 ?>
 
 <main class="flex-1 overflow-y-auto bg-slate-50 p-8">
