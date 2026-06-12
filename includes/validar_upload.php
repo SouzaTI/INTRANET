@@ -16,6 +16,8 @@ function validarArquivoFluxo(array $arquivo): array {
     // 2. Mapeamento de MIME types reais de forma segura[cite: 7, 8]
     $tipos_permitidos = [
         'application/pdf'  => 'pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'xlsx',
         'image/jpeg'       => 'jpg',
         'image/png'        => 'png',
         'video/mp4'        => 'mp4',

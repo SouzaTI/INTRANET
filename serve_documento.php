@@ -30,11 +30,15 @@ $is_ti = ($stmt_ti->fetchColumn() > 0);
 
 $is_admin = ($_SESSION['is_admin'] ?? false);
 $is_dono = ($doc['usuario_id'] == $_SESSION['user_id']);
+$pode_baixar = ($is_admin || $is_dono);
 $eh_aprovado = ($doc['status'] === 'Aprovado');
 
 // 3. Regras de Permissão
 // Admins, T.I e Donos (para docs pendentes) têm acesso total
-$pode_acessar = ($is_admin || $is_ti || $is_dono || $eh_aprovado);
+$setor_doc = strtoupper($doc['setor_origem']);
+$pertence_ao_setor = ($setor_doc === $_SESSION['setor_principal'] || in_array($setor_doc, $_SESSION['pastas_extras'] ?? []));
+
+$pode_acessar = ($is_admin || $is_ti || $is_dono || ($eh_aprovado && $pertence_ao_setor));
 
 if (!$pode_acessar) {
     http_response_code(403);
@@ -54,21 +58,34 @@ if ($extensao === 'pdf') {
     header('Content-Type: ' . mime_content_type($caminho_arquivo));
 }
 
-// 2. FORÇAR EXIBIÇÃO (INLINE)
-// Se não for download explícito, forçamos o "inline" para abrir na aba
+// 2. FORÇAR EXIBIÇÃO OU DOWNLOAD
+
 $modo = $_GET['modo'] ?? 'visualizar';
+
+// Vamos padronizar o nome bonitinho do arquivo para ele não baixar com o nome do Hash
+$nome_limpo = preg_replace('/[^A-Za-z0-9\-]/', '_', $doc['titulo'] ?? 'Documento_Oficial');
+$nome_download = $nome_limpo . '_V' . ($doc['versao_atual'] ?? '1') . '.' . $extensao;
 
 if ($modo === 'baixar' && $pode_baixar) {
     // Força o download com o nome legível
-    $nome_download = ($doc['titulo'] ?? 'documento_oficial') . '.' . $extensao;
     header('Content-Disposition: attachment; filename="' . $nome_download . '"');
 } else {
-    // Exibe no visualizador do navegador (a parte crucial para o seu caso)
-    header('Content-Disposition: inline; filename="' . basename($doc['nome_arquivo']) . '"');
+    // Exibe no visualizador. Se o navegador não souber abrir (tipo .xlsx), 
+    // ele vai baixar usando o nome bonito em vez de basename($doc['nome_arquivo'])
+    header('Content-Disposition: inline; filename="' . $nome_download . '"');
 }
 
-// 3. Segurança adicional para impedir download automático
+// 3. Segurança adicional para impedir download automático indevido
 header('X-Content-Type-Options: nosniff');
 
+// 🔥 O TRUQUE DE MESTRE CONTRA ARQUIVOS CORROMPIDOS:
+// Se tiver algum espaço em branco sobrando de outros arquivos de include (como o config.php),
+// o ob_clean() joga no lixo para garantir que só os bytes do arquivo puro vão pro navegador.
+if (ob_get_length()) {
+    ob_clean();
+}
+flush();
+
+// Agora sim, entrega o arquivo limpo!
 readfile($caminho_arquivo);
 exit;

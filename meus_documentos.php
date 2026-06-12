@@ -29,8 +29,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 // CENA A: Novo Documento (V1)
                 if ($acao === 'novo_envio') {
                     $titulo = trim($_POST['titulo']);
-                    $stmt = $pdo_intra->prepare("INSERT INTO docs_fluxo_simples (usuario_id, titulo, nome_arquivo) VALUES (?, ?, ?)");
-                    $stmt->execute([$user_id, $titulo, $nome_novo]);
+                    $setor = $_POST['setor_origem'] ?? 'GERAL'; // Captura o setor_origem
+                    
+                    // Atualiza o INSERT para salvar na coluna setor_origem
+                    $stmt = $pdo_intra->prepare("INSERT INTO docs_fluxo_simples (usuario_id, titulo, nome_arquivo, setor_origem) VALUES (?, ?, ?, ?)");
+                    $stmt->execute([$user_id, $titulo, $nome_novo, $setor]);
                     
                     // Registra o V1 no Histórico Imutável
                     $novo_doc_id = $pdo_intra->lastInsertId();
@@ -292,6 +295,24 @@ include 'includes/sidebar.php';
                 <input type="text" name="titulo" required placeholder="Ex: POP_Financeiro_Contas_Pagar" class="w-full p-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 outline-none">
             </div>
 
+            <div>
+                <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Setor</label>
+                <select name="setor_origem" required class="w-full p-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 outline-none">
+                    <option value="GERAL">Geral</option>
+                    <option value="COMERCIAL">Comercial</option>
+                    <option value="FINANCEIRO">Financeiro</option>
+                    <option value="FACILITIES & TI">Facilities & TI</option>
+                    <option value="LOGÍSTICA">Logística</option>
+                    <option value="RH">Recursos Humanos</option>
+                    <option value="TRANSPORTE">Transporte</option>
+                    <option value="CADASTRO">Cadastro</option>
+                    <option value="COMPRAS">Compras</option>
+                    <option value="FISCAL">Fiscal</option>
+                    <option value="TELEVENDAS">Televendas</option>
+                    <option value="MARKETING">Marketing</option>
+                </select>
+            </div>
+
             <!-- 🔥 POKA-YOKE: Área de Download dos Modelos Oficiais -->
             <div class="bg-blue-50 border border-blue-100 rounded-xl p-4">
                 <div class="flex items-center gap-2 mb-2">
@@ -305,7 +326,7 @@ include 'includes/sidebar.php';
                         📄 POP Padrão (5W2H + ABNT + ISO 9000 + LEAN OFFICE)
                     </a>
                     
-                    <a href="templates/padrao_fluxograma.vsdx" download class="px-3 py-2 bg-white border border-blue-200 text-blue-700 text-[10px] font-bold rounded-lg hover:bg-blue-600 hover:border-blue-600 hover:text-white transition-colors flex items-center gap-1 shadow-sm">
+                    <a href="templates/COMO UTILIZAR O BIZAGI MODELER.docx" download class="px-3 py-2 bg-white border border-blue-200 text-blue-700 text-[10px] font-bold rounded-lg hover:bg-blue-600 hover:border-blue-600 hover:text-white transition-colors flex items-center gap-1 shadow-sm">
                         🔀 Fluxograma Padrão
                     </a>
                     

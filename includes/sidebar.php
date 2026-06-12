@@ -27,21 +27,20 @@ if (isset($_GET['path'])) {
     $pasta_url_atual = strtoupper($partes_path[0]);
 }
 
-// --- INTEGRAÇÃO: BUSCA DE PROCESSOS HOMOLOGADOS ---
-$stmt_aprovados = $pdo_intra->prepare("
-    SELECT 
-        d.id,
-        d.titulo,
-        d.versao_atual,
-        d.publicado_em
-    FROM docs_fluxo_simples d
-    WHERE d.status = 'Aprovado'
-      AND d.publicado_em IS NOT NULL
-    ORDER BY d.publicado_em DESC
-    LIMIT 50
+// --- INTEGRAÇÃO: BUSCA DE PROCESSOS HOMOLOGADOS (AGRUPADOS POR SETOR) ---
+$stmt_aprovados = $pdo_intra->query("
+    SELECT id, titulo, versao_atual, setor_origem 
+    FROM docs_fluxo_simples 
+    WHERE status = 'Aprovado' 
+    ORDER BY setor_origem ASC, titulo ASC
 ");
-$stmt_aprovados->execute();
-$docs_aprovados = $stmt_aprovados->fetchAll(PDO::FETCH_ASSOC);
+$aprovados_por_setor = [];
+while ($row = $stmt_aprovados->fetch(PDO::FETCH_ASSOC)) {
+    $s = !empty($row['setor_origem']) ? strtoupper($row['setor_origem']) : 'GERAL';
+    $aprovados_por_setor[$s][] = $row;
+}
+$is_proc_active = ($current_page == 'visualizar_processo.php');
+$setor_atual_sidebar = isset($_GET['setor_origem']) ? urldecode($_GET['setor_origem']) : '';
 ?>
 
 <div id="mobile-overlay" onclick="toggleMobileMenu()" class="fixed inset-0 bg-black/60 z-40 hidden lg:hidden backdrop-blur-sm transition-opacity opacity-0"></div>
@@ -85,7 +84,16 @@ $docs_aprovados = $stmt_aprovados->fetchAll(PDO::FETCH_ASSOC);
                 <span id="docs-arrow" class="transition-transform duration-200 <?php echo $is_docs_active ? 'rotate-90' : ''; ?>">▶</span>
             </button>
             <ul id="docs-menu" class="mt-2 space-y-1 pl-6 <?php echo $is_docs_active ? '' : 'hidden'; ?>">
+                
+                <li class="mb-2">
+                    <a href="view.php" class="flex items-center justify-between py-1.5 px-2 rounded hover:bg-corporate-blue transition-all bg-navy-800 text-[11px] font-black text-white uppercase tracking-widest border border-navy-700 shadow-sm">
+                        <span>👁️ Visão Geral</span>
+                        <span>↗</span>
+                    </a>
+                </li>
+
                 <?php foreach ($setores_disponiveis as $setor):
+                    // A LÓGICA DE SEGURANÇA CONTINUA INTACTA AQUI
                     $tem_acesso = ($_SESSION['is_admin'] || $_SESSION['setor_principal'] == $setor || (isset($_SESSION['pastas_extras']) && in_array($setor, $_SESSION['pastas_extras'])));
                     if ($tem_acesso):
                         $diretorio_base = $_SERVER['DOCUMENT_ROOT'] . '/intranet/docs/'; 
@@ -119,18 +127,42 @@ $docs_aprovados = $stmt_aprovados->fetchAll(PDO::FETCH_ASSOC);
         <div>
             <button onclick="toggleProcessos()" class="w-full flex items-center justify-between px-3 py-2.5 text-slate-400 hover:text-white hover:bg-navy-800 rounded-lg transition-all">
                 <div class="flex items-center gap-3"><span>✅</span> <span class="text-sm font-semibold">Processos Homologados</span></div>
-                <span id="processos-arrow" class="transition-transform duration-200">▶</span>
+                <span id="processos-arrow" class="transition-transform duration-200 <?= $is_proc_active ? 'rotate-90' : '' ?>">▶</span>
             </button>
-            <ul id="processos-menu" class="mt-2 space-y-1 pl-6 hidden">
-                <?php if (empty($docs_aprovados)): ?>
+            <ul id="processos-menu" class="mt-2 space-y-1 pl-6 <?= $is_proc_active ? '' : 'hidden' ?>">
+                
+                <li class="mb-2">
+                    <a href="visualizar_processo.php" class="flex items-center justify-between py-1.5 px-2 rounded hover:bg-corporate-blue transition-all bg-navy-800 text-[11px] font-black text-white uppercase tracking-widest border border-navy-700 shadow-sm">
+                        <span>👁️ Visão Geral</span>
+                        <span>↗</span>
+                    </a>
+                </li>
+                
+                <?php if (empty($aprovados_por_setor)): ?>
                     <li class="text-[10px] text-slate-600 italic py-1 px-2">Nenhum processo oficial.</li>
-                <?php else: foreach ($docs_aprovados as $doc_ap): ?>
-                    <li>
-                        <a href="serve_documento.php?id=<?= $doc_ap['id'] ?>&modo=visualizar" target="_blank" class="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-navy-800 transition-all group">
-                            <span class="text-emerald-500 text-[10px]">📋</span>
-                            <span class="text-[11px] font-medium text-slate-400 group-hover:text-white truncate transition-all flex-1"><?= htmlspecialchars($doc_ap['titulo']) ?></span>
-                            <span class="text-[9px] text-slate-600 shrink-0">V<?= $doc_ap['versao_atual'] ?></span>
-                        </a>
+                <?php else: foreach ($aprovados_por_setor as $nome_setor => $docs_setor):
+                    $id_setor_clean = preg_replace('/[^a-zA-Z0-9]/', '_', $nome_setor);
+                    $is_this_proc_open = ($setor_atual_sidebar === $nome_setor);
+                ?>
+                    <li class="group">
+                        <div class="flex items-center justify-between py-1 px-2 rounded hover:bg-navy-800 transition-all">
+                            <a href="visualizar_processo.php?setor_origem=<?= urlencode($nome_setor) ?>" class="text-[11px] font-medium text-slate-500 hover:text-white transition-all uppercase flex-1 py-1">
+                                📁 <?= htmlspecialchars($nome_setor) ?>
+                            </a>
+                            <button onclick="event.preventDefault(); event.stopPropagation(); toggleSetor('proc_sub_<?= $id_setor_clean ?>', 'proc_arr_<?= $id_setor_clean ?>')" class="p-1 text-slate-600 hover:text-white transition-all">
+                                <span id="proc_arr_<?= $id_setor_clean ?>" class="text-[8px] transition-transform block" style="transform: <?= $is_this_proc_open ? 'rotate(90deg)' : 'rotate(0deg)' ?>">▶</span>
+                            </button>
+                        </div>
+                        <ul id="proc_sub_<?= $id_setor_clean ?>" class="<?= $is_this_proc_open ? '' : 'hidden' ?> pl-4 border-l border-slate-700 space-y-1 my-1">
+                            <?php foreach ($docs_setor as $doc_ap): ?>
+                                <li>
+                                    <a href="visualizar_processo.php?setor_origem=<?= urlencode($nome_setor) ?>&open_doc=<?= $doc_ap['id'] ?>&title=<?= urlencode($doc_ap['titulo']) ?>" class="flex items-center gap-2 py-1.5 px-2 rounded hover:text-blue-400 transition-all group">
+                                        <span class="text-emerald-500 text-[10px]">📋</span>
+                                        <span class="text-[10px] font-medium text-slate-500 group-hover:text-blue-400 truncate transition-all flex-1"><?= htmlspecialchars($doc_ap['titulo']) ?></span>
+                                    </a>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
                     </li>
                 <?php endforeach; endif; ?>
             </ul>
