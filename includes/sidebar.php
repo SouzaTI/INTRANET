@@ -62,6 +62,24 @@ $setor_atual_sidebar = isset($_GET['setor_origem']) ? urldecode($_GET['setor_ori
                 <li><a href="matriz.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'matriz.php') ? 'bg-corporate-blue text-white' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>"><span>📞</span> <span class="text-sm font-semibold">Matriz de Comunicação</span></a></li>
                 <li><a href="treinamento.php" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-navy-800 rounded-lg transition-all"><span>🎓</span> <span class="text-sm font-semibold">Cursos & Treinamentos</span></a></li>
                 <li><a href="meus_documentos.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'meus_documentos.php') ? 'bg-corporate-blue text-white' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>"><span>📤</span> <span class="text-sm font-semibold">Envio de Processos</span></a></li>    
+                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-3">Assinaturas Digitais</p>
+                <ul class="space-y-1">
+                    <li>
+                        <a href="minhas_assinaturas.php" class="flex items-center justify-between px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'minhas_assinaturas.php') ? 'bg-corporate-blue text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>">
+                            <div class="flex items-center gap-3">
+                                <span>✍️</span> 
+                                <span class="text-sm font-semibold">Minhas Assinaturas</span>
+                            </div>
+                            <span class="text-[9px] font-black bg-navy-800 text-slate-400 px-2 py-0.5 rounded border border-navy-700 group-hover:text-white">Módulo</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="criar_envelope.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'criar_envelope.php') ? 'bg-corporate-blue text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>">
+                            <span>🚀</span> 
+                            <span class="text-sm font-semibold">Criar Envelope</span>
+                        </a>
+                    </li>
+                </ul>
             </ul>
         </div>
 
