@@ -119,7 +119,6 @@ include 'includes/sidebar.php';
                 <thead class="sticky top-0 z-10 shadow-sm">
                     <tr class="bg-slate-50 border-b border-slate-200 text-[10px] text-slate-500 uppercase tracking-widest font-black">
                         <th class="py-4 px-6">Título do Processo</th>
-                        <th class="py-4 px-4">Última Atualização</th>
                         <th class="py-4 px-4 text-center">Versão</th>
                         <th class="py-4 px-4">Status</th>
                         <th class="py-4 px-4 text-right">Detalhes</th>
@@ -137,30 +136,7 @@ include 'includes/sidebar.php';
                     $cor_status = $badges[$doc['status']] ?? 'bg-slate-100 text-slate-500';
                     $historico_doc = $historico_agrupado[$doc['id']] ?? [];
 
-                    // ==========================================
-                    // 🧠 LÓGICA DE RASTREIO (SLA DO USUÁRIO)
-                    // ==========================================
-                    $data_ref = new DateTime($doc['data_atualizacao'] ?? $doc['data_envio']);
-                    $hoje = new DateTime();
-                    $dias_parados = $hoje->diff($data_ref)->days;
-
-                    $sla_cor = 'text-slate-400';
-                    $sla_icone = '⚪ Concluído';
-                    $sla_texto = '';
-
-                    // Se a bola estiver com a T.I
-                    if (in_array($doc['status'], ['Pendente T.I', 'Em Análise'])) {
-                        $sla_cor = 'text-blue-500';
-                        $sla_icone = '⏳ Na fila da T.I';
-                        $sla_texto = "há $dias_parados dias";
-                    } 
-                    // Se a bola estiver com o Usuário (Aguardando Ajustes)
-                    elseif ($doc['status'] === 'Aguardando Ajustes') {
-                        // Se ele demorar mais de 3 dias, fica vermelho pra alertar o risco de expirar
-                        $sla_cor = $dias_parados > 3 ? 'text-red-500 font-black animate-pulse' : 'text-orange-500';
-                        $sla_icone = '⚠️ Ação Necessária';
-                        $sla_texto = "parado com você há $dias_parados dias";
-                    }
+                    
                 ?>
                 
                 <tbody x-data="{ aberto: false }">
@@ -169,9 +145,6 @@ include 'includes/sidebar.php';
                         <td class="py-5 px-4">
                             <div class="text-xs font-bold text-slate-500">
                                 <?= date('d/m/Y H:i', strtotime($doc['data_atualizacao'] ?? $doc['data_envio'])) ?>
-                            </div>
-                            <div class="text-[9px] font-bold uppercase mt-1 <?= $sla_cor ?>">
-                                <?= $sla_icone ?> <?= $sla_texto ?>
                             </div>
                         </td>
                         <td class="py-5 px-4 text-center">

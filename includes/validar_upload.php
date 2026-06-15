@@ -26,6 +26,7 @@ function validarArquivoFluxo(array $arquivo): array {
     ];
 
     $tamanho_max = [
+        'docx' => 50 * 1024 * 1024, // 50 MB
         'pdf'  => 50  * 1024 * 1024,  // 50 MB[cite: 9]
         'jpg'  => 10  * 1024 * 1024,  // 10 MB[cite: 9]
         'png'  => 10  * 1024 * 1024,  // 10 MB[cite: 9]
