@@ -55,8 +55,13 @@ class ProcessadorAssinatura
             }
 
             // 4. Verifica PIN
-            $pin_hash_calculado = hash('sha256', $pin_digitado . $fluxo['pin_salt']);
-            if (!hash_equals($fluxo['pin_hash'], $pin_hash_calculado)) {
+            $hash_bcrypt = $this->buscarPinBcrypt($user_id);
+            if (!$hash_bcrypt) {
+                $this->pdo->rollBack();
+                return $this->erro('PIN de assinatura não cadastrado. Acesse "Cadastrar PIN" antes de assinar.');
+            }
+
+            if (!password_verify($pin_digitado, $hash_bcrypt)) {
                 $this->registrarTentativaFalha($fluxo['id']);
                 $this->pdo->commit();
                 $restantes = self::MAX_TENTATIVAS - ((int)$fluxo['tentativas_pin'] + 1);
@@ -101,15 +106,27 @@ class ProcessadorAssinatura
     private function buscarFluxo(int $envelope_id, int $user_id): array|false
     {
         $stmt = $this->pdo->prepare("
-            SELECT id, pin_hash, pin_salt, tentativas_pin, bloqueado_ate
+            SELECT id, tentativas_pin, bloqueado_ate
             FROM   assinaturas_fluxo
             WHERE  fk_assinatura = :eid
-              AND  glpi_user_id  = :uid
-              AND  status        = 'pendente'
+            AND  glpi_user_id  = :uid
+            AND  status        = 'pendente'
             FOR UPDATE
         ");
         $stmt->execute([':eid' => $envelope_id, ':uid' => $user_id]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    private function buscarPinBcrypt(int $user_id): string|false
+    {
+        $stmt = $this->pdo->prepare("
+            SELECT assinatura_pin
+            FROM   usuarios_permissoes
+            WHERE  usuario_id     = :uid
+            AND  assinatura_pin IS NOT NULL
+        ");
+        $stmt->execute([':uid' => $user_id]);
+        return $stmt->fetchColumn();
     }
 
     // -----------------------------------------------------------------

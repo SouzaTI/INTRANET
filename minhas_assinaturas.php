@@ -6,6 +6,13 @@ include 'includes/sidebar.php';
 // ── Pendentes do usuário logado ──────────────────────────────────────────────
 $user_id = $_SESSION['user_id'] ?? 0;
 
+// ── ADICIONE APENAS ESTE TRECHO AQUI EMBAIXO ──────────────────────────
+$stmt_check_pin = $pdo_intra->prepare("SELECT assinatura_pin FROM usuarios_permissoes WHERE usuario_id = ?");
+$stmt_check_pin->execute([$user_id]);
+$dados_permissoes = $stmt_check_pin->fetch(PDO::FETCH_ASSOC);
+$usuario_possui_pin = !empty($dados_permissoes['assinatura_pin']);
+// ─────────────────────────────────────────────────────────────────────
+
 $stmt_pendentes = $pdo_intra->prepare("
     SELECT
         sa.id            AS envelope_id,
@@ -46,6 +53,25 @@ $stmt_hist = $pdo_intra->prepare("
 ");
 $stmt_hist->execute([':uid' => $user_id]);
 $historico = $stmt_hist->fetchAll(PDO::FETCH_ASSOC);
+
+// ── Meus Envios (Envelopes criados por mim) ─────────────────────────────────
+$stmt_enviados = $pdo_intra->prepare("
+    SELECT
+        sa.id,
+        sa.titulo,
+        sa.status,
+        sa.tipo_fluxo,
+        sa.criado_em,
+        COUNT(af.id)                                            AS total_assinantes,
+        SUM(CASE WHEN af.status = 'assinado' THEN 1 ELSE 0 END) AS ja_assinados
+    FROM   sistemas_assinaturas sa
+    LEFT JOIN assinaturas_fluxo af ON af.fk_assinatura = sa.id
+    WHERE  sa.criado_por = :uid
+    GROUP  BY sa.id
+    ORDER  BY sa.criado_em DESC
+");
+$stmt_enviados->execute([':uid' => $user_id]);
+$enviados = $stmt_enviados->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <main class="flex-1 overflow-y-auto bg-slate-50 p-6 md:p-10">
@@ -68,76 +94,114 @@ $historico = $stmt_hist->fetchAll(PDO::FETCH_ASSOC);
     </div>
 
     <!-- ── SEÇÃO 1 · Pendentes ───────────────────────────────────────────── -->
-    <section>
+    <?php if (!empty($enviados)): ?>
+    <section class="mb-10">
         <h2 class="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 mb-4 px-1">
-            Pendentes de Assinatura
+            Enviados por Mim
         </h2>
 
-        <?php if (empty($pendentes)): ?>
-        <div class="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-14 flex flex-col items-center gap-3">
-            <span class="text-5xl">✅</span>
-            <p class="font-black text-navy-900 uppercase tracking-tighter text-lg italic">Tudo em dia!</p>
-            <p class="text-slate-400 text-sm font-medium">Não há documentos aguardando sua assinatura.</p>
-        </div>
-        <?php else: ?>
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-            <?php foreach ($pendentes as $doc):
-                $progresso = $doc['total_assinantes'] > 0
-                    ? round(($doc['ja_assinaram'] / $doc['total_assinantes']) * 100)
-                    : 0;
-                $badge_fluxo = $doc['tipo_fluxo'] === 'sequencial'
-                    ? ['bg-violet-100 text-violet-700', '⛓ Sequencial']
-                    : ['bg-sky-100 text-sky-700',       '⚡ Paralelo'];
-            ?>
-            <div class="group bg-white rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 p-6 flex flex-col gap-5">
+        <?php foreach ($enviados as $env):
+            $total     = (int) $env['total_assinantes'];
+            $assinados = (int) $env['ja_assinados'];
+            $pct       = $total > 0 ? round(($assinados / $total) * 100) : 0;
+            $concluido = $env['status'] === 'concluido';
+            $cancelado = $env['status'] === 'cancelado';
 
-                <!-- Tipo de fluxo + data -->
-                <div class="flex items-center justify-between">
-                    <span class="text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full <?= $badge_fluxo[0] ?>">
-                        <?= $badge_fluxo[1] ?>
-                    </span>
-                    <span class="text-[10px] text-slate-400 font-bold">
-                        <?= date('d/m/Y', strtotime($doc['criado_em'])) ?>
-                    </span>
-                </div>
+            $status_cfg = match($env['status']) {
+                'concluido'    => ['bg-emerald-100 text-emerald-700', '✔ Concluído'],
+                'cancelado'    => ['bg-rose-100 text-rose-600',       '✕ Cancelado'],
+                'em_andamento' => ['bg-sky-100 text-sky-700',         '⏳ Em andamento'],
+                default        => ['bg-amber-100 text-amber-700',     '🕐 Aguardando'],
+            };
 
-                <!-- Título -->
-                <div>
-                    <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Documento</p>
-                    <h3 class="font-black text-navy-900 text-base leading-snug line-clamp-2">
-                        <?= htmlspecialchars($doc['titulo']) ?>
-                    </h3>
-                    <p class="text-slate-400 text-[11px] font-medium mt-1">
-                        Enviado por
-                        <span class="text-navy-900 font-black">
-                            <?= htmlspecialchars($doc['criador_nome'] . ' ' . $doc['criador_sobrenome']) ?>
+            $badge_fluxo = $env['tipo_fluxo'] === 'sequencial'
+                ? 'bg-violet-100 text-violet-700'
+                : 'bg-sky-100 text-sky-700';
+
+            $bar_cor = $concluido ? 'from-emerald-400 to-emerald-500'
+                     : ($pct >= 50 ? 'from-corporate-blue to-sky-400'
+                     : 'from-amber-400 to-amber-500');
+        ?>
+        <div class="bg-white rounded-[2rem] border border-slate-200 shadow-sm
+                    hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 p-6 flex flex-col gap-4">
+
+            <div class="flex items-start justify-between gap-3">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1.5 flex-wrap">
+                        <span class="text-[9px] font-black uppercase tracking-widest px-2.5 py-1
+                                     rounded-full <?= $status_cfg[0] ?>">
+                            <?= $status_cfg[1] ?>
                         </span>
-                    </p>
+                        <span class="text-[9px] font-black uppercase tracking-widest px-2.5 py-1
+                                     rounded-full <?= $badge_fluxo ?>">
+                            <?= ucfirst($env['tipo_fluxo']) ?>
+                        </span>
+                    </div>
+                    <h3 class="font-black text-navy-900 text-sm leading-snug line-clamp-2">
+                        <?= htmlspecialchars($env['titulo']) ?>
+                    </h3>
                 </div>
 
-                <!-- Barra de progresso do envelope -->
-                <div>
-                    <div class="flex justify-between mb-1.5">
-                        <span class="text-[9px] font-black uppercase tracking-widest text-slate-400">Progresso do envelope</span>
-                        <span class="text-[9px] font-black text-navy-900"><?= $doc['ja_assinaram'] ?>/<?= $doc['total_assinantes'] ?></span>
-                    </div>
-                    <div class="w-full bg-slate-100 rounded-full h-2">
-                        <div class="h-2 rounded-full bg-gradient-to-r from-corporate-blue to-sky-400 transition-all duration-700"
-                             style="width: <?= $progresso ?>%"></div>
-                    </div>
+                <div class="shrink-0 w-12 h-12 rounded-2xl <?= $concluido ? 'bg-emerald-50' : 'bg-slate-50' ?>
+                            flex flex-col items-center justify-center border
+                            <?= $concluido ? 'border-emerald-100' : 'border-slate-100' ?>">
+                    <span class="text-sm font-black <?= $concluido ? 'text-emerald-600' : 'text-navy-900' ?>
+                                 leading-none"><?= $pct ?>%</span>
+                    <span class="text-[8px] text-slate-400 font-bold uppercase leading-none mt-0.5">feito</span>
                 </div>
-
-                <!-- CTA -->
-                <button
-                    onclick="abrirModal(<?= $doc['envelope_id'] ?>, '<?= addslashes(htmlspecialchars($doc['titulo'])) ?>', '<?= $doc['arquivo_path'] ?>')"
-                    class="w-full bg-navy-900 hover:bg-corporate-blue text-white font-black py-4 rounded-2xl shadow-md hover:shadow-lg transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2 mt-auto">
-                    🖊 Revisar e Assinar
-                </button>
             </div>
-            <?php endforeach; ?>
+
+            <div>
+                <div class="flex justify-between items-center mb-1.5">
+                    <span class="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                        Progresso das assinaturas
+                    </span>
+                    <span class="text-[9px] font-black text-navy-900">
+                        <?= $assinados ?>/<?= $total ?>
+                    </span>
+                </div>
+                <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                    <div class="h-2 rounded-full bg-gradient-to-r <?= $bar_cor ?>
+                                transition-all duration-700"
+                         style="width: <?= $pct ?>%"></div>
+                </div>
+
+                <?php if ($total > 0 && $total <= 10): ?>
+                <div class="flex gap-1.5 mt-2">
+                    <?php for ($i = 0; $i < $total; $i++): ?>
+                    <div class="h-1.5 flex-1 rounded-full transition-all
+                                <?= $i < $assinados
+                                    ? 'bg-emerald-400'
+                                    : ($concluido ? 'bg-emerald-200' : 'bg-slate-200') ?>">
+                    </div>
+                    <?php endfor; ?>
+                </div>
+                <?php endif; ?>
+            </div>
+
+            <div class="flex items-center justify-between pt-2 border-t border-slate-50 mt-auto">
+                <span class="text-[10px] text-slate-400 font-medium">
+                    <?= date('d/m/Y \à\s H:i', strtotime($env['criado_em'])) ?>
+                </span>
+                <?php if (!$concluido && !$cancelado): ?>
+                <a href="detalhe_envelope.php?id=<?= $env['id'] ?>"
+                class="text-[10px] font-black uppercase tracking-widest text-corporate-blue
+                        hover:text-navy-900 transition-colors">
+                    Ver detalhes →
+                </a>
+                <?php else: ?>
+                <span class="text-[10px] font-black uppercase tracking-widest
+                             <?= $concluido ? 'text-emerald-500' : 'text-slate-300' ?>">
+                    <?= $concluido ? '✔ Lacrado' : '—' ?>
+                </span>
+                <?php endif; ?>
+            </div>
         </div>
-        <?php endif; ?>
+        <?php endforeach; ?>
+        </div>
     </section>
+    <?php endif; ?>
 
     <!-- ── SEÇÃO 2 · Histórico ───────────────────────────────────────────── -->
     <?php if (!empty($historico)): ?>
