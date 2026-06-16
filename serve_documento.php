@@ -72,10 +72,48 @@ if (!file_exists($caminho_arquivo)) die("Erro: Arquivo não localizado.");
 
 $extensao    = strtolower(pathinfo($caminho_arquivo, PATHINFO_EXTENSION));
 $mime        = $extensao === 'pdf' ? 'application/pdf' : mime_content_type($caminho_arquivo);
-$pode_baixar = ($is_admin || $is_dono);
+$pode_baixar = ($is_admin || $is_dono || $eh_aprovado);
 $modo        = $_GET['modo'] ?? 'visualizar';
 $nome_limpo  = preg_replace('/[^A-Za-z0-9\-]/', '_', $doc['titulo'] ?? 'Documento_Oficial');
 $nome_dl     = $nome_limpo . '_V' . ($doc['versao_atual'] ?? '1') . '.' . $extensao;
+
+// =====================================================================
+// 🔥 NOVA LÓGICA: TELA AMIGÁVEL PARA ARQUIVOS NÃO SUPORTADOS (Word/Excel)
+// =====================================================================
+$formatos_navegador = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'mp4', 'webm', 'ogg'];
+
+if ($modo === 'visualizar' && !in_array($extensao, $formatos_navegador)) {
+    ?>
+    <!DOCTYPE html>
+    <html lang="pt-br">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Visualização Indisponível</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+        <style>body { font-family: 'Inter', sans-serif; }</style>
+    </head>
+    <body class="bg-slate-100 flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white p-10 rounded-[2rem] shadow-xl border border-slate-200 text-center max-w-md w-full">
+            <div class="w-20 h-20 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-4xl mx-auto mb-6">
+                <?= ($extensao === 'docx' || $extensao === 'doc') ? '📝' : '📊' ?>
+            </div>
+            <h2 class="text-xl font-black text-slate-800 uppercase tracking-tighter mb-2">Formato não suportado na web</h2>
+            <p class="text-sm text-slate-500 font-medium mb-8">O navegador não consegue exibir arquivos <b>.<?= $extensao ?></b> nativamente. Baixe o documento para visualizá-lo.</p>
+            
+            <a href="serve_documento.php?id=<?= $doc_id ?>&modo=baixar" 
+               class="flex items-center justify-center gap-3 w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-widest text-xs rounded-xl shadow-lg shadow-blue-600/20 transition-all">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                Fazer Download Seguro
+            </a>
+        </div>
+    </body>
+    </html>
+    <?php
+    exit;
+}
+// =====================================================================
 
 header('Content-Type: ' . $mime);
 header('Content-Disposition: ' . ($modo === 'baixar' && $pode_baixar ? 'attachment' : 'inline') . '; filename="' . $nome_dl . '"');

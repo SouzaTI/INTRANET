@@ -13,6 +13,8 @@ $full_path = ROOT_PATH . 'docs/' . $path;
 
 $modo_exibicao = '';
 $dados_tela = [];
+$subpastas_tela = []; // NOVO: Array para guardar as subpastas
+$arquivos_tela = [];  // NOVO: Array para guardar os arquivos
 $acesso_autorizado = false;
 
 // 2. MODO 1: VISÃO GERAL (RAIZ) - Mostra as pastas permitidas
@@ -38,7 +40,7 @@ if ($path === '') {
             
             if ($tem_permissao) {
                 // Conta quantos arquivos tem lá dentro
-                $arquivos_na_pasta = glob(ROOT_PATH . 'docs/' . $p . '/*.{md,pdf}', GLOB_BRACE);
+                $arquivos_na_pasta = glob(ROOT_PATH . 'docs/' . $p . '/*.{md,pdf,doc,docx,DOC,DOCX}', GLOB_BRACE);
                 $dados_tela[] = [
                     'nome' => $p,
                     'qtd' => $arquivos_na_pasta ? count($arquivos_na_pasta) : 0
@@ -79,14 +81,32 @@ else {
     }
 
     if (is_dir($full_path)) {
-        $modo_exibicao = 'arquivos';
-        $arquivos = array_diff(scandir($full_path), array('.', '..', 'index.md'));
-        foreach ($arquivos as $arq) {
-            $ext = strtolower(pathinfo($arq, PATHINFO_EXTENSION));
-            if ($ext == 'md' || $ext == 'pdf') {
-                $dados_tela[] = $arq;
+        $modo_exibicao = 'arquivos'; // Mantemos a variável para o HTML entender, mas agora lemos subpastas
+        
+        $itens = array_diff(scandir($full_path), array('.', '..', 'index.md'));
+        foreach ($itens as $item) {
+            $caminho_item = $full_path . '/' . $item;
+            
+            // SE FOR PASTA, JOGA NO ARRAY DE SUBPASTAS
+            if (is_dir($caminho_item)) {
+                $arquivos_na_subpasta = glob($caminho_item . '/*.{md,pdf,doc,docx,DOC,DOCX}', GLOB_BRACE);
+                $subpastas_tela[] = [
+                    'nome' => $item,
+                    'qtd' => $arquivos_na_subpasta ? count($arquivos_na_subpasta) : 0
+                ];
+            } 
+            // SE FOR ARQUIVO .MD OU .PDF, JOGA NO ARRAY DE ARQUIVOS
+            else {
+                $ext = strtolower(pathinfo($item, PATHINFO_EXTENSION));
+                if (in_array($ext, ['md', 'pdf', 'doc', 'docx'])) {
+                    $arquivos_tela[] = $item;
+                }
             }
         }
+        
+        // Mantenho o dados_tela apenas por garantia de não quebrar compatibilidade
+        $dados_tela = $arquivos_tela; 
+
     } else {
         $modo_exibicao = 'leitura';
         registrarLog($pdo_intra, 'Visualizou Documento', "Abriu: $path");
@@ -108,31 +128,37 @@ else {
                         </nav>
                         <h2 class="text-3xl font-black text-navy-900 tracking-tight">Biblioteca de Manuais</h2>
                     <?php else: ?>
-                        <nav class="flex text-sm text-slate-400 font-medium italic mb-2">
+                        <?php 
+                            $path_pai = dirname($path);
+                            if ($path_pai === '.' || $path_pai === '\\') $path_pai = ''; 
+                        ?>
+                        <nav class="flex items-center text-sm text-slate-400 font-medium italic mb-2">
+                            <a href="view.php<?= $path_pai !== '' ? '?path='.urlencode($path_pai) : '' ?>" class="flex items-center gap-1 hover:text-corporate-blue transition-colors bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-sm mr-3">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                                Voltar
+                            </a>
                             <a href="view.php" class="hover:text-corporate-blue transition-colors">Documentação</a>
-                            <span class="mx-3 text-slate-300">/</span>
+                            <span class="mx-2 text-slate-300">/</span>
                             <span class="text-corporate-blue font-bold truncate"><?php echo str_replace('/', ' / ', $path); ?></span>
                         </nav>
                         <h2 class="text-3xl font-black text-navy-900 tracking-tight">
-                            Arquivos em <span class="text-corporate-blue"><?php echo explode('/', $path)[0]; ?></span>
+                            Arquivos em <span class="text-corporate-blue"><?php echo htmlspecialchars(basename($path)); ?></span>
                         </h2>
                     <?php endif; ?>
                 </div>
                 
-                <!-- Barra de Pesquisa JS -->
                 <input type="text" id="searchInput" placeholder="<?= $modo_exibicao === 'pastas' ? 'Pesquisar setores...' : 'Pesquisar manuais...' ?>" 
                        class="px-5 py-3 rounded-xl border border-slate-200 text-sm w-full md:w-72 focus:ring-2 focus:ring-corporate-blue outline-none shadow-sm">
             </div>
 
             <div id="gridDocs" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                <?php if (empty($dados_tela)): ?>
-                    <div class="col-span-full text-center py-20 bg-white/50 rounded-3xl border-2 border-dashed border-slate-200">
-                        <p class="text-slate-400 font-medium italic">Nenhum registro encontrado nesta área.</p>
-                    </div>
-                <?php else: ?>
-
-                    <?php if ($modo_exibicao === 'pastas'): ?>
-                        <!-- RENDERIZA AS PASTAS -->
+                
+                <?php if ($modo_exibicao === 'pastas'): ?>
+                    <?php if (empty($dados_tela)): ?>
+                        <div class="col-span-full text-center py-20 bg-white/50 rounded-3xl border-2 border-dashed border-slate-200">
+                            <p class="text-slate-400 font-medium italic">Nenhum registro encontrado nesta área.</p>
+                        </div>
+                    <?php else: ?>
                         <?php foreach ($dados_tela as $pasta): ?>
                             <a href="view.php?path=<?= urlencode($pasta['nome']) ?>" 
                                class="doc-card group relative bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-corporate-blue transition-all transform hover:-translate-y-1 flex flex-col items-center justify-center text-center min-h-[180px]">
@@ -143,21 +169,50 @@ else {
                                 <p class="text-[10px] font-black text-slate-400 uppercase bg-slate-50 px-3 py-1 rounded-full mt-2"><?= $pasta['qtd'] ?> Arquivo(s)</p>
                             </a>
                         <?php endforeach; ?>
+                    <?php endif; ?>
 
+                <?php else: ?>
+                    
+                    <?php if (empty($subpastas_tela) && empty($arquivos_tela)): ?>
+                        <div class="col-span-full text-center py-20 bg-white/50 rounded-3xl border-2 border-dashed border-slate-200">
+                            <p class="text-slate-400 font-medium italic">Esta pasta está vazia.</p>
+                        </div>
                     <?php else: ?>
-                        <!-- RENDERIZA OS ARQUIVOS (.MD E .PDF) -->
-                        <?php foreach ($dados_tela as $arq): 
+
+                        <?php foreach ($subpastas_tela as $pasta): 
+                            $link_path = trim($path, '/') . '/' . $pasta['nome'];
+                        ?>
+                            <a href="view.php?path=<?= urlencode($link_path) ?>" 
+                               class="doc-card group relative bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-corporate-blue transition-all transform hover:-translate-y-1 flex flex-col items-center justify-center text-center min-h-[180px]">
+                                <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-colors bg-blue-50 text-corporate-blue group-hover:bg-corporate-blue group-hover:text-white">
+                                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
+                                </div>
+                                <h3 class="font-black text-navy-900 mb-1 group-hover:text-corporate-blue uppercase tracking-widest text-sm"><?= htmlspecialchars($pasta['nome']) ?></h3>
+                                <p class="text-[10px] font-black text-slate-400 uppercase bg-slate-50 px-3 py-1 rounded-full mt-2"><?= $pasta['qtd'] ?> Arquivo(s)</p>
+                            </a>
+                        <?php endforeach; ?>
+
+                        <?php foreach ($arquivos_tela as $arq): 
                             $ext = strtolower(pathinfo($arq, PATHINFO_EXTENSION));
                             $nome_limpo = str_replace(['.md', '.pdf'], '', $arq);
                             $link_path = trim($path, '/') . '/' . $arq;
                             $link = "view.php?path=" . urlencode($link_path);
                             
-                            $cor_fundo = $ext == 'pdf' ? 'bg-red-50 text-red-600 group-hover:bg-red-600' : 'bg-blue-50 text-corporate-blue group-hover:bg-corporate-blue';
-                            $icone = $ext == 'pdf' 
-                                ? '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>'
-                                : '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>';
+                            $cor_fundo = 'bg-blue-50 text-corporate-blue group-hover:bg-corporate-blue';
+                            $icone = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>';
+                            $tag = '<span class="absolute top-4 right-4 text-[9px] font-black bg-blue-100 text-corporate-blue px-2 py-1 rounded uppercase tracking-widest">WIKI</span>';
+
+                            if ($ext == 'pdf') {
+                                $cor_fundo = 'bg-red-50 text-red-600 group-hover:bg-red-600';
+                                $icone = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>';
+                                $tag = '<span class="absolute top-4 right-4 text-[9px] font-black bg-red-100 text-red-600 px-2 py-1 rounded uppercase tracking-widest">PDF</span>';
+                            } elseif (in_array($ext, ['doc', 'docx'])) {
+                                $cor_fundo = 'bg-sky-50 text-sky-600 group-hover:bg-sky-600';
+                                $icone = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>';
+                                $tag = '<span class="absolute top-4 right-4 text-[9px] font-black bg-sky-100 text-sky-600 px-2 py-1 rounded uppercase tracking-widest">WORD</span>';
+                            }
+
                             
-                            $tag = $ext == 'pdf' ? '<span class="absolute top-4 right-4 text-[9px] font-black bg-red-100 text-red-600 px-2 py-1 rounded uppercase tracking-widest">PDF</span>' : '<span class="absolute top-4 right-4 text-[9px] font-black bg-blue-100 text-corporate-blue px-2 py-1 rounded uppercase tracking-widest">WIKI</span>';
                         ?>
                             <a href='<?= $link ?>' class='doc-card group relative bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-slate-300 transition-all transform hover:-translate-y-1 flex flex-col'>
                                 <?= $tag ?>
@@ -168,16 +223,13 @@ else {
                                 <p class='text-xs text-slate-400 mt-auto flex items-center gap-1'>Clique para leitura</p>
                             </a>
                         <?php endforeach; ?>
+                        
                     <?php endif; ?>
-
                 <?php endif; ?>
             </div>
         </div>
 
     <?php elseif ($modo_exibicao === 'leitura'): ?>
-        <!-- ==========================================
-             MODO LEITURA (PDF OU MARKDOWN)
-             ========================================== -->
         <?php
             $ext = strtolower(pathinfo($full_path, PATHINFO_EXTENSION));
             $is_pdf = ($ext == 'pdf');
@@ -196,19 +248,40 @@ else {
             } elseif ($ext == 'pdf') {
                 $url_pdf = 'docs/' . implode('/', array_map('rawurlencode', explode('/', $path)));
                 $conteudo_html = '<div class="w-full h-[85vh] rounded-2xl overflow-hidden border border-slate-200 bg-slate-800 flex items-center justify-center shadow-inner"><iframe src="' . $url_pdf . '#toolbar=0" class="w-full h-full bg-slate-100" frameborder="0"></iframe></div>';
+            } elseif (in_array($ext, ['doc', 'docx'])) {
+                $url_doc = 'docs/' . implode('/', array_map('rawurlencode', explode('/', $path)));
+                $nome_arquivo = basename($path);
+                $conteudo_html = '
+                <div class="flex flex-col items-center justify-center py-20 bg-white border border-slate-200 shadow-sm rounded-3xl h-[60vh]">
+                    <div class="w-20 h-20 bg-sky-50 text-sky-600 rounded-2xl flex items-center justify-center text-4xl mb-6 shadow-sm">📝</div>
+                    <h3 class="text-xl font-black text-navy-900 uppercase tracking-tighter mb-2">Documento Editável (Word)</h3>
+                    <p class="text-sm text-slate-500 font-medium mb-8 max-w-md text-center">Este arquivo é um modelo/template e não pode ser exibido no navegador. Clique abaixo para baixar.</p>
+                    <a href="' . $url_doc . '" download="' . htmlspecialchars($nome_arquivo, ENT_QUOTES) . '" class="flex items-center gap-3 px-8 py-4 bg-sky-600 hover:bg-sky-700 text-white font-black uppercase tracking-widest text-xs rounded-xl shadow-lg shadow-sky-600/20 transition-all">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        Fazer Download Seguro
+                    </a>
+                </div>';
             } else {
                 $conteudo_html = "<div class='alert alert-danger'><h3>⚠️ Formato não suportado</h3></div>";
             }
         ?>
         <div class="max-w-[95%] 2xl:max-w-[1600px] mx-auto bg-white shadow-sm border border-slate-200 rounded-3xl min-h-[80vh] flex flex-col overflow-hidden">
             <div class="px-8 py-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-                <nav class="flex text-sm text-slate-400 font-medium italic">
-                    <a href="view.php" class="hover:text-corporate-blue transition-colors">Documentação</a>
-                    <span class="mx-3 text-slate-300">/</span>
-                    <span class="text-corporate-blue font-bold truncate max-w-lg"><?php echo str_replace('/', ' / ', $path); ?></span>
+                <?php 
+                    $path_pai = dirname($path);
+                    if ($path_pai === '.' || $path_pai === '\\') $path_pai = ''; 
+                ?>
+                <nav class="flex items-center text-sm text-slate-400 font-medium italic">
+                    <a href="view.php<?= $path_pai !== '' ? '?path='.urlencode($path_pai) : '' ?>" class="flex items-center gap-1 hover:text-corporate-blue transition-colors bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-sm mr-3">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                        Voltar
+                    </a>
+                    <a href="view.php" class="hover:text-corporate-blue transition-colors hidden md:block">Documentação</a>
+                    <span class="mx-3 text-slate-300 hidden md:block">/</span>
+                    <span class="text-corporate-blue font-bold truncate max-w-[150px] md:max-w-lg"><?php echo str_replace('/', ' / ', $path); ?></span>
                 </nav>
                 <?php if($is_pdf): ?>
-                    <span class="bg-red-100 text-red-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border border-red-200">Visão de PDF</span>
+                    <span class="bg-red-100 text-red-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border border-red-200 ml-2">Visão de PDF</span>
                 <?php endif; ?>
             </div>
 
