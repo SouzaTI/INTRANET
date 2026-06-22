@@ -19,15 +19,39 @@ if (!$is_ti && !$is_admin) {
     die("<div style='padding:50px; text-align:center; font-family:sans-serif;'><h2>❌ Acesso Negado</h2><p>Apenas a equipe de FACILITIES & T.I pode avaliar os documentos.</p></div>");
 }
 
-// 2. PROCESSAMENTO DO FORMULÁRIO SEGURO (POST) COM CHECKLIST JSON[cite: 126]
+// 2. PROCESSAMENTO DO FORMULÁRIO SEGURO (POST) COM CHECKLIST JSON
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['_acao'])) {
+    // Inclui o validador de upload de vocês para manter a segurança e o hash único dos arquivos
+    require_once 'includes/validar_upload.php';
+
     $id_doc = (int)$_POST['doc_id'];
     $acao = $_POST['_acao'];
     $mensagem = trim($_POST['mensagem'] ?? '');
     
     $dados_extras = [];
+    $arquivo_retorno_nome = null; // Inicializa como nulo caso o técnico não envie arquivo
+
+    // --- LÓGICA DE UPLOAD DO TÉCNICO ---
+    // Verifica se veio um arquivo e se não deu erro no upload
+    if (isset($_FILES['documento_retorno']) && $_FILES['documento_retorno']['error'] !== UPLOAD_ERR_NO_FILE) {
+        $validacao = validarArquivoFluxo($_FILES['documento_retorno']);
+        
+        if (!$validacao['ok']) {
+            // Se falhar na validação (tamanho, extensão proibida), joga o erro na URL e para
+            header("Location: gestao_fluxo.php?erro=" . urlencode("Erro no anexo: " . $validacao['erro']));
+            exit;
+        } else {
+            $arquivo_retorno_nome = $validacao['nome'];
+            $caminho_destino = 'uploads_fluxo/' . $arquivo_retorno_nome;
+
+            if (!move_uploaded_file($_FILES['documento_retorno']['tmp_name'], $caminho_destino)) {
+                header("Location: gestao_fluxo.php?erro=" . urlencode("Falha física ao salvar o arquivo de retorno no servidor."));
+                exit;
+            }
+        }
+    }
     
-    // Constrói o histórico do checklist baseado no mapeamento do Claude[cite: 126, 127]
+    // Constrói o histórico do checklist baseado no mapeamento original
     if ($acao === 'aprovar' || $acao === 'devolver') {
         $checklist_post = $_POST['checklist'] ?? [];
         $criterios_def = [
@@ -57,11 +81,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['_acao'])) {
         ];
     }
 
-    $sucesso = $fluxo->transitar($id_doc, $acao, $user_id, $mensagem, $dados_extras);
+    // MÁGICA: Passamos o $arquivo_retorno_nome como o 6º parâmetro do método transitar!
+    $sucesso = $fluxo->transitar($id_doc, $acao, $user_id, $mensagem, $dados_extras, $arquivo_retorno_nome);
 
     if ($sucesso) {
         header("Location: gestao_fluxo.php?msg=" . urlencode("Ação '{$acao}' aplicada com sucesso!"));
     } else {
+        // Se der ruim, remove o arquivo pra não deixar lixo eletrônico no servidor
+        if ($arquivo_retorno_nome && file_exists('uploads_fluxo/' . $arquivo_retorno_nome)) {
+            unlink('uploads_fluxo/' . $arquivo_retorno_nome);
+        }
         header("Location: gestao_fluxo.php?erro=" . urlencode("Erro ao transitar fluxo de estado. Verifique limites de revisões."));
     }
     exit;
@@ -258,11 +287,17 @@ include 'includes/sidebar.php';
 
                                 <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm" @click.stop>
                                     <?php if($doc['status'] === 'Em Análise'): ?>
-                                        <form method="POST" class="space-y-4" x-data="{ acao_escolhida: '' }">
+                                        <form method="POST" enctype="multipart/form-data" class="space-y-4" x-data="{ acao_escolhida: '' }">
                                             <input type="hidden" name="doc_id" value="<?= $doc['id'] ?>">
                                             <input type="hidden" name="_acao" :value="acao_escolhida">
 
                                             <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">📋 Itens Obrigatórios de Auditoria</p>
+
+                                            <div>
+                                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Anexar Versão Corrigida / Modelo (Opcional)</label>
+                                                <input type="file" name="documento_retorno" class="block w-full text-xs text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 cursor-pointer">
+                                                <p class="text-[9px] text-slate-400 mt-1">Se você ajustou a formatação, anexe o arquivo corrigido aqui para o colaborador ver o exemplo.</p>
+                                            </div>
                                             
                                             <div class="space-y-2">
                                                 <label class="flex items-center gap-3 p-2.5 bg-slate-50/60 hover:bg-slate-50 rounded-xl border border-slate-100 cursor-pointer transition-colors">
