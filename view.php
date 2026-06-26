@@ -247,7 +247,38 @@ else {
                 );
             } elseif ($ext == 'pdf') {
                 $url_pdf = 'docs/' . implode('/', array_map('rawurlencode', explode('/', $path)));
-                $conteudo_html = '<div class="w-full h-[85vh] rounded-2xl overflow-hidden border border-slate-200 bg-slate-800 flex items-center justify-center shadow-inner"><iframe src="' . $url_pdf . '#toolbar=0" class="w-full h-full bg-slate-100" frameborder="0"></iframe></div>';
+                $conteudo_html = '
+                <div class="relative w-full">
+                    <div id="pdf-container" class="w-full h-[85vh] rounded-2xl overflow-hidden border border-slate-200 bg-slate-800 shadow-inner">
+                        <iframe id="pdf-iframe" src="' . $url_pdf . '#toolbar=0" class="w-full h-full bg-slate-100" frameborder="0" allowfullscreen></iframe>
+                    </div>
+                    <button onclick="entrarTelaCheia()"
+                        title="Tela cheia (para apresentação)"
+                        style="position:absolute;bottom:20px;right:20px;z-index:10;background:rgba(15,23,42,.82);color:#fff;border:none;border-radius:12px;padding:9px 16px;font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;gap:7px;backdrop-filter:blur(4px);transition:background .15s;"
+                        onmouseenter="this.style.background=\'rgba(15,23,42,1)\'" onmouseleave="this.style.background=\'rgba(15,23,42,.82)\'">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+                        Apresentar
+                    </button>
+                </div>
+                <script>
+                function entrarTelaCheia() {
+                    var el = document.getElementById("pdf-container");
+                    if (el.requestFullscreen)            el.requestFullscreen();
+                    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+                    else if (el.mozRequestFullScreen)    el.mozRequestFullScreen();
+                    else if (el.msRequestFullscreen)     el.msRequestFullscreen();
+                }
+                document.addEventListener("fullscreenchange", function() {
+                    var el = document.getElementById("pdf-container");
+                    if (document.fullscreenElement === el) {
+                        el.style.height = "100vh";
+                        el.style.borderRadius = "0";
+                    } else {
+                        el.style.height = "85vh";
+                        el.style.borderRadius = "1rem";
+                    }
+                });
+                </script>';
             } elseif (in_array($ext, ['doc', 'docx'])) {
                 $url_doc = 'docs/' . implode('/', array_map('rawurlencode', explode('/', $path)));
                 $nome_arquivo = basename($path);

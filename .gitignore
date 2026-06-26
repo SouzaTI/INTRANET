@@ -16,3 +16,14 @@ uploads_fluxo/
 templates/
 *.mp4
 *.pdf
+
+# Bloquear a pasta inteira onde os uploads e docs da intranet ficam
+docs/
+uploads/
+
+# Bloquear qualquer arquivo de imagem PNG em qualquer lugar do projeto
+*.png
+
+# Opcional: Se quiser bloquear os arquivos do Word que apareceram no print
+*.docx
+*.doc

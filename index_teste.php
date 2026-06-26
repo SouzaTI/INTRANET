@@ -1,0 +1,895 @@
+<?php 
+require_once 'config.php'; 
+require_once 'api/auth_check.php';
+include 'includes/header.php'; 
+
+// ============================================================
+// DADOS DO USUÁRIO
+// ============================================================
+$nome_completo = $_SESSION['usuario_nome'] ?? $_SESSION['user_name'] ?? 'Colaborador';
+$palavras = explode(' ', trim((string)$nome_completo));
+$conectivos = ['DE', 'DA', 'DO', 'DAS', 'DOS'];
+$primeiro_nome = mb_convert_case($palavras[0], MB_CASE_TITLE, "UTF-8");
+$segundo_nome = '';
+for ($i = 1; $i < count($palavras); $i++) {
+    if (in_array(mb_strtoupper($palavras[$i], 'UTF-8'), $conectivos)) continue;
+    $segundo_nome = mb_convert_case($palavras[$i], MB_CASE_TITLE, "UTF-8");
+    break;
+}
+$nome_exibicao = trim($primeiro_nome . ' ' . $segundo_nome);
+
+$_SESSION['is_admin'] = $_SESSION['is_admin'] ?? false;
+$_SESSION['setor_principal'] = $_SESSION['setor_principal'] ?? 'GERAL';
+$user_id_logado = $_SESSION['user_id'] ?? 0; 
+
+if (!isset($_SESSION['logado_nesta_sessao'])) {
+    registrarLog($pdo_intra, 'ACESSO AO PORTAL', 'O usuário carregou a página inicial da Intranet.');
+    $_SESSION['logado_nesta_sessao'] = true;
+}
+
+include 'includes/sidebar.php'; 
+
+// ============================================================
+// QUERIES DO BANCO DE DADOS (idênticas ao index.php original)
+// ============================================================
+
+$hoje = date('Y-m-d');
+
+// Banners de marketing
+$stmt = $pdo_intra->prepare("SELECT * FROM banners_marketing WHERE ativo = 1 AND :hoje BETWEEN data_inicio AND data_fim ORDER BY id DESC");
+$stmt->execute(['hoje' => $hoje]);
+$banners = $stmt->fetchAll();
+
+// Feed de comunicados
+$sql_feed = "SELECT c.*, 
+            (SELECT COUNT(*) FROM feed_curtidas WHERE comunicado_id = c.id) as total_curtidas,
+            (SELECT COUNT(*) FROM feed_comentarios WHERE comunicado_id = c.id) as total_comentarios,
+            (SELECT COUNT(*) FROM feed_curtidas WHERE comunicado_id = c.id AND user_id = ?) as ja_curtiu
+            FROM comunicados c 
+            WHERE c.ativo = 1 
+            AND c.data_postagem >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
+            ORDER BY c.data_postagem DESC 
+            LIMIT 10";
+$stmt_feed = $pdo_intra->prepare($sql_feed);
+$stmt_feed->execute([$user_id_logado]);
+$comunicados = $stmt_feed->fetchAll();
+
+// Aniversariantes
+$aniversariantes = [];
+$caminho_lista = 'img/comunicacao/aniversariantes_lista.txt';
+$mes_atual = date('m');
+if (file_exists($caminho_lista)) {
+    $linhas = file($caminho_lista, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($linhas as $linha) {
+        if (strpos($linha, ';') !== false) {
+            list($nome, $data_bruta) = explode(';', $linha);
+            $nome = trim($nome);
+            $data_curta = substr(trim($data_bruta), 0, 5);
+            $partes_data = explode('/', $data_curta);
+            $mes_aniv = $partes_data[1] ?? '';
+            if ($mes_aniv == $mes_atual) {
+                $aniversariantes[] = ['nome' => mb_strtoupper($nome, 'UTF-8'), 'data' => $data_curta];
+            }
+        }
+    }
+}
+if (empty($aniversariantes)) {
+    $aniversariantes[] = ['nome' => 'FELIZ ANIVERSÁRIO!', 'data' => '--/--'];
+}
+
+// Projetos
+$projetos_ativos = [];
+try {
+    $pdo_proj = $pdo_projetos;
+    $stmtProj = $pdo_proj->query("SELECT * FROM projetos WHERE data_virada IS NOT NULL ORDER BY data_virada ASC");
+    $projetos_ativos = $stmtProj->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($projetos_ativos as $key => $proj) {
+        $stmtProg = $pdo_proj->prepare("SELECT COUNT(*) as total, SUM(CASE WHEN s.status = 'concluido' THEN 1 ELSE 0 END) as concluidas FROM subtarefas s INNER JOIN fases f ON s.fk_fase = f.id WHERE f.fk_projeto = ?");
+        $stmtProg->execute([$proj['id']]);
+        $progData = $stmtProg->fetch(PDO::FETCH_ASSOC);
+        $total_t = (int)$progData['total'];
+        $projetos_ativos[$key]['progresso'] = $total_t > 0 ? round(((int)$progData['concluidas'] / $total_t) * 100) : 0;
+    }
+} catch(Exception $e) {}
+
+$proj_principal = $projetos_ativos[0] ?? null;
+
+// Sistemas permitidos
+$sistemas_permitidos = [];
+if (isset($_SESSION['is_admin']) && $_SESSION['is_admin'] === true) {
+    $stmt_sys = $pdo_intra->query("SELECT * FROM sistemas_lista ORDER BY nome");
+    $sistemas_permitidos = $stmt_sys->fetchAll(PDO::FETCH_ASSOC);
+} else {
+    $stmt_sys = $pdo_intra->prepare("
+        SELECT DISTINCT sl.* FROM sistemas_lista sl
+        LEFT JOIN permissoes_sistemas ps ON sl.id = ps.sistema_id AND ps.user_id = ?
+        LEFT JOIN grupos_sistemas gs ON sl.id = gs.sistema_id
+        LEFT JOIN usuarios_grupos ug ON gs.grupo_id = ug.grupo_id AND ug.usuario_id = ?
+        WHERE ps.user_id IS NOT NULL OR ug.usuario_id IS NOT NULL
+        ORDER BY sl.nome
+    ");
+    $stmt_sys->execute([$user_id_logado, $user_id_logado]);
+    $sistemas_permitidos = $stmt_sys->fetchAll(PDO::FETCH_ASSOC);
+}
+$sistemas_raiz = [];
+$sistemas_filhos = [];
+foreach ($sistemas_permitidos as $sys) {
+    if (!empty($sys['pai_id'])) {
+        $sistemas_filhos[$sys['pai_id']][] = $sys;
+    } else {
+        $sistemas_raiz[] = $sys;
+    }
+}
+?>
+
+<?php
+// ============================================================
+// GUIA DE AJUSTE DE COLUNAS
+// Total de colunas por linha = 12
+// Exemplos rápidos:
+//   col-span-4  = 33% da largura
+//   col-span-6  = 50% da largura
+//   col-span-8  = 67% da largura
+//   col-span-12 = 100% da largura
+//
+// LINHA DO TOPO (3 blocos):
+//   Sugestão equilibrada:   6 + 3 + 3 = 12
+//   Boas-vindas menor:      4 + 4 + 4 = 12
+//   Boas-vindas dominante:  6 + 4 + 2 = 12 (não recomendado para aniv.)
+//
+// CONTEÚDO PRINCIPAL:
+//   Original:   col-span-8 (feed) + col-span-4 (sidebar) = 12
+//   Mais feed:  col-span-9 + col-span-3 = 12
+//   Equilibrado: col-span-7 + col-span-5 = 12
+// ============================================================
+?>
+
+<main class="flex-1 overflow-y-auto bg-slate-50 p-4 md:p-8">
+    <div class="max-w-7xl mx-auto space-y-6">
+
+        <!-- ================================================ -->
+        <!-- LINHA DO TOPO                                    -->
+        <!-- Ajuste os col-span abaixo. Total deve ser = 12  -->
+        <!-- ================================================ -->
+        <section class="grid grid-cols-12 gap-6 mb-6">
+
+            <!-- [BLOCO BOAS-VINDAS] ======================== -->
+            <!-- Atual: col-span-4 (33%) | Original: col-span-8 (67%) -->
+            <!-- Opções: col-span-4 | col-span-5 | col-span-6        -->
+            <div class="col-span-4 relative overflow-hidden rounded-2xl shadow-lg min-h-[200px] border border-slate-200 bg-navy-900 group">
+                <img src="img/comunicacao/banner-boas-vindas.png" 
+                    class="absolute inset-0 w-full h-full object-cover opacity-90 animate-ken-burns" 
+                    alt="Bem-vindo">
+                <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full animate-shimmer-effect"></div>
+                <div class="relative z-10 p-8 h-full flex flex-col justify-center">
+                    <div class="animate-slide-up">
+                        <h1 class="text-white text-xl md:text-2xl font-black tracking-tighter mb-1 drop-shadow-2xl whitespace-normal leading-tight">
+                            Olá, <?php echo $nome_exibicao; ?>! <span class="inline-block animate-wave">👋</span>
+                        </h1>
+                        <p class="text-blue-50 text-sm font-medium drop-shadow-lg italic opacity-90">
+                            Sua central de comunicação corporativa <span class="font-bold text-white uppercase">Intranet</span>.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <!-- [/BLOCO BOAS-VINDAS] -->
+
+            <!-- [BLOCO AGENDA - SUBIDO PARA O TOPO] ======= -->
+            <!-- Atual: col-span-4 (33%)                     -->
+            <!-- Opções: col-span-3 | col-span-4 | col-span-5 -->
+            <div class="col-span-4 bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center border border-slate-100">
+                        <span class="text-lg">📅</span>
+                    </div>
+                    <h3 class="text-base font-black text-navy-900 tracking-tight">Sua agenda</h3>
+                </div>
+                <div id="calendario-ajax" class="border border-slate-100 rounded-2xl p-3 mb-4 min-h-[200px]">
+                    <div class="flex justify-center items-center h-full text-sm text-slate-400">Carregando...</div>
+                </div>
+                <div id="proximos-eventos" class="space-y-3"></div>
+            </div>
+            <!-- [/BLOCO AGENDA] -->
+
+            <!-- [BLOCO ANIVERSARIANTES] =================== -->
+            <!-- Atual: col-span-4 (33%)                     -->
+            <!-- Opções: col-span-3 | col-span-4             -->
+            <div onclick="abrirModalAniversariantes()" 
+                class="col-span-4 card-destaque-img cursor-pointer group rounded-2xl shadow-lg min-h-[200px] border border-slate-200 flex flex-col items-center justify-center p-4 text-center overflow-hidden relative"
+                style="background-image: url('img/comunicacao/aniversariantes_mini.png'); background-size: cover; background-position: center;">
+                <div class="absolute inset-0 bg-black/40 z-0 group-hover:bg-black/30 transition-colors"></div>
+                <div class="relative z-10 w-full flex flex-col items-center justify-center min-h-[140px] pt-10">
+                    <div id="ticker-aniversariante" class="w-full transition-all duration-700 ease-in-out">
+                        <h4 id="nome-aniv" class="text-white font-black text-xl md:text-2xl leading-tight tracking-tighter uppercase mb-2 px-2 drop-shadow-2xl">
+                            <?php echo $aniversariantes[0]['nome']; ?>
+                        </h4>
+                        <span id="data-aniv" class="inline-block text-white font-black text-4xl tracking-tighter border-t-2 border-amber-500 pt-2 px-6 drop-shadow-md">
+                            <?php echo $aniversariantes[0]['data']; ?>
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <!-- [/BLOCO ANIVERSARIANTES] -->
+
+        </section>
+        <!-- [/LINHA DO TOPO] -->
+
+
+        <!-- ================================================ -->
+        <!-- CONTEÚDO PRINCIPAL + SIDEBAR                     -->
+        <!-- Ajuste os col-span abaixo. Total deve ser = 12  -->
+        <!-- ================================================ -->
+        <div class="grid grid-cols-12 gap-8 items-start">
+
+            <!-- COLUNA PRINCIPAL ========================== -->
+            <!-- Atual: col-span-8 (67%) | Opções: col-span-7 | col-span-8 | col-span-9 -->
+            <div class="col-span-8 space-y-8">
+
+                <!-- [BLOCO BANNERS / CARROSSEL] ============ -->
+                <div class="relative group overflow-hidden rounded-2xl bg-slate-50 border border-slate-100 shadow-sm min-h-[240px] flex">
+                    <?php if (count($banners) > 1): ?>
+                        <button onclick="moverCarrossel(-1)" class="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-black/20 hover:bg-black/50 backdrop-blur-md p-4 rounded-full text-white transition-all opacity-0 group-hover:opacity-100 shadow-lg">❮</button>
+                        <button onclick="moverCarrossel(1)" class="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-black/20 hover:bg-black/50 backdrop-blur-md p-4 rounded-full text-white transition-all opacity-0 group-hover:opacity-100 shadow-lg">❯</button>
+                    <?php endif; ?>
+                    <div id="carrossel-container" class="flex transition-transform duration-700 ease-in-out w-full">
+                        <?php foreach ($banners as $banner): ?>
+                            <div class="min-w-full h-full">
+                                <img src="<?php echo $banner['imagem_path']; ?>" class="w-full h-full object-cover block" alt="Banner Corporativo">
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <!-- [/BLOCO BANNERS / CARROSSEL] -->
+
+                <!-- [BLOCO FEED DE NOTÍCIAS] =============== -->
+                <div class="space-y-6">
+                    <div class="flex items-center justify-between px-4">
+                        <h3 class="text-navy-900 font-black text-xl uppercase tracking-tighter italic">Feed de Notícias</h3>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Última Semana</span>
+                    </div>
+                    <div class="grid grid-cols-1 gap-6 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                        <?php if (empty($comunicados)): ?>
+                            <div class="bg-white rounded-2xl p-10 shadow-sm border border-slate-100 text-center flex flex-col items-center justify-center transition-all hover:shadow-md h-64">
+                                <div class="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center text-3xl mb-4 shadow-inner">📬</div>
+                                <h4 class="text-lg font-black text-navy-900 tracking-tight mb-2">Nada de novo por aqui!</h4>
+                                <p class="text-slate-500 text-sm font-medium leading-relaxed">Estamos aguardando novas atualizações.<br>Pode deixar que informaremos você em breve!</p>
+                            </div>
+                        <?php else: ?>
+                            <?php foreach ($comunicados as $com): 
+                                $cor_setor = ['TI' => 'bg-blue-500', 'RH' => 'bg-emerald-500', 'Marketing' => 'bg-amber-500'][$com['categoria']] ?? 'bg-slate-500';
+                            ?>
+                            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition-all">
+                                <div class="flex items-start justify-between mb-4">
+                                    <div class="flex items-center gap-4">
+                                        <div class="w-10 h-10 <?php echo $cor_setor; ?> rounded-xl flex items-center justify-center text-white font-black shadow-md">
+                                            <?php echo substr($com['categoria'], 0, 1); ?>
+                                        </div>
+                                        <div>
+                                            <p class="font-black text-navy-900 italic text-xs">
+                                                <?php 
+                                                if (in_array($com['categoria'], ['IMPORTANTE', 'AVISO GERAL'])) {
+                                                    echo "📢 Comunicado Oficial";
+                                                } else {
+                                                    echo "Equipe de <span class='uppercase'>" . $com['categoria'] . "</span>";
+                                                }
+                                                ?> 
+                                                • <span class="text-slate-400 font-medium not-italic text-[10px]"><?php echo date('d/m H:i', strtotime($com['data_postagem'])); ?></span>
+                                            </p>
+                                            <h4 class="text-lg font-black text-navy-900 tracking-tight leading-tight"><?php echo $com['titulo']; ?></h4>
+                                        </div>
+                                    </div>
+                                    <span class="bg-slate-100 text-slate-500 border border-slate-200 text-[9px] font-black px-3 py-1 rounded-full uppercase">
+                                        <?php echo $com['categoria']; ?>
+                                    </span>
+                                </div>
+                                <p class="text-slate-500 text-sm leading-relaxed mb-6"><?php echo $com['resumo']; ?></p>
+                                <div class="pt-4 border-t border-slate-50">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-6">
+                                            <button onclick="toggleCurtida(<?php echo $com['id']; ?>, this)" 
+                                                    class="flex items-center gap-2 transition-colors <?php echo $com['ja_curtiu'] ? 'text-rose-500' : 'text-slate-400'; ?> hover:text-red-500">
+                                                <span class="text-lg icone-coracao"><?php echo $com['ja_curtiu'] ? '❤️' : '🤍'; ?></span> 
+                                                <span class="text-xs font-bold contador-curtidas"><?php echo $com['total_curtidas']; ?></span>
+                                            </button>
+                                            <button onclick="toggleComentarios(<?php echo $com['id']; ?>)" class="flex items-center gap-2 text-slate-400 hover:text-blue-500 transition-colors">
+                                                <span class="text-lg">💬</span> 
+                                                <span class="text-xs font-bold contador-comentarios"><?php echo $com['total_comentarios']; ?></span>
+                                            </button>
+                                        </div>
+                                        <button class="text-slate-400 hover:text-navy-900 text-lg">🔖</button>
+                                    </div>
+                                    <div id="comentarios-post-<?php echo $com['id']; ?>" class="hidden mt-4 pt-4 border-t border-slate-50">
+                                        <div class="lista-comentarios space-y-3 mb-4 max-h-40 overflow-y-auto custom-scrollbar-compact pr-2">
+                                            <p class="text-center text-[10px] text-slate-400 italic">Carregando...</p>
+                                        </div>
+                                        <form onsubmit="enviarComentario(event, <?php echo $com['id']; ?>, this)" class="flex gap-2 relative">
+                                            <input type="text" name="texto_comentario" placeholder="Escreva um comentário..." required autocomplete="off" 
+                                                class="flex-1 bg-slate-50 border border-slate-100 rounded-xl pl-4 pr-12 py-3 text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-700">
+                                            <button type="submit" class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-blue-600 text-white rounded-lg flex items-center justify-center hover:bg-navy-900 transition-colors shadow-md">
+                                                <svg class="w-3 h-3 rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <!-- [/BLOCO FEED DE NOTÍCIAS] -->
+
+            </div>
+            <!-- [/COLUNA PRINCIPAL] -->
+
+
+            <!-- SIDEBAR DIREITA ============================ -->
+            <!-- Atual: col-span-4 (33%) | Opções: col-span-3 | col-span-4 | col-span-5 -->
+            <!-- ORDEM ATUAL: Sistemas → Ajuda → Projetos → Countdown → Equipe         -->
+            <div class="col-span-4 space-y-6 sticky top-6">
+
+                <!-- [BLOCO SISTEMAS INTERNOS] ============== -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Sistemas Internos</h3>
+                    <div class="grid grid-cols-1 gap-4">
+                        <a href="http://192.168.0.63:8080/glpi17/index.php" target="_blank" 
+                           class="flex items-center gap-4 p-4 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-100 transition-all group">
+                            <div class="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-xl group-hover:scale-110 transition-transform">🛠️</div>
+                            <div class="flex flex-col">
+                                <span class="text-xs font-black text-navy-900 leading-tight">HELP CHAMADOS</span>
+                                <span class="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">Suporte</span>
+                            </div>
+                        </a>
+                        <button onclick="abrirModalSistemas()" 
+                                class="w-full flex items-center gap-4 p-4 rounded-xl bg-navy-900 hover:bg-blue-700 border border-transparent transition-all group shadow-md">
+                            <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-xl group-hover:rotate-12 transition-transform">🚀</div>
+                            <div class="flex flex-col text-left text-white">
+                                <span class="text-xs font-black leading-tight uppercase">Outros Sistemas</span>
+                                <span class="text-[9px] text-white/50 font-bold uppercase tracking-tighter italic">Navegação</span>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+                <!-- [/BLOCO SISTEMAS INTERNOS] -->
+
+                <!-- [BLOCO CENTRAL DE AJUDA] =============== -->
+                <div class="bg-navy-900 rounded-2xl p-6 text-white shadow-xl border-l-4 border-blue-500 relative overflow-hidden group">
+                    <div class="absolute inset-0 bg-gradient-to-r from-blue-500/0 via-blue-500/5 to-blue-500/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                    <div class="flex flex-col h-full justify-between relative z-10">
+                        <div>
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
+                                <p class="text-[9px] font-black uppercase tracking-widest text-blue-400 italic">Central de Ajuda</p>
+                            </div>
+                            <p class="font-bold text-sm leading-snug">Dúvidas ou suporte técnico?</p>
+                        </div>
+                        <div class="mt-5 flex items-end justify-between">
+                            <div>
+                                <p class="text-[10px] text-slate-400 uppercase font-bold mb-1">Ramal Interno</p>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-2xl font-black text-white tracking-tighter italic">3171</span>
+                                    <span class="text-blue-500 text-xs animate-bounce">📞</span>
+                                </div>
+                            </div>
+                            <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/40 group-hover:scale-110 transition-transform">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- [/BLOCO CENTRAL DE AJUDA] -->
+
+                <!-- [BLOCO PROJETOS EM DESTAQUE] =========== -->
+                <?php if ($proj_principal): ?>
+                <div onclick="abrirModalProjetos()" class="space-y-4 cursor-pointer group relative transition-all hover:scale-[1.02]">
+                    <div class="absolute -top-3 right-4 bg-blue-600 text-white text-[9px] font-black px-3 py-1 rounded-full shadow-lg z-20 group-hover:bg-blue-500 transition-colors uppercase tracking-widest border border-blue-400">
+                        Ver Todos (<?php echo count($projetos_ativos); ?>)
+                    </div>
+                    <div class="bg-navy-900 rounded-2xl p-5 shadow-lg border border-slate-800 flex flex-col justify-center relative z-10">
+                        <div class="flex justify-between items-start mb-3">
+                            <div class="overflow-hidden pr-2">
+                                <h3 class="text-blue-400 font-black text-[10px] uppercase tracking-widest">Projeto em Destaque</h3>
+                                <span class="text-white font-black italic text-base truncate block"><?php echo mb_strtoupper($proj_principal['nome_projeto'], 'UTF-8'); ?></span>
+                            </div>
+                            <span class="text-emerald-400 font-black text-2xl leading-none drop-shadow-[0_0_5px_rgba(52,211,153,0.8)]"><?php echo $proj_principal['progresso']; ?>%</span>
+                        </div>
+                        <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden mt-1">
+                            <div class="bg-blue-500 h-2 rounded-full transition-all duration-1000" style="width: <?php echo $proj_principal['progresso']; ?>%"></div>
+                        </div>
+                    </div>
+                    <?php if (isset($proj_principal['status_implantacao']) && $proj_principal['status_implantacao'] === 'TRAVADO'): ?>
+                        <div class="bg-red-500 rounded-2xl p-4 shadow-lg border border-red-600 flex flex-col justify-center relative overflow-hidden animate-pulse">
+                            <div class="absolute -right-4 -bottom-4 opacity-[0.15] text-7xl grayscale">🛑</div>
+                            <div class="flex items-center gap-2 mb-1 relative z-10">
+                                <span class="text-white text-sm">⚠️</span>
+                                <span class="text-white font-black text-[10px] uppercase tracking-widest">PROCESSO EM ANDAMENTO</span>
+                            </div>
+                            <p class="text-red-50 text-[10px] font-bold leading-tight relative z-10 line-clamp-2">
+                                <?php echo $proj_principal['motivo_bloqueio'] ?: 'Aguardando liberação da diretoria.'; ?>
+                            </p>
+                        </div>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
+                <!-- [/BLOCO PROJETOS EM DESTAQUE] -->
+
+                <!-- [BLOCO CONTAGEM REGRESSIVA] ============ -->
+                <?php if ($proj_principal): ?>
+                <div class="bg-slate-900 rounded-2xl p-4 shadow-lg border border-slate-800 text-center flex flex-col justify-center">
+                    <p class="text-slate-500 text-[9px] font-black uppercase tracking-[0.2em] mb-3">Contagem para Virada</p>
+                    <div class="grid grid-cols-4 gap-2 text-white cronometro-dinamico" data-virada="<?php echo $proj_principal['data_virada']; ?>">
+                        <div class="bg-slate-800 rounded-xl py-2"><span class="c-dias block font-black text-lg">00</span><span class="text-[8px] text-slate-500 uppercase">Dias</span></div>
+                        <div class="bg-slate-800 rounded-xl py-2"><span class="c-horas block font-black text-lg">00</span><span class="text-[8px] text-slate-500 uppercase">Hrs</span></div>
+                        <div class="bg-slate-800 rounded-xl py-2"><span class="c-mins block font-black text-lg">00</span><span class="text-[8px] text-slate-500 uppercase">Min</span></div>
+                        <div class="bg-slate-800 rounded-xl py-2"><span class="c-segs block font-black text-lg text-blue-400">00</span><span class="text-[8px] text-slate-500 uppercase">Seg</span></div>
+                    </div>
+                </div>
+                <?php endif; ?>
+                <!-- [/BLOCO CONTAGEM REGRESSIVA] -->
+
+                <!-- [BLOCO EQUIPE NO POSTO] ================ -->
+                <div id="painel-presenca" class="w-full transition-all duration-500">
+                    <div class="animate-pulse bg-white rounded-2xl h-64 w-full border border-slate-200"></div>
+                </div>
+                <!-- [/BLOCO EQUIPE NO POSTO] -->
+
+            </div>
+            <!-- [/SIDEBAR DIREITA] -->
+
+        </div>
+        <!-- [/CONTEÚDO PRINCIPAL + SIDEBAR] -->
+
+    </div>
+</main>
+
+
+<!-- ======================================================== -->
+<!-- MODAIS (mantidos idênticos ao index.php original)        -->
+<!-- ======================================================== -->
+
+<!-- Modal Aniversariantes -->
+<div id="modalAniversariantes" onclick="fecharModalAniversariantes()" class="fixed inset-0 z-[999] hidden bg-black/95 backdrop-blur-md flex items-center justify-center p-4 md:p-10 transition-all duration-300">
+    <div class="relative max-w-5xl w-full flex flex-col items-center">
+        <button class="absolute -top-14 right-0 text-white text-5xl font-light hover:text-amber-400 transition-colors">&times;</button>
+        <img src="img/comunicacao/aniversariantes_modal.png" class="w-full h-auto max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-white/10 animate-in zoom-in-95 duration-300" alt="Lista Completa de Aniversariantes">
+        <p class="mt-6 text-white/50 text-sm font-medium tracking-widest uppercase italic">Clique em qualquer lugar para fechar</p>
+    </div>
+</div>
+
+<!-- Modal Agendamento -->
+<div id="modalAgendamento" class="fixed inset-0 z-[1100] hidden items-center justify-center p-4 backdrop-blur-md bg-navy-900/40">
+    <div class="relative bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl flex flex-col md:flex-row overflow-hidden animate-in zoom-in-95 duration-300">
+        <div class="w-full md:w-1/2 bg-slate-50 p-8 border-r border-slate-100">
+            <h3 class="text-navy-900 font-black text-lg uppercase mb-4 italic">Agenda do Dia</h3>
+            <div id="lista-horarios-dia" class="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar-compact">
+                <p class="text-slate-400 text-xs italic">Carregando compromissos...</p>
+            </div>
+        </div>
+        <div class="w-full md:w-1/2 p-8">
+            <button onclick="fecharAgendamento()" class="absolute top-6 right-6 text-slate-400 hover:text-navy-900 text-2xl">&times;</button>
+            <div class="mb-6">
+                <h3 class="text-navy-900 font-black text-xl uppercase italic">Reservar Horário</h3>
+                <p class="text-slate-400 text-[10px] font-bold uppercase">Data: <span id="data-formatada" class="text-blue-600"></span></p>
+            </div>
+            <form id="formAgenda" class="space-y-4">
+                <input type="hidden" name="id_evento" id="edit-id-evento" value="">
+                <input type="hidden" name="data_evento" id="input-data-evento">
+                <input type="text" name="titulo" required placeholder="Título da Reunião ou Evento" 
+                    class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                <select name="local_sala" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-sm">
+                    <option value="GERAL">Aviso/Evento Geral</option>
+                    <option value="SALA_01">Sala de Reunião P1</option>
+                    <option value="SALA_02">Sala de Reunião P2</option>
+                    <option value="SALA_03">Auditório P1</option>
+                </select>
+                <div class="flex items-center gap-2 px-2">
+                    <input type="checkbox" id="dia_inteiro" name="dia_inteiro" value="1" onchange="toggleHoras(this.checked)" class="w-4 h-4 text-blue-600 rounded">
+                    <label for="dia_inteiro" class="text-[11px] font-black text-slate-500 uppercase cursor-pointer">Evento de Dia Inteiro</label>
+                </div>
+                <div id="campos_hora" class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-[9px] font-black text-slate-400 uppercase ml-2">Início</label>
+                        <input type="time" name="hora_inicio" id="h_inicio" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-sm">
+                    </div>
+                    <div>
+                        <label class="text-[9px] font-black text-slate-400 uppercase ml-2">Fim</label>
+                        <input type="time" name="hora_fim" id="h_fim" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-sm">
+                    </div>
+                </div>
+                <?php if($_SESSION['is_admin']): ?>
+                <div class="space-y-1">
+                    <label class="text-[9px] font-black text-slate-400 uppercase ml-2">Visibilidade do Evento</label>
+                    <select name="visibilidade" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-[11px] font-bold">
+                        <option value="PESSOAL">🔒 PESSOAL (SÓ EU VEJO)</option>
+                        <option value="GERAL">🌍 PÚBLICO (TODOS VEEM)</option>
+                    </select>
+                </div>
+                <?php endif; ?>
+                <button id="btn-confirmar" type="submit" class="w-full bg-navy-900 hover:bg-blue-700 text-white font-black py-4 rounded-xl transition-all uppercase text-xs tracking-widest mt-2">
+                    Confirmar Reserva 🚀
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Projetos -->
+<div id="modalProjetos" class="fixed inset-0 z-[1200] hidden items-center justify-center p-4 backdrop-blur-xl bg-navy-900/60 transition-all duration-500">
+    <div class="relative bg-navy-900 border border-white/10 w-full max-w-5xl rounded-[2rem] p-8 shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden flex flex-col max-h-[90vh]">
+        <button onclick="fecharModalProjetos()" class="absolute top-5 right-6 text-white/30 hover:text-white transition-colors text-3xl font-light z-20">&times;</button>
+        <div class="mb-8 text-left border-b border-white/5 pb-4 shrink-0">
+            <h2 class="text-white text-xl font-black tracking-tighter uppercase italic">Status das Implantações</h2>
+            <p class="text-blue-400 text-[10px] font-bold uppercase tracking-widest">Cronogramas e Gargalos de Sistemas</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto custom-scrollbar-compact pr-2 flex-1 pb-4">
+            <?php if(!empty($projetos_ativos)): foreach ($projetos_ativos as $proj): ?>
+            <div class="bg-slate-900 border border-white/5 rounded-2xl p-5 flex flex-col group hover:border-blue-500/50 transition-colors h-full">
+                <div class="mb-4">
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="text-white font-black italic uppercase leading-tight truncate pr-2"><?php echo mb_strtoupper($proj['nome_projeto'], 'UTF-8'); ?></h3>
+                        <span class="text-emerald-400 font-black text-xl leading-none"><?php echo $proj['progresso']; ?>%</span>
+                    </div>
+                    <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                        <div class="bg-blue-500 h-1.5 rounded-full" style="width: <?php echo $proj['progresso']; ?>%"></div>
+                    </div>
+                </div>
+                <?php if (isset($proj['status_implantacao']) && $proj['status_implantacao'] === 'TRAVADO'): ?>
+                    <div class="bg-red-500/20 rounded-xl p-3 border border-red-500/40 relative overflow-hidden animate-pulse">
+                        <span class="text-red-500 font-black text-[9px] uppercase tracking-widest block mb-1">⚠️ EM ANDAMENTO</span>
+                        <p class="text-red-100 text-[10px] font-medium leading-tight line-clamp-2"><?php echo $proj['motivo_bloqueio'] ?: 'Aguardando liberação.'; ?></p>
+                    </div>
+                <?php endif; ?>
+            </div>
+            <?php endforeach; endif; ?>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Sistemas -->
+<div id="modalSistemas" class="fixed inset-0 z-[1000] hidden items-center justify-center p-4 backdrop-blur-xl bg-navy-900/40 transition-all duration-500">
+    <div class="relative bg-navy-900/90 border border-white/10 w-full max-w-4xl rounded-[2rem] p-8 shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden">
+        <button id="btnVoltarModal" onclick="exibirPrincipalSistemas()" class="hidden absolute top-6 left-6 text-blue-400 hover:text-white text-xs font-black flex items-center gap-2 z-30 bg-white/5 border border-white/10 px-4 py-2 rounded-xl">⬅️ VOLTAR</button>
+        <div class="absolute -top-24 -right-24 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl"></div>
+        <button onclick="fecharModalSistemas()" class="absolute top-5 right-6 text-white/30 hover:text-white transition-colors text-3xl font-light z-30">&times;</button>
+        <div class="mb-8 text-left border-b border-white/5 pb-4 mt-4 md:mt-0">
+            <h2 id="tituloModalSistemas" class="text-white text-xl font-black tracking-tighter uppercase italic">Sistemas de Navegação</h2>
+            <p id="subtituloModalSistemas" class="text-blue-400 text-[10px] font-bold uppercase tracking-widest">Sistemas e ferramentas autorizados para seu perfil</p>
+        </div>
+        <div id="gridSistemasPrincipal" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar-compact animate-in fade-in duration-300">
+            <?php if (empty($sistemas_raiz)): ?>
+                <div class="col-span-full text-center py-10 text-white/40 text-xs font-bold uppercase tracking-widest">⚠️ NENHUM ACESSO LIBERADO PARA SEU PERFIL.</div>
+            <?php else: ?>
+                <?php foreach ($sistemas_raiz as $sys): 
+                    $is_grupo = ($sys['url'] === '#');
+                    $cor_base = !empty($sys['cor']) ? str_replace('bg-', '', $sys['cor']) : 'slate-600';
+                ?>
+                    <?php if ($is_grupo): 
+                        $sub_json = isset($sistemas_filhos[$sys['id']]) ? json_encode($sistemas_filhos[$sys['id']], JSON_HEX_APOS | JSON_HEX_QUOT) : '[]';
+                    ?>
+                        <div onclick='abrirPastaSistemas("<?php echo htmlspecialchars($sys['nome'], ENT_QUOTES, 'UTF-8'); ?>", <?php echo $sub_json; ?>)' class="cursor-pointer group flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-white/5 transition-all duration-300">
+                            <div class="w-14 h-14 rounded-full bg-white/5 border-2 border-dashed border-<?= $cor_base ?>/40 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 transition-all duration-300 relative">
+                                <?php echo $sys['icone']; ?>
+                                <span class="absolute top-0 right-0 w-2.5 h-2.5 bg-blue-500 rounded-full border border-navy-900 shadow-sm"></span>
+                            </div>
+                            <span class="mt-2 text-white/70 font-bold text-[10px] uppercase tracking-tighter text-center leading-tight group-hover:text-white"><?php echo htmlspecialchars($sys['nome']); ?></span>
+                        </div>
+                    <?php else: ?>
+                        <a href="<?php echo htmlspecialchars($sys['url']); ?>" target="_blank" class="group flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-white/5 transition-all duration-300">
+                            <div class="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 transition-all duration-300">
+                                <?php echo $sys['icone']; ?>
+                            </div>
+                            <span class="mt-2 text-white/50 font-semibold text-[10px] uppercase tracking-tighter text-center leading-tight group-hover:text-white"><?php echo htmlspecialchars($sys['nome']); ?></span>
+                        </a>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
+        <div id="gridSistemasSub" class="hidden grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar-compact animate-in slide-in-from-right-5 duration-300"></div>
+        <div class="mt-8 pt-4 border-t border-white/5 flex justify-between items-center text-[9px] font-bold text-white/20 uppercase tracking-widest">
+            <span>Launchpad de Aplicações</span>
+            <span>Comercial Souza Atacado</span>
+        </div>
+    </div>
+</div>
+
+<?php include 'includes/footer.php'; ?>
+
+<script>
+// ==========================================
+// SCRIPTS GERAIS — idênticos ao index.php original
+// ==========================================
+
+let slideAtual = 0;
+const totalSlides = <?php echo count($banners); ?>;
+const containerCarrossel = document.getElementById('carrossel-container');
+function moverCarrossel(direcao) {
+    if (totalSlides <= 1) return;
+    slideAtual = (slideAtual + direcao + totalSlides) % totalSlides;
+    containerCarrossel.style.transform = `translateX(-${slideAtual * 100}%)`;
+}
+if (totalSlides > 1) { setInterval(() => moverCarrossel(1), 7000); }
+
+function abrirPastaSistemas(nomePasta, subitens) {
+    const gridPrincipal = document.getElementById('gridSistemasPrincipal');
+    const gridSub = document.getElementById('gridSistemasSub');
+    const btnVoltar = document.getElementById('btnVoltarModal');
+    const titulo = document.getElementById('tituloModalSistemas');
+    const subtitulo = document.getElementById('subtituloModalSistemas');
+    gridPrincipal.classList.add('hidden');
+    gridSub.classList.remove('hidden');
+    btnVoltar.classList.remove('hidden');
+    titulo.innerText = nomePasta;
+    subtitulo.innerText = "Módulo interno • Aplicações liberadas para seu perfil";
+    if (!subitens || subitens.length === 0) {
+        gridSub.innerHTML = `<div class="col-span-full text-center py-12"><span class="text-xl block mb-2">📭</span><p class="text-[10px] text-white/30 font-black uppercase tracking-widest">Nenhuma aplicação vinculada a este grupo ainda.</p></div>`;
+        return;
+    }
+    gridSub.innerHTML = subitens.map(item => {
+        const corBase = item.cor ? item.cor.replace('bg-', '') : 'white/10';
+        return `<a href="${item.url}" target="_blank" class="group flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-white/5 transition-all duration-300"><div class="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 group-hover:bg-white/10 group-hover:border-${corBase} transition-all duration-300">${item.icone}</div><span class="mt-2 text-white/60 font-semibold text-[10px] uppercase tracking-tighter text-center leading-tight group-hover:text-white">${item.nome}</span></a>`;
+    }).join('');
+}
+
+function exibirPrincipalSistemas() {
+    document.getElementById('gridSistemasPrincipal').classList.remove('hidden');
+    document.getElementById('gridSistemasSub').classList.add('hidden');
+    document.getElementById('btnVoltarModal').classList.add('hidden');
+    document.getElementById('tituloModalSistemas').innerText = "Sistemas de Navegação";
+    document.getElementById('subtituloModalSistemas').innerText = "Selecione o sistema desejado";
+}
+
+function abrirModalSistemas() {
+    const modal = document.getElementById('modalSistemas');
+    modal.classList.remove('hidden'); modal.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+}
+function fecharModalSistemas() {
+    const modal = document.getElementById('modalSistemas');
+    modal.classList.add('hidden'); modal.classList.remove('flex');
+    document.body.style.overflow = 'auto';
+}
+
+function abrirModalProjetos() {
+    document.getElementById('modalProjetos').classList.remove('hidden');
+    document.getElementById('modalProjetos').classList.add('flex');
+    document.body.style.overflow = 'hidden';
+}
+function fecharModalProjetos() {
+    document.getElementById('modalProjetos').classList.add('hidden');
+    document.getElementById('modalProjetos').classList.remove('flex');
+    document.body.style.overflow = 'auto';
+}
+
+document.addEventListener('keydown', function(event) {
+    if (event.key === "Escape") {
+        fecharModalSistemas();
+        fecharModalProjetos();
+        fecharModalAniversariantes();
+    }
+});
+
+function abrirModalAniversariantes() {
+    const modal = document.getElementById('modalAniversariantes');
+    modal.classList.remove('hidden'); modal.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+}
+function fecharModalAniversariantes() {
+    const modal = document.getElementById('modalAniversariantes');
+    modal.classList.add('hidden'); modal.classList.remove('flex');
+    document.body.style.overflow = 'auto';
+}
+
+const listaAniversariantes = <?php echo json_encode($aniversariantes); ?>;
+let indexAtual = 0;
+function trocarAniversariante() {
+    const containerAniv = document.getElementById('ticker-aniversariante');
+    const nomeEl = document.getElementById('nome-aniv');
+    const dataEl = document.getElementById('data-aniv');
+    containerAniv.style.opacity = '0';
+    containerAniv.style.transform = 'translateY(-15px)';
+    setTimeout(() => {
+        indexAtual = (indexAtual + 1) % listaAniversariantes.length;
+        nomeEl.innerText = listaAniversariantes[indexAtual].nome;
+        dataEl.innerText = listaAniversariantes[indexAtual].data;
+        containerAniv.style.transform = 'translateY(15px)';
+        setTimeout(() => {
+            containerAniv.style.opacity = '1';
+            containerAniv.style.transform = 'translateY(0)';
+        }, 50);
+    }, 700);
+}
+if (listaAniversariantes.length > 0) { setInterval(trocarAniversariante, 5000); }
+
+// CALENDÁRIO
+function carregarCalendario(mes, ano) {
+    const container = document.getElementById('calendario-ajax');
+    container.style.opacity = '0.5';
+    fetch(`api/get_calendario.php?mes=${mes}&ano=${ano}`)
+        .then(response => response.text())
+        .then(html => {
+            container.innerHTML = html;
+            container.style.opacity = '1';
+        })
+        .catch(err => console.error('Erro ao carregar calendário:', err));
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    carregarCalendario(<?php echo date('n'); ?>, <?php echo date('Y'); ?>);
+    atualizarPresenca();
+});
+
+function abrirAgendamento(data) {
+    document.getElementById('input-data-evento').value = data;
+    document.getElementById('data-formatada').innerText = data.split('-').reverse().join('/');
+    fetch(`api/get_horarios_dia.php?data=${data}`)
+        .then(res => res.text())
+        .then(html => { document.getElementById('lista-horarios-dia').innerHTML = html; });
+    document.getElementById('modalAgendamento').classList.remove('hidden');
+    document.getElementById('modalAgendamento').classList.add('flex');
+}
+
+document.getElementById('formAgenda').onsubmit = function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    fetch('api/salvar_evento.php', { method: 'POST', body: formData })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            fecharAgendamento();
+            const dataSel = document.getElementById('input-data-evento').value.split('-');
+            carregarCalendario(parseInt(dataSel[1]), parseInt(dataSel[0]));
+            this.reset();
+        } else { alert(data.error); }
+    });
+};
+
+function excluirEvento(id, data) {
+    if (!confirm('Deseja realmente cancelar este agendamento?')) return;
+    fetch('api/excluir_evento.php', { method: 'POST', body: new URLSearchParams({ 'id': id }) })
+    .then(res => res.json())
+    .then(dataRes => {
+        if (dataRes.success) {
+            abrirAgendamento(data);
+            const d = data.split('-');
+            carregarCalendario(parseInt(d[1]), parseInt(d[0]));
+        } else { alert('Erro: ' + dataRes.error); }
+    });
+}
+
+function toggleHoras(marcado) {
+    const div = document.getElementById('campos_hora');
+    const inputInicio = document.querySelector('input[name="hora_inicio"]');
+    const inputFim = document.querySelector('input[name="hora_fim"]');
+    if (marcado) {
+        div.style.opacity = '0.5'; div.style.pointerEvents = 'none';
+        inputInicio.value = '08:00'; inputFim.value = '17:48';
+        inputInicio.required = false; inputFim.required = false;
+    } else {
+        div.style.opacity = '1'; div.style.pointerEvents = 'all';
+        inputInicio.value = ''; inputFim.value = '';
+        inputInicio.required = true; inputFim.required = true;
+    }
+}
+
+function prepararEdicao(evento) {
+    document.getElementById('edit-id-evento').value = evento.id;
+    document.getElementsByName('titulo')[0].value = evento.titulo;
+    document.getElementsByName('local_sala')[0].value = evento.local_sala;
+    if (evento.hora_inicio && evento.hora_fim) {
+        document.getElementsByName('hora_inicio')[0].value = evento.hora_inicio;
+        document.getElementsByName('hora_fim')[0].value = evento.hora_fim;
+        document.getElementById('dia_inteiro').checked = false;
+        toggleHoras(false);
+    } else {
+        document.getElementById('dia_inteiro').checked = true;
+        toggleHoras(true);
+    }
+    document.getElementById('btn-confirmar').innerHTML = "Salvar Alterações 💾";
+}
+
+function fecharAgendamento() {
+    document.getElementById('modalAgendamento').classList.add('hidden');
+    document.getElementById('formAgenda').reset();
+    document.getElementById('edit-id-evento').value = "";
+    document.getElementById('btn-confirmar').innerHTML = "Confirmar Reserva 🚀";
+}
+
+function atualizarPresenca() {
+    fetch('lista_online.php')
+        .then(response => response.text())
+        .then(html => { document.getElementById('painel-presenca').innerHTML = html; })
+        .catch(err => console.warn('Erro ao carregar lista de presença.'));
+}
+setInterval(atualizarPresenca, 30000);
+
+function toggleCurtida(comunicadoId, btnElement) {
+    const fd = new FormData();
+    fd.append('acao', 'curtir');
+    fd.append('comunicado_id', comunicadoId);
+    fetch('api/feed_interacoes.php', { method: 'POST', body: fd })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'sucesso') {
+            btnElement.querySelector('.contador-curtidas').innerText = data.total;
+            btnElement.querySelector('.icone-coracao').innerText = data.acao === 'curtiu' ? '❤️' : '🤍';
+        }
+    });
+}
+
+function toggleComentarios(comunicadoId) {
+    const divComentarios = document.getElementById(`comentarios-post-${comunicadoId}`);
+    divComentarios.classList.toggle('hidden');
+    if (!divComentarios.classList.contains('hidden')) {
+        carregarComentarios(comunicadoId, divComentarios.querySelector('.lista-comentarios'));
+    }
+}
+
+function carregarComentarios(comunicadoId, containerElement) {
+    const fd = new FormData();
+    fd.append('acao', 'listar_comentarios');
+    fd.append('comunicado_id', comunicadoId);
+    fetch('api/feed_interacoes.php', { method: 'POST', body: fd })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'sucesso') {
+            const postCard = containerElement.closest('.bg-white');
+            postCard.querySelector('.contador-comentarios').innerText = data.comentarios.length;
+            if (data.comentarios.length === 0) {
+                containerElement.innerHTML = '<p class="text-[10px] text-slate-400 text-center italic py-2">Seja o primeiro a comentar! 💬</p>';
+                return;
+            }
+            containerElement.innerHTML = data.comentarios.map(c => `
+                <div class="bg-slate-50 rounded-2xl rounded-tl-none p-3 shadow-sm border border-slate-100">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[9px] font-black text-navy-900 uppercase">${c.nome}</span>
+                        <span class="text-[8px] text-slate-400 font-bold">${c.data_hora}</span>
+                    </div>
+                    <p class="text-xs text-slate-600 font-medium">${c.comentario}</p>
+                </div>
+            `).join('');
+            containerElement.scrollTop = containerElement.scrollHeight;
+        }
+    });
+}
+
+function enviarComentario(e, comunicadoId, formElement) {
+    e.preventDefault();
+    const input = formElement.querySelector('input[name="texto_comentario"]');
+    const texto = input.value.trim();
+    if (!texto) return;
+    const fd = new FormData();
+    fd.append('acao', 'comentar');
+    fd.append('comunicado_id', comunicadoId);
+    fd.append('comentario', texto);
+    input.value = ''; input.disabled = true;
+    fetch('api/feed_interacoes.php', { method: 'POST', body: fd })
+    .then(res => res.json())
+    .then(data => {
+        input.disabled = false;
+        if (data.status === 'sucesso') {
+            const container = document.getElementById(`comentarios-post-${comunicadoId}`).querySelector('.lista-comentarios');
+            carregarComentarios(comunicadoId, container);
+        }
+    })
+    .catch(() => input.disabled = false);
+}
+
+// CRONÔMETROS
+setInterval(function() {
+    const agora = new Date().getTime();
+    document.querySelectorAll('.cronometro-dinamico').forEach(el => {
+        const dataAlvo = new Date(el.getAttribute('data-virada')).getTime();
+        const distancia = dataAlvo - agora;
+        if (distancia < 0) {
+            el.innerHTML = "<div class='w-full text-emerald-400 font-black text-sm uppercase tracking-widest animate-pulse py-1 text-center'>IMPLANTADO! 🚀</div>";
+            el.classList.remove('cronometro-dinamico');
+            return;
+        }
+        el.querySelector('.c-dias').innerText = Math.floor(distancia / (1000 * 60 * 60 * 24)).toString().padStart(2, '0');
+        el.querySelector('.c-horas').innerText = Math.floor((distancia % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)).toString().padStart(2, '0');
+        el.querySelector('.c-mins').innerText = Math.floor((distancia % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
+        el.querySelector('.c-segs').innerText = Math.floor((distancia % (1000 * 60)) / 1000).toString().padStart(2, '0');
+    });
+}, 1000);
+</script>
