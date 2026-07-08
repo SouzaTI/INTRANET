@@ -182,6 +182,13 @@ include 'includes/sidebar.php';
                         $sla_icone = '⚪ Congelado'; 
                         $sla_cor = 'text-slate-300';
                     }
+
+                    $responsavel = "";
+                    if ($doc['status'] === 'Aguardando Ajustes') {
+                        $responsavel = $doc['firstname']; // O nome do colaborador que enviou
+                    } elseif ($doc['status'] === 'Pendente T.I' || $doc['status'] === 'Em Análise'|| $doc['status'] === 'Aprovado') {
+                        $responsavel = "Analise de Dados";
+                    }
                 ?>
 
                 <tbody x-data="{ aberto: false }">
@@ -207,9 +214,14 @@ include 'includes/sidebar.php';
                             </div>
                         </td>
                         <td class="py-5 px-4">
-                            <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider <?= $cor_status ?>">
-                                <?= $doc['status'] ?>
-                            </span>
+                            <div class="flex items-center"> 
+                                <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider whitespace-nowrap <?= $cor_status ?>">
+                                    <?= $doc['status'] ?> 
+                                    <?php if(!empty($responsavel)): ?>
+                                        - <?= htmlspecialchars($responsavel) ?>
+                                    <?php endif; ?>
+                                </span>
+                            </div>
                         </td>
                         <td class="py-5 px-4 text-right">
                             <svg class="w-4 h-4 text-slate-400 ml-auto transition-transform duration-300" :class="{ 'rotate-180': aberto }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
