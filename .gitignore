@@ -22,8 +22,13 @@ docs/
 uploads/
 
 # Bloquear qualquer arquivo de imagem PNG em qualquer lugar do projeto
-*.png
+.png
+.txt
 
 # Opcional: Se quiser bloquear os arquivos do Word que apareceram no print
 *.docx
 *.doc
+
+# Ignora tudo dentro da pasta campanhas
+img/comunicacao/campanhas/
+img/
