@@ -108,46 +108,33 @@ if (empty($aniversariantes)) {
 <main class="flex-1 overflow-y-auto bg-slate-50 p-4 md:p-8">
     <div class="max-w-7xl mx-auto space-y-6">
         
-        <section class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-            <div class="md:col-span-2 relative overflow-hidden rounded-2xl shadow-lg min-h-[200px] border border-slate-200 bg-navy-900 group">
-                <img src="img/comunicacao/banner-boas-vindas.png" 
-                    class="absolute inset-0 w-full h-full object-cover opacity-90 animate-ken-burns" 
-                    alt="Bem-vindo">
-                
-                <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full animate-shimmer-effect"></div>
+        <!-- ============================================================ -->
+        <!-- [BLOCO: BOAS VINDAS]                                         -->
+        <!-- ============================================================ -->
+        <section id="bloco-boas-vindas" class="relative overflow-hidden rounded-2xl shadow-lg min-h-[120px] border border-slate-200 bg-navy-900 group mb-2">
+            <img src="img/comunicacao/banner-boas-vindas.png" 
+                class="absolute inset-0 w-full h-full object-cover opacity-90 animate-ken-burns" 
+                alt="Bem-vindo">
+            
+            <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full animate-shimmer-effect"></div>
 
-                <div class="relative z-10 p-10 h-full flex flex-col justify-center">
-                    <div class="animate-slide-up">
-                        <h1 class="text-white text-2xl md:text-3xl font-black tracking-tighter mb-1 drop-shadow-2xl whitespace-normal leading-tight">
-                            Olá, <?php echo $nome_exibicao; ?>! <span class="inline-block animate-wave">👋</span>
-                        </h1>
-                        <p class="text-blue-50 text-base font-medium drop-shadow-lg italic opacity-90">
-                            Sua central de comunicação corporativa <span class="font-bold text-white uppercase">Intranet</span>.
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            <div onclick="abrirModalAniversariantes()" 
-                class="card-destaque-img cursor-pointer group rounded-2xl shadow-lg min-h-[250px] h-full border border-slate-200 flex flex-col items-center justify-center p-4 text-center overflow-hidden"
-                style="background-image: url('img/comunicacao/aniversariantes_mini.png'); background-size: cover; background-position: center;">
-                
-                <div class="absolute inset-0 bg-black/40 z-0 group-hover:bg-black/30 transition-colors"></div>
-
-                <div class="relative z-10 w-full flex flex-col items-center justify-center min-h-[140px] pt-10">
-                    <div id="ticker-aniversariante" class="w-full transition-all duration-700 ease-in-out transform translate-y-0 opacity-1">
-                        <h4 id="nome-aniv" class="text-white font-black text-xl md:text-2xl leading-tight tracking-tighter uppercase mb-2 px-2 drop-shadow-2xl">
-                            <?php echo $aniversariantes[0]['nome']; ?>
-                        </h4>
-                        
-                        <span id="data-aniv" class="inline-block text-white font-black text-4xl tracking-tighter border-t-2 border-amber-500 pt-2 px-6 drop-shadow-md">
-                            <?php echo $aniversariantes[0]['data']; ?>
-                        </span>
-                    </div>
+            <!-- Padding de p-10 baixou para p-6 -->
+            <div class="relative z-10 p-6 h-full flex flex-col justify-center">
+                <div class="animate-slide-up">
+                    <!-- Fonte levemente reduzida para não ficar muito carregado -->
+                    <h1 class="text-white text-xl md:text-2xl font-black tracking-tighter mb-0.5 drop-shadow-2xl whitespace-normal leading-tight">
+                        Olá, <?php echo $nome_exibicao; ?>! <span class="inline-block animate-wave">👋</span>
+                    </h1>
+                    <p class="text-blue-50 text-xs font-medium drop-shadow-lg italic opacity-90">
+                        Sua central de comunicação corporativa <span class="font-bold text-white uppercase">Intranet</span>.
+                    </p>
                 </div>
             </div>
         </section>
 
+        <!-- ============================================================ -->
+        <!-- MODAL: ANIVERSARIANTES (Solto fora do grid)                  -->
+        <!-- ============================================================ -->
         <div id="modalAniversariantes" onclick="fecharModalAniversariantes()" class="fixed inset-0 z-[999] hidden bg-black/95 backdrop-blur-md flex items-center justify-center p-4 md:p-10 transition-all duration-300">
             <div class="relative max-w-5xl w-full flex flex-col items-center">
                 <button class="absolute -top-14 right-0 text-white text-5xl font-light hover:text-amber-400 transition-colors">&times;</button>
@@ -156,10 +143,18 @@ if (empty($aniversariantes)) {
             </div>
         </div>
 
+        <!-- ============================================================ -->
+        <!-- GRID PRINCIPAL: DIVISÃO DE COLUNAS                           -->
+        <!-- ============================================================ -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             
+            <!-- -------------------------------------------------------- -->
+            <!-- COLUNA ESQUERDA (lg:col-span-8)                          -->
+            <!-- -------------------------------------------------------- -->
             <div class="lg:col-span-8 space-y-8">
-                <div class="relative group overflow-hidden rounded-2xl bg-slate-50 border border-slate-100 shadow-sm min-h-[240px] flex">
+                
+                <!-- [BLOCO: CARROSSEL DE BANNERS] -->
+                <div id="bloco-carrossel" class="relative group overflow-hidden rounded-2xl bg-slate-50 border border-slate-100 shadow-sm min-h-[240px] flex">
                     <?php if (count($banners) > 1): ?>
                         <button onclick="moverCarrossel(-1)" class="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-black/20 hover:bg-black/50 backdrop-blur-md p-4 rounded-full text-white transition-all opacity-0 group-hover:opacity-100 shadow-lg">❮</button>
                         <button onclick="moverCarrossel(1)" class="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-black/20 hover:bg-black/50 backdrop-blur-md p-4 rounded-full text-white transition-all opacity-0 group-hover:opacity-100 shadow-lg">❯</button>
@@ -174,14 +169,14 @@ if (empty($aniversariantes)) {
                     </div>
                 </div>
 
-                <div class="space-y-6">
+                <!-- [BLOCO: FEED DE NOTÍCIAS] -->
+                <div id="bloco-feed" class="space-y-6">
                     <div class="flex items-center justify-between px-4">
                         <h3 class="text-navy-900 font-black text-xl uppercase tracking-tighter italic">Feed de Notícias</h3>
                         <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Última Semana</span>
                     </div>
 
                     <div class="grid grid-cols-1 gap-6 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-                        
                         <?php if (empty($comunicados)): ?>
                             <div class="bg-white rounded-2xl p-10 shadow-sm border border-slate-100 text-center flex flex-col items-center justify-center transition-all hover:shadow-md h-64">
                                 <div class="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center text-3xl mb-4 shadow-inner">📬</div>
@@ -201,7 +196,6 @@ if (empty($aniversariantes)) {
                                         <div>
                                             <p class="font-black text-navy-900 italic text-xs">
                                                 <?php 
-                                                // Inteligência para não escrever "Equipe de IMPORTANTE"
                                                 if (in_array($com['categoria'], ['IMPORTANTE', 'AVISO GERAL'])) {
                                                     echo "📢 Comunicado Oficial";
                                                 } else {
@@ -251,22 +245,116 @@ if (empty($aniversariantes)) {
                                 </div>
                             </div>
                             <?php endforeach; ?>
-                        <?php endif; ?> </div>                    
+                        <?php endif; ?> 
+                    </div>                    
                 </div>
             </div>
 
+            <!-- -------------------------------------------------------- -->
+            <!-- COLUNA DIREITA (lg:col-span-4)                           -->
+            <!-- -------------------------------------------------------- -->
             <div class="lg:col-span-4 space-y-6 sticky top-6">
 
+                <!-- [BLOCO: ANIVERSARIANTES] -->
+                <div id="bloco-aniversariantes" onclick="abrirModalAniversariantes()" 
+                    class="card-destaque-img cursor-pointer group rounded-2xl shadow-lg min-h-[220px] border border-slate-200 flex flex-col items-center justify-center p-4 text-center overflow-hidden relative"
+                    style="background-image: url('img/comunicacao/aniversariantes_mini.png'); background-size: cover; background-position: center;">
+                    
+                    <div class="absolute inset-0 bg-black/40 z-0 group-hover:bg-black/30 transition-colors"></div>
+
+                    <div class="relative z-10 w-full flex flex-col items-center justify-center pt-8">
+                        <div id="ticker-aniversariante" class="w-full transition-all duration-700 ease-in-out transform translate-y-0 opacity-1">
+                            <h4 id="nome-aniv" class="text-white font-black text-xl md:text-2xl leading-tight tracking-tighter uppercase mb-2 px-2 drop-shadow-2xl">
+                                <?php echo $aniversariantes[0]['nome']; ?>
+                            </h4>
+                            
+                            <span id="data-aniv" class="inline-block text-white font-black text-4xl tracking-tighter border-t-2 border-amber-500 pt-2 px-6 drop-shadow-md">
+                                <?php echo $aniversariantes[0]['data']; ?>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- [BLOCO: CALENDÁRIO COMPACTO] -->
+                <div id="bloco-calendario" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-2">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center border border-slate-100">
+                            <span class="text-base">📅</span>
+                        </div>
+                        <h3 class="text-xs font-black text-navy-900 tracking-tight">Sua agenda</h3>
+                    </div>
+
+                    <div id="calendario-ajax" class="border border-slate-100 rounded-2xl p-3 mb-4 min-h-[250px] text-sm">
+                        <div class="flex justify-center items-center h-full">Carregando...</div>
+                    </div>
+                    
+                    <div id="proximos-eventos" class="space-y-3">
+                        <!-- O JS preenche aqui -->
+                    </div>
+                </div>
+
+                <!-- [BLOCO: SISTEMAS INTERNOS] -->
+                <div id="bloco-sistemas" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-3">
+                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-5">Sistemas Internos</h3>
+                    <div class="grid grid-cols-1 gap-3">
+                        <a href="http://192.168.0.63:8080/glpi17/index.php" target="_blank" 
+                           class="flex items-center gap-4 p-3 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-100 transition-all group">
+                            <div class="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-lg group-hover:scale-110 transition-transform">🛠️</div>
+                            <div class="flex flex-col">
+                                <span class="text-xs font-black text-navy-900 leading-tight">HELP CHAMADOS</span>
+                                <span class="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">Suporte</span>
+                            </div>
+                        </a>
+                        <button onclick="abrirModalSistemas()" 
+                                class="w-full flex items-center gap-4 p-3 rounded-xl bg-navy-900 hover:bg-blue-700 border border-transparent transition-all group shadow-md">
+                            <div class="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-lg group-hover:rotate-12 transition-transform">🚀</div>
+                            <div class="flex flex-col text-left text-white">
+                                <span class="text-xs font-black leading-tight uppercase">Outros</span>
+                                <span class="text-[9px] text-white/50 font-bold uppercase tracking-tighter italic">Navegação</span>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- [BLOCO: CENTRAL DE AJUDA] -->
+                <div id="bloco-central-ajuda" class="bg-navy-900 rounded-2xl p-5 text-white shadow-xl border-l-4 border-blue-500 relative overflow-hidden group">
+                    <div class="absolute inset-0 bg-gradient-to-r from-blue-500/0 via-blue-500/5 to-blue-500/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                    
+                    <div class="flex flex-col h-full justify-between relative z-10">
+                        <div>
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
+                                <p class="text-[9px] font-black uppercase tracking-widest text-blue-400 italic">Central de Ajuda</p>
+                            </div>
+                            <p class="font-bold text-sm leading-snug">Dúvidas ou suporte técnico?</p>
+                        </div>
+                        
+                        <div class="mt-4 flex items-end justify-between">
+                            <div>
+                                <p class="text-[10px] text-slate-400 uppercase font-bold mb-1">Ramal Interno</p>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xl font-black text-white tracking-tighter italic">3171</span>
+                                    <span class="text-blue-500 text-xs animate-bounce">📞</span>
+                                </div>
+                            </div>
+                            
+                            <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/40 group-hover:scale-110 transition-transform">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- [BLOCO: PROJETOS ATIVOS] -->
                 <?php
                 $projetos_ativos = [];
-                    try {
-                        $pdo_proj = $pdo_projetos; 
-
-                        // Busca todos os projetos que têm data de virada configurada
-                        $stmtProj = $pdo_proj->query("SELECT * FROM projetos WHERE data_virada IS NOT NULL ORDER BY data_virada ASC");
+                try {
+                    $pdo_proj = $pdo_projetos; 
+                    $stmtProj = $pdo_proj->query("SELECT * FROM projetos WHERE data_virada IS NOT NULL ORDER BY data_virada ASC");
                     $projetos_ativos = $stmtProj->fetchAll(PDO::FETCH_ASSOC);
 
-                    // Calcula o progresso real de TODOS eles
                     foreach ($projetos_ativos as $key => $proj) {
                         $stmtProg = $pdo_proj->prepare("SELECT COUNT(*) as total, SUM(CASE WHEN s.status = 'concluido' THEN 1 ELSE 0 END) as concluidas FROM subtarefas s INNER JOIN fases f ON s.fk_fase = f.id WHERE f.fk_projeto = ?");
                         $stmtProg->execute([$proj['id']]);
@@ -278,11 +366,9 @@ if (empty($aniversariantes)) {
                 ?>
 
                 <?php if (count($projetos_ativos) > 0): 
-                    $proj_principal = $projetos_ativos[0]; // Pega o projeto mais urgente
+                    $proj_principal = $projetos_ativos[0]; 
                 ?>
-
-                <div onclick="abrirModalProjetos()" class="space-y-4 cursor-pointer group relative transition-all hover:scale-[1.02]">
-                    
+                <div id="bloco-projetos" onclick="abrirModalProjetos()" class="space-y-4 cursor-pointer group relative transition-all hover:scale-[1.02]">
                     <div class="absolute -top-3 right-4 bg-blue-600 text-white text-[9px] font-black px-3 py-1 rounded-full shadow-lg z-20 group-hover:bg-blue-500 transition-colors uppercase tracking-widest border border-blue-400">
                         Ver Todos (<?php echo count($projetos_ativos); ?>)
                     </div>
@@ -323,77 +409,12 @@ if (empty($aniversariantes)) {
                         </div>
                     </div>
                 </div>
-
                 <?php endif; ?>
-                <div id="painel-presenca" class="w-full transition-all duration-500">
-                    <div class="animate-pulse bg-white rounded-2xl h-64 w-full border border-slate-200"></div>
-                </div>
 
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                    <div class="flex items-center gap-3 mb-6">
-                        <div class="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center border border-slate-100">
-                            <span class="text-xl">📅</span>
-                        </div>
-                        <h3 class="text-lg font-black text-navy-900 tracking-tight">Sua agenda</h3>
-                    </div>
-
-                    <div id="calendario-ajax" class="border border-slate-100 rounded-2xl p-4 mb-6 min-h-[300px]">
-                        <div class="flex justify-center items-center h-full">Carregando...</div>
-                    </div>
-                    
-                    <div id="proximos-eventos" class="space-y-4">
-                        </div>
-                </div>
-
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Sistemas Internos</h3>
-                    <div class="grid grid-cols-1 gap-4">
-                        <a href="http://192.168.0.63:8080/glpi17/index.php" target="_blank" 
-                           class="flex items-center gap-4 p-4 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-100 transition-all group">
-                            <div class="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-xl group-hover:scale-110 transition-transform">🛠️</div>
-                            <div class="flex flex-col">
-                                <span class="text-xs font-black text-navy-900 leading-tight">HELP CHAMADOS</span>
-                                <span class="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">Suporte</span>
-                            </div>
-                        </a>
-                        <button onclick="abrirModalSistemas()" 
-                                class="w-full flex items-center gap-4 p-4 rounded-xl bg-navy-900 hover:bg-blue-700 border border-transparent transition-all group shadow-md">
-                            <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-xl group-hover:rotate-12 transition-transform">🚀</div>
-                            <div class="flex flex-col text-left text-white">
-                                <span class="text-xs font-black leading-tight uppercase">Outros</span>
-                                <span class="text-[9px] text-white/50 font-bold uppercase tracking-tighter italic">Navegação</span>
-                            </div>
-                        </button>
-                    </div>
-                </div>
-
-                <div class="bg-navy-900 rounded-2xl p-6 text-white shadow-xl border-l-4 border-blue-500 relative overflow-hidden group">
-                    <div class="absolute inset-0 bg-gradient-to-r from-blue-500/0 via-blue-500/5 to-blue-500/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                    
-                    <div class="flex flex-col h-full justify-between relative z-10">
-                        <div>
-                            <div class="flex items-center gap-2 mb-2">
-                                <span class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
-                                <p class="text-[9px] font-black uppercase tracking-widest text-blue-400 italic">Central de Ajuda</p>
-                            </div>
-                            <p class="font-bold text-sm leading-snug">Dúvidas ou suporte técnico?</p>
-                        </div>
-                        
-                        <div class="mt-5 flex items-end justify-between">
-                            <div>
-                                <p class="text-[10px] text-slate-400 uppercase font-bold mb-1">Ramal Interno</p>
-                                <div class="flex items-center gap-2">
-                                    <span class="text-2xl font-black text-white tracking-tighter italic">3171</span>
-                                    <span class="text-blue-500 text-xs animate-bounce">📞</span>
-                                </div>
-                            </div>
-                            
-                            <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/40 group-hover:scale-110 transition-transform">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                                </svg>
-                            </div>
-                        </div>
+                <!-- [BLOCO: PRESENÇA / EQUIPE ONLINE] -->
+                <div id="bloco-equipe-online" class="w-full transition-all duration-500">
+                    <div id="painel-presenca">
+                        <div class="animate-pulse bg-white rounded-2xl h-64 w-full border border-slate-200"></div>
                     </div>
                 </div>
 
