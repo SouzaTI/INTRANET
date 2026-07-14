@@ -1,7 +1,10 @@
 <?php
+
 require_once 'config.php';
 require_once 'includes/validar_upload.php';
 require_once 'includes/DocumentoFluxo.php';
+
+
 
 $user_id = $_SESSION['user_id'];
 $fluxo = new DocumentoFluxo($pdo_intra);
@@ -136,7 +139,23 @@ include 'includes/sidebar.php';
                     $cor_status = $badges[$doc['status']] ?? 'bg-slate-100 text-slate-500';
                     $historico_doc = $historico_agrupado[$doc['id']] ?? [];
 
-                    
+                    $ext_arquivo = pathinfo($doc['nome_arquivo'], PATHINFO_EXTENSION);
+                    $url_arquivo = 'uploads_fluxo/' . $doc['nome_arquivo'];
+
+                    $eh_video = in_array(strtolower($ext_arquivo), ['mp4', 'webm', 'ogg']);
+                    $eh_pdf   = strtolower($ext_arquivo) === 'pdf';
+                    $eh_imagem = in_array(strtolower($ext_arquivo), ['jpg', 'jpeg', 'png', 'gif']);
+                                
+
+                    $responsavel = "Aguardando definição"; 
+                        if ($doc['status'] === 'Aguardando Ajustes') {
+                            $responsavel = $_SESSION['nome_de_usuário'] ?? 'Usuário';
+                        } elseif (in_array($doc['status'], ['Pendente T.I', 'Em Análise', 'Aprovado'])) {
+                            $responsavel = "Analise de Dados";
+                        } else {
+                            $responsavel = ""; 
+                        }
+ 
                 ?>
                 
                 <tbody x-data="{ aberto: false }">
@@ -150,10 +169,15 @@ include 'includes/sidebar.php';
                         <td class="py-5 px-4 text-center">
                             <span class="bg-slate-100 text-slate-600 px-2 py-1 rounded-md text-xs font-black">V<?= $doc['versao_atual'] ?></span>
                         </td>
-                        <td class="py-5 px-4">
-                            <span class="px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider <?= $cor_status ?>">
-                                <?= $doc['status'] ?>
-                            </span>
+                       <td class="py-5 px-4">
+                            <div class="flex items-center"> 
+                                <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider whitespace-nowrap <?= $cor_status ?>">
+                                   <?= $doc['status'] ?> 
+                                    <?php if(!empty($responsavel)): ?>
+                                        - <?= htmlspecialchars($responsavel) ?>
+                                    <?php endif; ?>
+                                </span>
+                            </div>
                         </td>
                         <td class="py-5 px-4 text-right">
                             <svg class="w-5 h-5 text-slate-400 ml-auto transition-transform duration-300" :class="{ 'rotate-180': aberto }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
@@ -238,8 +262,58 @@ include 'includes/sidebar.php';
                                         </div>
                                     <?php endif; ?>
                                 </div>
-
+                              <!-- Bloco: Visualizador (Agora ele mora na coluna da direita, alinhado com o restante) -->
+                        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden -mt-24">
+                            
+                            <!-- Cabeçalho do Visualizador -->
+                            <div class="px-4 py-3 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                                <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                    <?= $eh_video ? '🎥 PLAYER DE VÍDEO' : '📄 VISUALIZADOR SEGURO' ?>
+                                </span>
+                                
+                                <!-- Link passando pelo guardião -->
+                                <a href="serve_documento.php?id=<?= $doc['id'] ?>&modo=visualizar" 
+                                target="_blank" 
+                                class="text-xs font-bold text-blue-600 hover:text-blue-700">
+                                Abrir no Visualizador ↗
+                                </a>
                             </div>
+
+                            <!-- Conteúdo do Visualizador -->
+                            <template x-if="aberto">
+                                <div @click.stop class="bg-slate-100 flex justify-center w-full">
+                                    
+                                    <?php if($eh_video): ?>
+                                        <video controls class="w-full max-h-72 bg-black">
+                                            <source src="<?= $url_arquivo ?>" type="video/<?= $ext_arquivo ?>">
+                                        </video>
+
+                                    <?php elseif($eh_pdf): ?>
+                                        <iframe src="serve_documento.php?id=<?= $doc['id'] ?>&modo=visualizar" class="w-full h-80" frameborder="0"></iframe>
+
+                                    <?php elseif($eh_imagem): ?>
+                                        <img src="<?= $url_arquivo ?>" class="max-w-full max-h-80 object-contain p-2">
+
+                                    <?php else: ?>
+                                        <div class="py-12 px-6 text-center flex flex-col items-center justify-center w-full">
+                                            <span class="text-5xl mb-4">📁</span>
+                                            <h3 class="text-sm font-black text-slate-700 mb-1">Formato de arquivo incompatível com visualização direta</h3>
+                                            <p class="text-[11px] font-medium text-slate-500 mb-5">O navegador não suporta exibir arquivos <b>.<?= $ext_arquivo ?></b> nativamente.</p>
+                                            
+                                            <?php 
+                                            $nome_limpo = preg_replace('/[^A-Za-z0-9\-]/', '_', $doc['titulo']);
+                                            $nome_download = $nome_limpo . '_V' . $doc['versao_atual'] . '.' . $ext_arquivo;
+                                            ?>
+
+                                            <a href="serve_documento.php?id=<?= $doc['id'] ?>&modo=baixar" class="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-sm mt-4">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                                Baixar: <?= htmlspecialchars($nome_download) ?>
+                                            </a>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                            </template>
+                        </div>
                         </td>
                     </tr>
                 </tbody>
