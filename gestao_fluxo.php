@@ -185,7 +185,7 @@ include 'includes/sidebar.php';
 
                     $responsavel = "";
                     if ($doc['status'] === 'Aguardando Ajustes') {
-                        $responsavel = $doc['firstname']; // O nome do colaborador que enviou
+                        $responsavel = $doc['firstname']; 
                     } elseif ($doc['status'] === 'Pendente T.I' || $doc['status'] === 'Em Análise'|| $doc['status'] === 'Aprovado') {
                         $responsavel = "Analise de Dados";
                     }
