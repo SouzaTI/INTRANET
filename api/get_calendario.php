@@ -89,7 +89,7 @@ $eventosNoMes = $stmt->fetchAll(PDO::FETCH_GROUP);
 
         $dataFormatada = $ano . '-' . $mes . '-' . $dia;
     ?>
-        <div class="relative group cursor-pointer py-1" onclick="abrirAgendamento('<?= $dataFormatada ?>')">
+        <div class="relative group cursor-pointer py-1" onclick="abrirAgendamento('<?= $dataFormatada ?>')" onmouseenter="mostrarMiniAgenda(this, '<?= $dataFormatada ?>')" onmouseleave="esconderMiniAgenda()">
             <span class="inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold transition-all <?= $corTexto ?> <?= $shadow ?>"
                   style="background-color: <?= $corFundo ?> !important;">
                 <?= $dia ?>
