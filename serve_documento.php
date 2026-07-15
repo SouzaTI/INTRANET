@@ -60,7 +60,10 @@ $pertence_ao_setor = (
     $setor_doc === ($_SESSION['setor_principal'] ?? '') ||
     in_array($setor_doc, $_SESSION['pastas_extras'] ?? [])
 );
-$pode_acessar = ($is_admin || $is_ti || $is_dono || ($eh_aprovado && $pertence_ao_setor));
+// Adicionamos a condição: OU o setor do documento é 'GERAL'
+$eh_geral = ($setor_doc === 'GERAL');
+
+$pode_acessar = ($is_admin || $is_ti || $is_dono || ($eh_aprovado && ($pertence_ao_setor || $eh_geral)));
 
 if (!$pode_acessar) {
     http_response_code(403);
