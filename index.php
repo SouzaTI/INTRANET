@@ -653,6 +653,10 @@ if (empty($aniversariantes)) {
     </div>
 </div>
 
+        <div id="tooltip-rapida" 
+            style="display: none; position: fixed; z-index: 9999; background: #ffffff; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); max-width: 280px; pointer-events: none;">
+        </div>
+
 <script>
 // ==========================================
 // SCRIPTS GERAIS DA TELA
@@ -1254,4 +1258,40 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(err => console.error('Erro no fetch:', err));
     }
 });
+
+function mostrarMiniAgenda(elemento, data) {
+    const tooltip = document.getElementById('tooltip-rapida');
+    if (!tooltip) return;
+
+    // Posiciona a caixinha do lado do dia que o mouse passou por cima
+    const rect = elemento.getBoundingClientRect();
+    tooltip.style.left = (rect.left + window.scrollX + 40) + 'px';
+    tooltip.style.top = (rect.top + window.scrollY - 10) + 'px';
+    
+    // Texto temporário enquanto carrega
+    tooltip.innerHTML = `<div class="text-xs text-slate-400">Carregando informações...</div>`;
+    tooltip.style.display = 'block';
+
+    // Faz uma requisição para trazer os dados do dia que o mouse está em cima
+    // (Ajuste o caminho da API conforme a estrutura do seu projeto)
+    fetch(`api/get_horarios_dia.php?data=${data}`)
+        .then(response => response.text())
+        .then(html => {
+            // Se o mouse ainda estiver em cima da data, atualiza o HTML da caixinha com as informações reais
+            if (tooltip.style.display === 'block') {
+                tooltip.innerHTML = html;
+            }
+        })
+        .catch(err => {
+            tooltip.innerHTML = `<div class="text-xs text-red-500">Erro ao carregar dados.</div>`;
+        });
+}
+
+function esconderMiniAgenda() {
+    const tooltip = document.getElementById('tooltip-rapida');
+    if (tooltip) {
+        tooltip.style.display = 'none';
+    }
+}
+
 </script>
