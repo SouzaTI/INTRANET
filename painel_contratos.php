@@ -1,145 +1,106 @@
 <?php
 require_once 'config.php';
+
+  // Processamento das ações do modal de contratos
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'], $_POST['id_contrato'])) {
+    $id_contrato = intval($_POST['id_contrato']);
+    $acao = $_POST['acao'];
+
+    if ($acao === 'cancelar') {
+        $stmt = $pdo_intra->prepare("UPDATE intranet.contratos SET status = 'ENCERRADO' WHERE id = ?");
+        $stmt->execute([$id_contrato]);
+    } 
+    elseif ($acao === 'substituir') {
+        $stmt = $pdo_intra->prepare("UPDATE intranet.contratos SET status = 'SUBSTITUIDO' WHERE id = ?");
+        $stmt->execute([$id_contrato]);
+    }
+    elseif ($acao === 'renovar') {
+        $stmt = $pdo_intra->prepare("UPDATE intranet.contratos SET status = 'ATIVO' WHERE id = ?");
+        $stmt->execute([$id_contrato]);
+    }
+    
+    // Redireciona para evitar reenvio do formulário ao atualizar a página
+    header("Location: painel_contratos.php");
+    exit;
+}
+
 include 'includes/header.php';
 include 'includes/sidebar.php';
 
-/*
- * PAINEL DE ACOMPANHAMENTO DE CONTRATOS
- * Dados mockados espelhando a planilha real.
- * Na versão final, $contratos vem de SELECT em $pdo_intra.
- */
+    // 1. Busca os contratos direto do banco (já estável)
+    $stmt_contratos = $pdo->prepare("SELECT * FROM intranet.contratos ORDER BY id DESC");
+    $stmt_contratos->execute();
+    $lista_contratos = $stmt_contratos->fetchAll(PDO::FETCH_ASSOC);
 
-$regra_alerta = [
-    'rh'        => 60,
-    'fiscal'    => 60,
-    'facilities'=> 90,
-    'marketing' => 60,
-];
+    $regra_alerta = [
+        'rh'        => 60,
+        'fiscal'    => 60,
+        'facilities'=> 90,
+        'marketing' => 60,
+    ];
 
-$setores_label = [
-    'rh'         => ['nome' => 'RH',        'icone' => '🧑‍💼', 'cor' => 'emerald'],
+   $setores_label = [
+    'rh'         => ['nome' => 'RH',         'icone' => '🧑‍💼', 'cor' => 'emerald'],
     'fiscal'     => ['nome' => 'Fiscal',     'icone' => '🧾',  'cor' => 'amber'],
     'facilities' => ['nome' => 'Facilities', 'icone' => '🛠️',  'cor' => 'blue'],
     'marketing'  => ['nome' => 'Marketing',  'icone' => '📣',  'cor' => 'violet'],
+    'logistica'  => ['nome' => 'Logística',  'icone' => '🚚',  'cor' => 'slate'], // Adiciona essa linha
 ];
 
-$empresas_grupo = ['Souza', 'Mixkar', 'CSA', 'Autoweb', 'Compremix'];
+    $empresas_grupo = ['Souza', 'Mixkar', 'CSA', 'Autoweb', 'Compremix'];
 
-/* ─── DADOS DA PLANILHA (linha a linha) ───────────────────── */
-$contratos = [
-    // AGENCIA CHAIRO — MARKETING — sem data final
-    ['id'=>'CT-001','razao_social'=>'Agencia Chairo','nome_fantasia'=>'','contato'=>'','codigo_sistema'=>'','servico'=>'MARKETING','cnpj'=>'18.147.809/0001-06','valor'=>7900.00,'prazo'=>'','qtd_pagamentos'=>null,'data_inicio'=>null,'tipo_vencimento'=>'recorrente','data_final'=>null,'dia_venc_recorrente'=>null,'renovacao_automatica'=>false,'aviso_previo'=>null,'multa'=>null,'clausula_tecnica'=>null,'empresa'=>'Souza','setor'=>'marketing','status'=>'ATIVO'],
-
-    // ALFASEG × 4 linhas (SEG.TRABALHO, cada empresa)
-    ['id'=>'CT-002','razao_social'=>'Alfaseg','nome_fantasia'=>'VALOR VARIÁVEL','contato'=>'','codigo_sistema'=>'','servico'=>'SEG.TRABALHO','cnpj'=>'11.193.462/0001-99','valor'=>2625.00,'prazo'=>'24 MESES','qtd_pagamentos'=>24,'data_inicio'=>'2026-05-28','tipo_vencimento'=>'unico','data_final'=>'2028-05-27','dia_venc_recorrente'=>null,'renovacao_automatica'=>false,'aviso_previo'=>null,'multa'=>null,'clausula_tecnica'=>null,'empresa'=>'Mixkar','setor'=>'rh','status'=>'ATIVO'],
-    ['id'=>'CT-003','razao_social'=>'Alfaseg','nome_fantasia'=>'VALOR VARIÁVEL','contato'=>'','codigo_sistema'=>'','servico'=>'SEG.TRABALHO','cnpj'=>'11.193.462/0001-99','valor'=>50.00,'prazo'=>'24 MESES','qtd_pagamentos'=>24,'data_inicio'=>'2026-05-28','tipo_vencimento'=>'unico','data_final'=>'2028-05-27','dia_venc_recorrente'=>null,'renovacao_automatica'=>false,'aviso_previo'=>null,'multa'=>null,'clausula_tecnica'=>null,'empresa'=>'Souza','setor'=>'rh','status'=>'ATIVO'],
-    ['id'=>'CT-004','razao_social'=>'Alfaseg','nome_fantasia'=>'VALOR VARIÁVEL','contato'=>'','codigo_sistema'=>'','servico'=>'SEG.TRABALHO','cnpj'=>'11.193.462/0001-99','valor'=>25.00,'prazo'=>'24 MESES','qtd_pagamentos'=>24,'data_inicio'=>'2026-05-28','tipo_vencimento'=>'unico','data_final'=>'2028-05-27','dia_venc_recorrente'=>null,'renovacao_automatica'=>false,'aviso_previo'=>null,'multa'=>null,'clausula_tecnica'=>null,'empresa'=>'CSA','setor'=>'rh','status'=>'ATIVO'],
-    ['id'=>'CT-005','razao_social'=>'Alfaseg','nome_fantasia'=>'VALOR VARIÁVEL','contato'=>'','codigo_sistema'=>'','servico'=>'SEG.TRABALHO','cnpj'=>'11.193.462/0001-99','valor'=>1650.00,'prazo'=>'24 MESES','qtd_pagamentos'=>24,'data_inicio'=>'2026-05-28','tipo_vencimento'=>'unico','data_final'=>'2028-05-27','dia_venc_recorrente'=>null,'renovacao_automatica'=>false,'aviso_previo'=>null,'multa'=>null,'clausula_tecnica'=>null,'empresa'=>'Autoweb','setor'=>'rh','status'=>'ATIVO'],
-
-    // AMAZON AWS
-    ['id'=>'CT-006','razao_social'=>'Amazon AWS Serviços Brasil Ltda.','nome_fantasia'=>'VALOR VARIÁVEL','contato'=>'','codigo_sistema'=>'','servico'=>'SISTEMA','cnpj'=>'23.412.247/0001-10','valor'=>3.37,'prazo'=>'','qtd_pagamentos'=>null,'data_inicio'=>null,'tipo_vencimento'=>'recorrente','data_final'=>null,'dia_venc_recorrente'=>null,'renovacao_automatica'=>false,'aviso_previo'=>null,'multa'=>null,'clausula_tecnica'=>null,'empresa'=>'Souza','setor'=>'facilities','status'=>'ATIVO'],
-
-    // ASSERTIVA TECNOLOGIA
-    ['id'=>'CT-007','razao_social'=>'Assertiva Tecnologia','nome_fantasia'=>'','contato'=>'','codigo_sistema'=>'','servico'=>'CONTAS A RECEBER','cnpj'=>'15.724.796/0001-00','valor'=>550.00,'prazo'=>'6 MESES','qtd_pagamentos'=>6,'data_inicio'=>'2026-05-22','tipo_vencimento'=>'unico','data_final'=>'2026-11-18','dia_venc_recorrente'=>null,'renovacao_automatica'=>false,'aviso_previo'=>null,'multa'=>null,'clausula_tecnica'=>null,'empresa'=>'Souza','setor'=>'fiscal','status'=>'ATIVO'],
-
-    // CLICKSIGN GESTÃO
-    ['id'=>'CT-008','razao_social'=>'Clicksign Gestão','nome_fantasia'=>'VALOR UNITÁRIO R$ 3,35 CONSUMO MÍNIMO R$','contato'=>'','codigo_sistema'=>'','servico'=>'ASSINATURA DIGITAL','cnpj'=>'12.499.520/0001-70','valor'=>872.65,'prazo'=>'12 MESES','qtd_pagamentos'=>12,'data_inicio'=>'2026-05-23','tipo_vencimento'=>'unico','data_final'=>'2027-05-23','dia_venc_recorrente'=>null,'renovacao_automatica'=>false,'aviso_previo'=>null,'multa'=>null,'clausula_tecnica'=>null,'empresa'=>'Souza','setor'=>'facilities','status'=>'ATIVO'],
-
-    // CONECTCAR
-    ['id'=>'CT-009','razao_social'=>'ConectCar','nome_fantasia'=>'','contato'=>'','codigo_sistema'=>'','servico'=>'PEDÁGIO','cnpj'=>'16.577.631/0002-99','valor'=>200.00,'prazo'=>'','qtd_pagamentos'=>null,'data_inicio'=>null,'tipo_vencimento'=>'recorrente','data_final'=>null,'dia_venc_recorrente'=>null,'renovacao_automatica'=>false,'aviso_previo'=>null,'multa'=>null,'clausula_tecnica'=>null,'empresa'=>'Autoweb','setor'=>'facilities','status'=>'ATIVO'],
-
-    // CONNECT SERASA
-    ['id'=>'CT-010','razao_social'=>'Connect Serasa','nome_fantasia'=>'','contato'=>'','codigo_sistema'=>'','servico'=>'CONTAS A RECEBER','cnpj'=>'00.850.820/0001-72','valor'=>8399.05,'prazo'=>'','qtd_pagamentos'=>null,'data_inicio'=>'2026-09-30','tipo_vencimento'=>'recorrente','data_final'=>null,'dia_venc_recorrente'=>null,'renovacao_automatica'=>false,'aviso_previo'=>null,'multa'=>null,'clausula_tecnica'=>null,'empresa'=>'Souza','setor'=>'fiscal','status'=>'ATIVO'],
-
-    // CONSIGAZ
-    ['id'=>'CT-011','razao_social'=>'Consigaz','nome_fantasia'=>'','contato'=>'','codigo_sistema'=>'','servico'=>'CONSUMO DE GÁS','cnpj'=>'','valor'=>1500.00,'prazo'=>'60 MESES','qtd_pagamentos'=>60,'data_inicio'=>'2024-10-25','tipo_vencimento'=>'unico','data_final'=>'2029-10-24','dia_venc_recorrente'=>null,'renovacao_automatica'=>false,'aviso_previo'=>null,'multa'=>null,'clausula_tecnica'=>null,'empresa'=>'Souza','setor'=>'facilities','status'=>'ATIVO'],
-
-    // CONVENIA
-    ['id'=>'CT-012','razao_social'=>'Convenia','nome_fantasia'=>'','contato'=>'','codigo_sistema'=>'','servico'=>'SISTEMA FOLHA PAGTO','cnpj'=>'17.484.689/0001-70','valor'=>2527.92,'prazo'=>'','qtd_pagamentos'=>null,'data_inicio'=>null,'tipo_vencimento'=>'recorrente','data_final'=>null,'dia_venc_recorrente'=>null,'renovacao_automatica'=>false,'aviso_previo'=>null,'multa'=>null,'clausula_tecnica'=>null,'empresa'=>'Autoweb','setor'=>'rh','status'=>'ATIVO'],
-
-    // CURUPIRA S/A (BLIP)
-    ['id'=>'CT-013','razao_social'=>'Curupira S/A (Blip)','nome_fantasia'=>'','contato'=>'','codigo_sistema'=>'','servico'=>'CALL CENTER','cnpj'=>'04.413.729/0001-40','valor'=>1576.80,'prazo'=>'','qtd_pagamentos'=>null,'data_inicio'=>null,'tipo_vencimento'=>'recorrente','data_final'=>null,'dia_venc_recorrente'=>null,'renovacao_automatica'=>false,'aviso_previo'=>null,'multa'=>null,'clausula_tecnica'=>null,'empresa'=>'Souza','setor'=>'facilities','status'=>'ATIVO'],
-
-    // DEL PINO
-    ['id'=>'CT-014','razao_social'=>'Del Pino','nome_fantasia'=>'','contato'=>'','codigo_sistema'=>'','servico'=>'ADVOGADOS','cnpj'=>'41.131.849/0001-81','valor'=>6500.00,'prazo'=>'12 MESES','qtd_pagamentos'=>12,'data_inicio'=>'2025-10-25','tipo_vencimento'=>'unico','data_final'=>'2026-10-25','dia_venc_recorrente'=>null,'renovacao_automatica'=>false,'aviso_previo'=>null,'multa'=>null,'clausula_tecnica'=>null,'empresa'=>'Souza','setor'=>'facilities','status'=>'ATIVO'],
-
-    // DUAL MAIS SITEMAS
-    ['id'=>'CT-015','razao_social'=>'Dual Mais Sitemas','nome_fantasia'=>'','contato'=>'','codigo_sistema'=>'','servico'=>'SISTEMA','cnpj'=>'37.622.973/0001-72','valor'=>449.14,'prazo'=>'','qtd_pagamentos'=>null,'data_inicio'=>null,'tipo_vencimento'=>'recorrente','data_final'=>null,'dia_venc_recorrente'=>null,'renovacao_automatica'=>false,'aviso_previo'=>null,'multa'=>null,'clausula_tecnica'=>null,'empresa'=>'Compremix','setor'=>'facilities','status'=>'ATIVO'],
-
-    // DUAL MW TECNOLOGIA × 4
-    ['id'=>'CT-016','razao_social'=>'Dual MW Tecnologia','nome_fantasia'=>'','contato'=>'','codigo_sistema'=>'','servico'=>'SISTEMA','cnpj'=>'27.459.097/0001-51','valor'=>440.90,'prazo'=>'','qtd_pagamentos'=>null,'data_inicio'=>null,'tipo_vencimento'=>'recorrente','data_final'=>null,'dia_venc_recorrente'=>null,'renovacao_automatica'=>false,'aviso_previo'=>null,'multa'=>null,'clausula_tecnica'=>null,'empresa'=>'Mixkar','setor'=>'facilities','status'=>'ATIVO'],
-    ['id'=>'CT-017','razao_social'=>'Dual MW Tecnologia','nome_fantasia'=>'','contato'=>'','codigo_sistema'=>'','servico'=>'SISTEMA','cnpj'=>'27.459.097/0001-51','valor'=>1545.56,'prazo'=>'','qtd_pagamentos'=>null,'data_inicio'=>null,'tipo_vencimento'=>'recorrente','data_final'=>null,'dia_venc_recorrente'=>null,'renovacao_automatica'=>false,'aviso_previo'=>null,'multa'=>null,'clausula_tecnica'=>null,'empresa'=>'Mixkar','setor'=>'facilities','status'=>'ATIVO'],
-    ['id'=>'CT-018','razao_social'=>'Dual MW Tecnologia','nome_fantasia'=>'','contato'=>'','codigo_sistema'=>'','servico'=>'SISTEMA','cnpj'=>'27.459.097/0001-51','valor'=>7447.00,'prazo'=>'','qtd_pagamentos'=>null,'data_inicio'=>null,'tipo_vencimento'=>'recorrente','data_final'=>null,'dia_venc_recorrente'=>null,'renovacao_automatica'=>false,'aviso_previo'=>null,'multa'=>null,'clausula_tecnica'=>null,'empresa'=>'Souza','setor'=>'facilities','status'=>'ATIVO'],
-    ['id'=>'CT-019','razao_social'=>'Dual MW Tecnologia','nome_fantasia'=>'','contato'=>'','codigo_sistema'=>'','servico'=>'SISTEMA','cnpj'=>'27.459.097/0001-51','valor'=>11227.59,'prazo'=>'','qtd_pagamentos'=>null,'data_inicio'=>null,'tipo_vencimento'=>'recorrente','data_final'=>null,'dia_venc_recorrente'=>null,'renovacao_automatica'=>false,'aviso_previo'=>null,'multa'=>null,'clausula_tecnica'=>null,'empresa'=>'Souza','setor'=>'facilities','status'=>'ATIVO'],
-
-    // DUAL SOFTWARE × 2
-    ['id'=>'CT-020','razao_social'=>'Dual Software','nome_fantasia'=>'','contato'=>'','codigo_sistema'=>'','servico'=>'SISTEMA','cnpj'=>'01.334.185/0001-33','valor'=>1883.00,'prazo'=>'','qtd_pagamentos'=>null,'data_inicio'=>null,'tipo_vencimento'=>'recorrente','data_final'=>null,'dia_venc_recorrente'=>null,'renovacao_automatica'=>false,'aviso_previo'=>null,'multa'=>null,'clausula_tecnica'=>null,'empresa'=>'Souza','setor'=>'facilities','status'=>'ATIVO'],
-    ['id'=>'CT-021','razao_social'=>'Dual Software','nome_fantasia'=>'','contato'=>'','codigo_sistema'=>'','servico'=>'SISTEMA','cnpj'=>'01.334.185/0001-33','valor'=>1764.93,'prazo'=>'','qtd_pagamentos'=>null,'data_inicio'=>null,'tipo_vencimento'=>'recorrente','data_final'=>null,'dia_venc_recorrente'=>null,'renovacao_automatica'=>false,'aviso_previo'=>null,'multa'=>null,'clausula_tecnica'=>null,'empresa'=>'CSA','setor'=>'facilities','status'=>'ATIVO'],
-
-    // FACEBOOK BRASIL
-    ['id'=>'CT-022','razao_social'=>'Facebook Brasil','nome_fantasia'=>'','contato'=>'','codigo_sistema'=>'','servico'=>'MARKETING','cnpj'=>'13.347.016/0001-17','valor'=>404.71,'prazo'=>'','qtd_pagamentos'=>null,'data_inicio'=>null,'tipo_vencimento'=>'recorrente','data_final'=>null,'dia_venc_recorrente'=>null,'renovacao_automatica'=>false,'aviso_previo'=>null,'multa'=>null,'clausula_tecnica'=>null,'empresa'=>'Souza','setor'=>'marketing','status'=>'ATIVO'],
-
-    // FIBRION INTERNET × 3
-    ['id'=>'CT-023','razao_social'=>'Fibrion Internet','nome_fantasia'=>'','contato'=>'','codigo_sistema'=>'','servico'=>'INTERNET','cnpj'=>'46.713.124/0001-15','valor'=>548.41,'prazo'=>'','qtd_pagamentos'=>null,'data_inicio'=>null,'tipo_vencimento'=>'recorrente','data_final'=>null,'dia_venc_recorrente'=>null,'renovacao_automatica'=>false,'aviso_previo'=>null,'multa'=>null,'clausula_tecnica'=>null,'empresa'=>'Souza','setor'=>'facilities','status'=>'ATIVO'],
-    ['id'=>'CT-024','razao_social'=>'Fibrion Internet','nome_fantasia'=>'','contato'=>'','codigo_sistema'=>'','servico'=>'INTERNET','cnpj'=>'46.713.124/0001-15','valor'=>100.60,'prazo'=>'','qtd_pagamentos'=>null,'data_inicio'=>null,'tipo_vencimento'=>'recorrente','data_final'=>null,'dia_venc_recorrente'=>null,'renovacao_automatica'=>false,'aviso_previo'=>null,'multa'=>null,'clausula_tecnica'=>null,'empresa'=>'Souza','setor'=>'facilities','status'=>'ATIVO'],
-    ['id'=>'CT-025','razao_social'=>'Fibrion Internet','nome_fantasia'=>'','contato'=>'','codigo_sistema'=>'','servico'=>'INTERNET','cnpj'=>'46.713.124/0001-15','valor'=>950.00,'prazo'=>'','qtd_pagamentos'=>null,'data_inicio'=>null,'tipo_vencimento'=>'recorrente','data_final'=>null,'dia_venc_recorrente'=>null,'renovacao_automatica'=>false,'aviso_previo'=>null,'multa'=>null,'clausula_tecnica'=>null,'empresa'=>'Souza','setor'=>'facilities','status'=>'ATIVO'],
-
-    // FLASH × 3 (VALE TRANSPORTE)
-    ['id'=>'CT-026','razao_social'=>'Flash','nome_fantasia'=>'','contato'=>'','codigo_sistema'=>'','servico'=>'VALE TRANSPORTE','cnpj'=>'32.223.020/0001-18','valor'=>10707.60,'prazo'=>'','qtd_pagamentos'=>null,'data_inicio'=>null,'tipo_vencimento'=>'recorrente','data_final'=>null,'dia_venc_recorrente'=>null,'renovacao_automatica'=>false,'aviso_previo'=>null,'multa'=>null,'clausula_tecnica'=>null,'empresa'=>'Mixkar','setor'=>'rh','status'=>'ATIVO'],
-    ['id'=>'CT-027','razao_social'=>'Flash','nome_fantasia'=>'','contato'=>'','codigo_sistema'=>'','servico'=>'VALE TRANSPORTE','cnpj'=>'32.223.020/0001-18','valor'=>254.40,'prazo'=>'','qtd_pagamentos'=>null,'data_inicio'=>null,'tipo_vencimento'=>'recorrente','data_final'=>null,'dia_venc_recorrente'=>null,'renovacao_automatica'=>false,'aviso_previo'=>null,'multa'=>null,'clausula_tecnica'=>null,'empresa'=>'Souza','setor'=>'rh','status'=>'ATIVO'],
-    ['id'=>'CT-028','razao_social'=>'Flash','nome_fantasia'=>'','contato'=>'','codigo_sistema'=>'','servico'=>'VALE TRANSPORTE','cnpj'=>'32.223.020/0001-18','valor'=>222.60,'prazo'=>'','qtd_pagamentos'=>null,'data_inicio'=>null,'tipo_vencimento'=>'recorrente','data_final'=>null,'dia_venc_recorrente'=>null,'renovacao_automatica'=>false,'aviso_previo'=>null,'multa'=>null,'clausula_tecnica'=>null,'empresa'=>'CSA','setor'=>'rh','status'=>'ATIVO'],
-];
-
-/* ─── HELPERS ────────────────────────────────────────────── */
-function calcularDiasRestantes(array $c): int {
-    $hoje = new DateTime('today');
-    if ($c['tipo_vencimento'] === 'recorrente') return 9999;
-    if ($c['data_final']) {
-        $venc = new DateTime($c['data_final']);
-        return (int)$hoje->diff($venc)->format('%r%a');
+    /* ─── HELPERS ────────────────────────────────────────────── */
+    function calcularDiasRestantes(array $c): int {
+        $hoje = new DateTime('today');
+        if (($c['tipo_vencimento'] ?? '') === 'recorrente') return 9999;
+        if (!empty($c['data_final'])) {
+            $venc = new DateTime($c['data_final']);
+            return (int)$hoje->diff($venc)->format('%r%a');
+        }
+        return 9999;
     }
-    return 9999;
-}
 
-function getCorSetor(string $cor): string {
-    return [
-        'emerald' => 'background:#d1fae5;color:#065f46',
-        'amber'   => 'background:#fef3c7;color:#92400e',
-        'blue'    => 'background:#dbeafe;color:#1e40af',
-        'violet'  => 'background:#ede9fe;color:#5b21b6',
-    ][$cor] ?? 'background:#f1f5f9;color:#475569';
-}
+    function getCorSetor(string $cor): string {
+        return [
+            'emerald' => 'background:#d1fae5;color:#065f46',
+            'amber'   => 'background:#fef3c7;color:#92400e',
+            'blue'    => 'background:#dbeafe;color:#1e40af',
+            'violet'  => 'background:#ede9fe;color:#5b21b6',
+        ][$cor] ?? 'background:#f1f5f9;color:#475569';
+    }
 
-/* ─── FILTROS ────────────────────────────────────────────── */
-$filtro_setor   = $_GET['setor']   ?? 'todos';
-$filtro_empresa = $_GET['empresa'] ?? 'todas';
-$filtro_status  = $_GET['status']  ?? 'todos';
-$busca          = trim($_GET['q']  ?? '');
+    /* ─── FILTROS (Agora usando $lista_contratos) ───────────── */
+    $filtro_setor   = $_GET['setor']   ?? 'todos';
+    $filtro_empresa = $_GET['empresa'] ?? 'todas';
+    $filtro_status  = $_GET['status']  ?? 'todos';
+    $busca          = trim($_GET['q']  ?? '');
 
-$contratos_filtrados = array_filter($contratos, function($c) use ($filtro_setor, $filtro_empresa, $filtro_status, $busca) {
-    if ($filtro_setor   !== 'todos' && $c['setor']   !== $filtro_setor)  return false;
-    if ($filtro_empresa !== 'todas' && $c['empresa'] !== $filtro_empresa) return false;
-    if ($filtro_status  !== 'todos' && $c['status']  !== $filtro_status) return false;
-    if ($busca && stripos($c['razao_social'].$c['servico'].$c['cnpj'], $busca) === false) return false;
-    return true;
-});
+    $contratos_filtrados = array_filter($lista_contratos, function($c) use ($filtro_setor, $filtro_empresa, $filtro_status, $busca) {
+        if ($filtro_setor !== 'todos' && strcasecmp($c['setor'] ?? '', $filtro_setor) !== 0) return false;
+        if ($filtro_empresa !== 'todas' && ($c['empresa'] ?? '') !== $filtro_empresa) return false;
+        if ($filtro_status  !== 'todos' && ($c['status']  ?? '') !== $filtro_status) return false;
+        if ($busca && stripos(($c['razao_social'] ?? '').($c['servico'] ?? '').($c['cnpj'] ?? ''), $busca) === false) return false;
+        return true;
+    });
 
-/* ─── KPIs ───────────────────────────────────────────────── */
-$total_ativos  = count(array_filter($contratos, fn($c) => $c['status'] === 'ATIVO'));
-$total_alertas = 0;
-foreach ($contratos as $c) {
-    if ($c['status'] === 'ENCERRADO' || $c['tipo_vencimento'] === 'recorrente') continue;
-    $dias   = calcularDiasRestantes($c);
-    $limite = $regra_alerta[$c['setor']] ?? 60;
-    if ($dias <= $limite) $total_alertas++;
-}
+    /* ─── KPIs ───────────────────────────────────────────────── */
+    $total_ativos  = count(array_filter($lista_contratos, fn($c) => ($c['status'] ?? '') === 'ATIVO'));
+    $total_alertas = 0;
+    foreach ($lista_contratos as $c) {
+        if (($c['status'] ?? '') === 'ENCERRADO' || ($c['tipo_vencimento'] ?? '') === 'recorrente') continue;
+        $dias   = calcularDiasRestantes($c);
+        $limite = $regra_alerta[$c['setor']] ?? 60;
+        if ($dias <= $limite) $total_alertas++;
+    }
 
-$status_estilo = [
-    'EM ANÁLISE'       => ['bg'=>'bg-slate-500/10',   'text'=>'text-slate-500'],
-    'ATIVO'            => ['bg'=>'bg-emerald-500/10',  'text'=>'text-emerald-600'],
-    'REVISÃO DE VALOR' => ['bg'=>'bg-amber-500/10',    'text'=>'text-amber-600'],
-    'ENCERRADO'        => ['bg'=>'bg-slate-200/60',    'text'=>'text-slate-400'],
-];
+    $status_estilo = [
+        'EM ANÁLISE'       => ['bg'=>'bg-slate-500/10',   'text'=>'text-slate-500'],
+        'ATIVO'            => ['bg'=>'bg-emerald-500/10',  'text'=>'text-emerald-600'],
+        'REVISÃO DE VALOR' => ['bg'=>'bg-amber-500/10',    'text'=>'text-amber-600'],
+        'ENCERRADO'        => ['bg'=>'bg-slate-200/60',    'text'=>'text-slate-400'],
+    ];
+
+
 ?>
 
 <main class="flex-1 overflow-y-auto bg-slate-50 p-6 md:p-10">
@@ -165,7 +126,7 @@ $status_estilo = [
         </div>
         <div class="bg-white rounded-2xl border border-slate-200 px-5 py-4">
             <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total de Contratos</p>
-            <p class="text-3xl font-black text-navy-900"><?php echo count($contratos); ?></p>
+            <p class="text-3xl font-black text-navy-900"><?php echo count($lista_contratos); ?></p>
         </div>
         <div class="rounded-2xl border px-5 py-4 <?php echo $total_alertas > 0 ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'; ?>">
             <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Alertas de Vencimento</p>
@@ -240,7 +201,8 @@ $status_estilo = [
                 <?php endif; ?>
 
                 <?php foreach ($contratos_filtrados as $c):
-                    $setor     = $setores_label[$c['setor']];
+                   $chave_setor = strtolower(trim($c['setor'] ?? ''));
+                   $setor = $setores_label[$chave_setor] ?? ['nome' => ucfirst($c['setor'] ?: 'Geral'), 'icone' => '📁', 'cor' => 'slate'];
                     $is_rec    = $c['tipo_vencimento'] === 'recorrente';
                     $encerrado = $c['status'] === 'ENCERRADO';
                     $dias      = calcularDiasRestantes($c);
@@ -396,20 +358,27 @@ $status_estilo = [
             </div>
             <button onclick="fecharDecisao()" class="text-slate-300 hover:text-navy-900 text-xl leading-none">&times;</button>
         </div>
-        <div class="p-5 space-y-2.5">
-            <button class="w-full flex items-start gap-3 border border-slate-200 hover:bg-rose-50 hover:border-rose-200 rounded-2xl px-4 py-3 text-left transition-all">
+
+        <!-- FORMULÁRIO QUE ENVIA OS DADOS PARA O BACKEND -->
+        <form action="painel_contratos.php" method="POST" class="p-5 space-y-2.5">
+            <input type="hidden" name="id_contrato" id="input-id-contrato" value="">
+
+            <button type="submit" name="acao" value="cancelar" class="w-full flex items-start gap-3 border border-slate-200 hover:bg-rose-50 hover:border-rose-200 rounded-2xl px-4 py-3 text-left transition-all">
                 <span class="text-rose-600 text-lg">🚫</span>
                 <span><span class="block text-sm font-black text-navy-900">Cancelar Contrato</span><span class="block text-xs text-slate-400">Encerra o vínculo e move para Encerrado.</span></span>
             </button>
-            <button class="w-full flex items-start gap-3 border border-slate-200 hover:bg-blue-50 hover:border-blue-200 rounded-2xl px-4 py-3 text-left transition-all">
+
+            <button type="submit" name="acao" value="substituir" class="w-full flex items-start gap-3 border border-slate-200 hover:bg-blue-50 hover:border-blue-200 rounded-2xl px-4 py-3 text-left transition-all">
                 <span class="text-blue-600 text-lg">🔄</span>
                 <span><span class="block text-sm font-black text-navy-900">Substituir Fornecedor</span><span class="block text-xs text-slate-400">Abre um novo cadastro vinculado a este histórico.</span></span>
             </button>
-            <button class="w-full flex items-start gap-3 border border-slate-200 hover:bg-emerald-50 hover:border-emerald-200 rounded-2xl px-4 py-3 text-left transition-all">
+
+            <button type="submit" name="acao" value="renovar" class="w-full flex items-start gap-3 border border-slate-200 hover:bg-emerald-50 hover:border-emerald-200 rounded-2xl px-4 py-3 text-left transition-all">
                 <span class="text-emerald-600 text-lg">📈</span>
                 <span><span class="block text-sm font-black text-navy-900">Renovar com Reajuste</span><span class="block text-xs text-slate-400">Mantém o fornecedor e atualiza valor/vigência.</span></span>
             </button>
-        </div>
+        </form>
+
         <div class="px-7 py-3 border-t border-slate-100 text-[11px] text-slate-400">
             Setor: <span id="decisao-setor" class="font-black text-navy-900"></span>
         </div>
@@ -472,6 +441,16 @@ function calcDias(iso) {
     if (!iso) return 9999;
     const hoje = new Date(); hoje.setHours(0,0,0,0);
     return Math.round((new Date(iso+'T00:00:00') - hoje) / 86400000);
+}
+
+function abrirDecisao(id, fornecedor, setor) {
+    document.getElementById('decisao-id').innerText = id;
+    document.getElementById('decisao-fornecedor').innerText = fornecedor;
+    document.getElementById('decisao-setor').innerText = setor;
+    document.getElementById('input-id-contrato').value = id; // Joga o ID no input do form
+    
+    document.getElementById('modal-decisao').classList.remove('hidden');
+    document.getElementById('modal-decisao').classList.add('flex');
 }
 </script>
 
