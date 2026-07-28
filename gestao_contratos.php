@@ -1,7 +1,5 @@
 <?php
 require_once 'config.php';
-include 'includes/header.php';
-include 'includes/sidebar.php';
 
 $empresas_grupo = ['Souza', 'Mixkar', 'CSA', 'Autoweb', 'Compremix'];
 
@@ -36,9 +34,75 @@ $setores_contrato = [
     ],
 ];
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['setor_contrato'])) {
-    echo "<script>alert('Contrato cadastrado com sucesso! (demo)'); window.location.href='painel_contratos.php';</script>";
-}
+  if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['setor_contrato'])) {
+    // 1. Capturando os dados básicos do POST
+    $setor = $_POST['setor_contrato'];
+    $razao_social = $_POST['fornecedor'] ?? '';
+    $nome_fantasia = $_POST['nome_fantasia'] ?? null;
+    $cnpj = $_POST['cnpj'] ?? null;
+    $contato = $_POST['contato'] ?? null;
+    $codigo_sistema = $_POST['codigo_sistema'] ?? null;
+    $empresa = $_POST['empresa'] ?? '';
+    
+    // 2. Dados do Contrato
+    $servico = $_POST['servico'] ?? '';
+    $valor = str_replace(['.', ','], ['', '.'], $_POST['valor'] ?? '0');
+    $prazo_qtd = $_POST['prazo_qtd'] ?? null;
+    $prazo_unidade = $_POST['prazo_unidade'] ?? 'MESES';
+    $prazo = $prazo_qtd ? "$prazo_qtd $prazo_unidade" : null;
+    $qtd_pagamentos = $_POST['qtd_pagamentos'] ?? null;
+    $data_inicio = !empty($_POST['data_inicio']) ? $_POST['data_inicio'] : null;
+    $aviso_previo = $_POST['aviso_previo'] ?? null;
+    $multa = $_POST['multa'] ?? null;
+    $clausula_tecnica = $_POST['clausula_tecnica'] ?? null;
+    $renovacao_automatica = isset($_POST['renovacao_automatica']) ? 1 : 0;
+
+    // 3. Vencimento
+    $tipo_vencimento = $_POST['tipo_vencimento'] ?? 'unico';
+    $data_vencimento = !empty($_POST['data_vencimento']) ? $_POST['data_vencimento'] : null;
+    $dia_venc_recorrente = $_POST['dia_vencimento_recorrente'] ?? null;
+
+    // 4. Tratamento do Upload do Documento (PDF) direcionado para a pasta criada
+    $caminho_documento = null;
+    if (isset($_FILES['documento']) && $_FILES['documento']['error'] === UPLOAD_ERR_OK) {
+       $pasta_destino = "upload_pdf/PDF/";
+        if (!is_dir($pasta_destino)) {
+            mkdir($pasta_destino, 0755, true);
+        }
+        $nome_arquivo = time() . "_" . basename($_FILES['documento']['name']);
+        $caminho_destino = $pasta_destino . $nome_arquivo;
+        
+        if (move_uploaded_file($_FILES['documento']['tmp_name'], $caminho_destino)) {
+            $caminho_documento = $caminho_destino;
+        }
+        }
+
+        // 5. Montando a query de inserção incluindo a coluna documento
+        $sql = "INSERT INTO intranet.contratos (
+                    razao_social, nome_fantasia, contato, codigo_sistema, servico, cnpj, 
+                    valor, prazo, qtd_pagamentos, data_inicio, tipo_vencimento, data_final, 
+                    dia_venc_recorrente, renovacao_automatica, aviso_previo, multa, 
+                    clausula_tecnica, empresa, setor, documento, status
+                ) VALUES (
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ATIVO'
+                )";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([
+            $razao_social, $nome_fantasia, $contato, $codigo_sistema, $servico, $cnpj,
+            $valor, $prazo, $qtd_pagamentos, $data_inicio, $tipo_vencimento, $data_vencimento,
+            $dia_venc_recorrente, $renovacao_automatica, $aviso_previo, $multa,
+            $clausula_tecnica, $empresa, $setor, $caminho_documento
+        ]);
+
+        // Redireciona para o painel com sucesso
+        header("Location: gestao_contratos.php?sucesso=1");
+        exit;
+    }
+
+    include 'includes/header.php';
+    include 'includes/sidebar.php';
+
 ?>
 
 <style>
