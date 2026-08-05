@@ -14,11 +14,26 @@ $fluxo = new DocumentoFluxo($pdo_intra);
 // ==========================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
     $acao = $_POST['acao'];
+
+    // SE A AÇÃO FOR APROVAR PELO USUÁRIO (Botão Verde)
+    if ($acao === 'aprovar_usuario') {
+        $doc_id = (int)$_POST['doc_id'];
+        
+        // Atualiza o status diretamente para Aprovado no banco de dados
+       $stmt = $pdo_intra->prepare("UPDATE docs_fluxo_simples SET status = 'Aprovado' WHERE id = ?");
+        $stmt->execute([$doc_id]);
+        
+        // Opcional: Registra no histórico se sua classe permitir
+        // $fluxo->transitar($doc_id, 'aprovar', $user_id, 'Documento aprovado pelo usuário.', [], null);
+        
+        $mensagem = "✅ Documento aprovado com sucesso!";
+        
+        // Redireciona para evitar reenvio do formulário ao atualizar a página
+        header("Location: meus_documentos.php");
+        exit;
+    }
     
-    // Validação de arquivo (Segurança)
-    if (!isset($_FILES['documento']) || $_FILES['documento']['error'] === UPLOAD_ERR_NO_FILE) {
-        $erro = "Por favor, selecione um arquivo para enviar.";
-    } else {
+     {
         $validacao = validarArquivoFluxo($_FILES['documento']);
         
         if (!$validacao['ok']) {
@@ -128,14 +143,19 @@ include 'includes/sidebar.php';
                     </tr>
                 </thead>
                 
-                <?php foreach($meus_documentos as $doc): 
-                    $badges = [
-                        'Pendente T.I'       => 'bg-amber-100 text-amber-700',
-                        'Em Análise'         => 'bg-purple-100 text-purple-700',
-                        'Aguardando Ajustes' => 'bg-orange-100 text-orange-700 animate-pulse',
-                        'Aprovado'           => 'bg-emerald-100 text-emerald-700',
-                        'Recusado'           => 'bg-red-100 text-red-700',
-                    ];
+            <?php foreach($meus_documentos as $doc): 
+                  $badges = [
+                    'Pendente T.I'       => 'bg-amber-100 text-amber-700',
+                    'Em Análise'         => 'bg-purple-100 text-purple-700',
+                    'Aguardando Ajustes' => 'bg-orange-100 text-orange-700 animate-pulse',
+                    'Aprovado'           => 'bg-emerald-100 text-emerald-700',
+                    'APROVADO'           => 'bg-emerald-100 text-emerald-700',
+                    'Aprovado - Análise' => 'bg-emerald-100 text-emerald-700',
+                    'APROVADO - ANÁLISE' => 'bg-emerald-100 text-emerald-700',
+                    'Aprovado - Usuário' => 'bg-emerald-100 text-emerald-700',
+                    'APROVADO - USUÁRIO' => 'bg-emerald-100 text-emerald-700',
+                    'Recusado'           => 'bg-red-100 text-red-700',
+                ];
                     $cor_status = $badges[$doc['status']] ?? 'bg-slate-100 text-slate-500';
                     $historico_doc = $historico_agrupado[$doc['id']] ?? [];
 
@@ -146,15 +166,14 @@ include 'includes/sidebar.php';
                     $eh_pdf   = strtolower($ext_arquivo) === 'pdf';
                     $eh_imagem = in_array(strtolower($ext_arquivo), ['jpg', 'jpeg', 'png', 'gif']);
                                 
-
                     $responsavel = "Aguardando definição"; 
-                        if ($doc['status'] === 'Aguardando Ajustes') {
-                            $responsavel = $_SESSION['nome_de_usuário'] ?? 'Usuário';
-                        } elseif (in_array($doc['status'], ['Pendente T.I', 'Em Análise', 'Aprovado'])) {
-                            $responsavel = "Analise de Dados";
-                        } else {
-                            $responsavel = ""; 
-                        }
+                    if ($doc['status'] === 'Aguardando Ajustes') {
+                        $responsavel = $_SESSION['nome_de_usuário'] ?? 'Usuário';
+                    } elseif (in_array($doc['status'], ['Pendente T.I', 'Em Análise', 'Aprovado'])) {
+                        $responsavel = "Analise de Dados";
+                    } else {
+                        $responsavel = ""; 
+                    }
  
                 ?>
                 
@@ -239,26 +258,40 @@ include 'includes/sidebar.php';
                                         <?php endif; ?>
                                     </div>
 
-                                    <?php if($doc['status'] === 'Aguardando Ajustes'): ?>
-                                        <div class="bg-orange-50 rounded-2xl border border-orange-200 p-5 shadow-sm">
-                                            <div class="flex items-center gap-2 mb-3">
+                                   <?php if($doc['status'] === 'Aguardando Ajustes'): ?>
+                                        <div class="bg-orange-50 rounded-2xl border border-orange-200 p-5 shadow-sm space-y-4">
+                                            <div class="flex items-center gap-2 mb-1">
                                                 <span class="text-xl">⚠️</span>
                                                 <h3 class="text-xs font-black text-orange-800 uppercase tracking-widest">Ajustes Solicitados</h3>
                                             </div>
-                                            <p class="text-xs text-orange-700 mb-4 font-medium">A equipe técnica solicitou alterações. Leia o parecer na timeline e envie o documento corrigido abaixo.</p>
+                                            <p class="text-xs text-orange-700 font-medium">A equipe técnica solicitou alterações. Se estiver de acordo, aprove o documento diretamente ou envie uma nova versão abaixo:</p>
                                             
-                                            <form action="meus_documentos.php" method="POST" enctype="multipart/form-data" class="space-y-3">
-                                                <input type="hidden" name="acao" value="reenviar_v2">
+                                            <!-- FORMULÁRIO 1: APENAS APROVAÇÃO -->
+                                            <form action="meus_documentos.php" method="POST">
+                                                <input type="hidden" name="acao" value="aprovar_usuario">
                                                 <input type="hidden" name="doc_id" value="<?= $doc['id'] ?>">
-                                                
-                                                <textarea name="mensagem_ajuste" rows="2" placeholder="Descreva brevemente o que foi ajustado..." required class="w-full p-3 text-xs bg-white border border-orange-200 rounded-xl focus:ring-2 focus:ring-orange-500/20 outline-none resize-none"></textarea>
-                                                
-                                                <input type="file" name="documento" required class="block w-full text-xs text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-orange-100 file:text-orange-700 hover:file:bg-orange-200 cursor-pointer">
-                                                
-                                                <button type="submit" class="w-full py-3 bg-orange-600 hover:bg-orange-700 text-white font-black rounded-xl text-xs uppercase tracking-widest transition-all">
-                                                    🚀 Enviar Versão V<?= $doc['versao_atual'] + 1 ?>
+                                                <button type="submit" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-xs uppercase tracking-widest transition-all shadow-sm cursor-pointer">
+                                                    ✅ Estou de Acordo / Aprovar Documento
                                                 </button>
                                             </form>
+
+                                            <div class="border-t border-orange-200 pt-3">
+                                                <p class="text-[11px] text-orange-800 font-bold mb-2">Ou envie uma nova versão corrigida:</p>
+                                                
+                                                <!-- FORMULÁRIO 2: REENVIO DE V2 -->
+                                                <form action="meus_documentos.php" method="POST" enctype="multipart/form-data" class="space-y-3">
+                                                    <input type="hidden" name="acao" value="reenviar_v2">
+                                                    <input type="hidden" name="doc_id" value="<?= $doc['id'] ?>">
+                                                    
+                                                    <textarea name="mensagem_ajuste" rows="2" placeholder="Descreva o que foi ajustado..." required class="w-full p-3 text-xs bg-white border border-orange-200 rounded-xl focus:ring-2 focus:ring-orange-500/20 outline-none resize-none"></textarea>
+                                                    
+                                                    <input type="file" name="documento" required class="block w-full text-xs text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-orange-100 file:text-orange-700 hover:file:bg-orange-200 cursor-pointer">
+                                                    
+                                                    <button type="submit" class="w-full py-3 bg-orange-600 hover:bg-orange-700 text-white font-black rounded-xl text-xs uppercase tracking-widest transition-all cursor-pointer">
+                                                        🚀 Enviar Versão V<?= $doc['versao_atual'] + 1 ?>
+                                                    </button>
+                                                </form>
+                                            </div>
                                         </div>
                                     <?php endif; ?>
                                 </div>

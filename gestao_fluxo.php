@@ -154,6 +154,7 @@ include 'includes/sidebar.php';
                         'Em Análise'         => 'bg-purple-100 text-purple-700',
                         'Aguardando Ajustes' => 'bg-orange-100 text-orange-700',
                         'Aprovado'           => 'bg-emerald-100 text-emerald-700',
+                        'APROVADO' => 'bg-emerald-100 text-emerald-700',
                         'Recusado'           => 'bg-red-100 text-red-700',
                     ];
                     $cor_status = $badges[$doc['status']] ?? 'bg-slate-100 text-slate-500';

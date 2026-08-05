@@ -29,25 +29,24 @@ class DocumentoFluxo {
             $novos_ciclos = $doc['ciclos_revisao'];
             $hash = null; // Inicializa variável para o hash
 
-            // 2. Máquina de Estados
+           // 2. Máquina de Estados
             if ($acao === 'assumir' && $estado_atual === 'Pendente T.I') {
                 $novo_status = 'Em Análise';
             } 
             elseif ($acao === 'aprovar' && $estado_atual === 'Em Análise') {
-                // LÓGICA DO LACRE (ISO 9000 - Integridade)
+                // É EXATAMENTE AQUI QUE ELE ESTÁ!
                 $caminho_fisico = __DIR__ . '/../uploads_fluxo/' . $doc['nome_arquivo'];
                 $hash = file_exists($caminho_fisico) ? hash_file('sha256', $caminho_fisico) : null;
                 
-                $novo_status = 'Aprovado';
+                $novo_status = 'Aprovado'; // <--- É AQUI QUE A GENTE VAI MEXER DAQUI A POUCO
                 
-                // Atualiza com os campos de auditoria
                 $stmt_up = $this->pdo->prepare("
                     UPDATE docs_fluxo_simples 
                     SET status = ?, hash_arquivo = ?, publicado_em = NOW(), aprovado_por = ? 
                     WHERE id = ?
                 ");
                 $stmt_up->execute([$novo_status, $hash, $usuario_id, $doc_id]);
-            } 
+            }
             elseif ($acao === 'recusar' && $estado_atual === 'Em Análise') {
                 $novo_status = 'Recusado';
             } 
@@ -63,12 +62,31 @@ class DocumentoFluxo {
             elseif ($acao === 'reenviar' && $estado_atual === 'Aguardando Ajustes') {
                 $novo_status = 'Pendente T.I';
                 $nova_versao++;
-            } else {
+            } 
+
+            // 👇 COLOCA AQUI O NOVO BLOCO PARA O USUÁRIO APROVAR DIRETO 👇
+            elseif ($acao === 'aprovar_usuario' && $estado_atual === 'Aguardando Ajustes') {
+                $caminho_fisico = __DIR__ . '/../uploads_fluxo/' . $doc['nome_arquivo'];
+                $hash = file_exists($caminho_fisico) ? hash_file('sha256', $caminho_fisico) : null;
+                
+                $novo_status = 'Aprovado';
+                
+                // Se quiser que salve o lacre de integridade igual o da T.I, já aproveita e atualiza aqui também:
+                $stmt_up = $this->pdo->prepare("
+                    UPDATE docs_fluxo_simples 
+                    SET status = ?, hash_arquivo = ?, publicado_em = NOW(), aprovado_por = ? 
+                    WHERE id = ?
+                ");
+                $stmt_up->execute([$novo_status, $hash, $usuario_id, $doc_id]);
+            } 
+            // 👆 FIM DO NOVO BLOCO 👆
+                
+            else {
                 throw new Exception("Transição de estado inválida de '$estado_atual' com a ação '$acao'.");
             }
 
             // Se a ação não foi 'aprovar' (que já deu update acima), fazemos o update padrão
-            if ($acao !== 'aprovar') {
+          if ($acao !== 'aprovar' && $acao !== 'aprovar_usuario') {
                 $sql_update = "UPDATE docs_fluxo_simples SET status = ?, versao_atual = ?, ciclos_revisao = ? WHERE id = ?";
                 $this->pdo->prepare($sql_update)->execute([$novo_status, $nova_versao, $novos_ciclos, $doc_id]);
             }

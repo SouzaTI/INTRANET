@@ -65,7 +65,7 @@ $setores_contrato = [
     // 4. Tratamento do Upload do Documento (PDF) direcionado para a pasta criada
     $caminho_documento = null;
     if (isset($_FILES['documento']) && $_FILES['documento']['error'] === UPLOAD_ERR_OK) {
-       $pasta_destino = "upload_pdf/PDF/";
+        $pasta_destino = "upload_pdf/PDF/";
         if (!is_dir($pasta_destino)) {
             mkdir($pasta_destino, 0755, true);
         }

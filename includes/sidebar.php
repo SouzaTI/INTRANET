@@ -64,9 +64,8 @@ $setor_atual_sidebar = isset($_GET['setor_origem']) ? urldecode($_GET['setor_ori
                 <li><a href="treinamento.php" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-navy-800 rounded-lg transition-all"><span>🎓</span> <span class="text-sm font-semibold">Cursos & Treinamentos</span></a></li>
                 <li><a href="meus_documentos.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'meus_documentos.php') ? 'bg-corporate-blue text-white' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>"><span>📤</span> <span class="text-sm font-semibold">Envio de Processos</span></a></li>    
             </ul>
-
-           <!--
-             Bloco 2: Assinaturas Digitais (Isolado e com a estrutura correta)
+           
+            
             <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-3">Assinaturas Digitais</p>
             <ul class="space-y-1">
                 <li>
@@ -85,13 +84,46 @@ $setor_atual_sidebar = isset($_GET['setor_origem']) ? urldecode($_GET['setor_ori
                     </a>
                 </li>
             </ul>
+              
+           <!-- 
+                Início do bloco de Gestão de Contratos - Menu Lateral 
+                Utiliza Tailwind CSS para estilização e PHP para verificar a página ativa ($current_page)
+                -->
+                <!-- 
+                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-3">Gestão de Contratos</p>
+                <ul class="space-y-1 mb-6">
+                    <li>
+                        <a href="painel_contratos.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'painel_contratos.php') ? 'bg-corporate-blue text-white' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>">
+                            <span>📑</span> 
+                            <span class="text-sm font-semibold">Painel de Contratos</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="gestao_contratos.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'gestao_contratos.php') ? 'bg-corporate-blue text-white' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>">
+                            <span>➕</span> 
+                            <span class="text-sm font-semibold">Novo Contrato</span>
+                        </a>
+                    </li>
+                </ul>
+                -->
+                <!-- Fim do bloco de Gestão de Contratos -->
+                        
 
-            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-3">Gestão de Contratos</p>
-            <ul class="space-y-1 mb-6">
-                <li><a href="painel_contratos.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'painel_contratos.php') ? 'bg-corporate-blue text-white' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>"><span>📑</span> <span class="text-sm font-semibold">Painel de Contratos</span></a></li>
-                <li><a href="gestao_contratos.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'gestao_contratos.php') ? 'bg-corporate-blue text-white' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>"><span>➕</span> <span class="text-sm font-semibold">Novo Contrato</span></a></li>
-            </ul>
-            -->  
+            
+            <?php 
+            // Trava de segurança: Só exibe o link da Base de Erros se for Admin ou tiver permissão específica (Ajuste a variável conforme a regra da sua TI)
+            if (isset($_SESSION['is_admin']) && $_SESSION['is_admin'] === true || isset($_SESSION['pode_gerenciar_acessos']) && $_SESSION['pode_gerenciar_acessos'] === true): 
+            ?>
+            <a href="ti_base_erros.php" class="flex items-center gap-3 p-3 rounded-2xl transition-all hover:bg-slate-100 border border-transparent text-slate-500 hover:text-navy-900 group">
+                <div class="w-10 h-10 bg-amber-50 text-amber-500 rounded-xl flex items-center justify-center font-black group-hover:bg-amber-500 group-hover:text-white transition-colors">
+                    🛠️
+                </div>
+                <div class="flex-1">
+                    <h4 class="text-xs font-black uppercase tracking-widest text-navy-900">Base de Erros</h4>
+                    <p class="text-[9px] text-slate-400 font-bold uppercase">Exclusivo T.I</p>
+                </div>
+            </a>
+            <?php endif; ?>
 
         </div>
 
