@@ -98,9 +98,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['_acao'])) {
 
 // 3. BUSCA OS DOCUMENTOS PRINCIPAIS
 $stmt_docs = $pdo_intra->query("
-    SELECT d.*, u.firstname, u.realname 
+    SELECT d.*, 
+           u_criador.firstname, 
+           u_criador.realname, 
+           u_aprovador.firstname AS aprovador_firstname 
     FROM docs_fluxo_simples d
-    LEFT JOIN " . DB_GLPI . ".glpi_users u ON d.usuario_id = u.id
+    LEFT JOIN " . DB_GLPI . ".glpi_users u_criador ON d.usuario_id = u_criador.id
+    LEFT JOIN " . DB_GLPI . ".glpi_users u_aprovador ON d.aprovado_por = u_aprovador.id
     ORDER BY d.id DESC
 ");
 $todos_docs = $stmt_docs->fetchAll(PDO::FETCH_ASSOC);
@@ -154,7 +158,7 @@ include 'includes/sidebar.php';
                         'Em Análise'         => 'bg-purple-100 text-purple-700',
                         'Aguardando Ajustes' => 'bg-orange-100 text-orange-700',
                         'Aprovado'           => 'bg-emerald-100 text-emerald-700',
-                        'APROVADO' => 'bg-emerald-100 text-emerald-700',
+                        'APROVADO'           => 'bg-emerald-100 text-emerald-700',
                         'Recusado'           => 'bg-red-100 text-red-700',
                     ];
                     $cor_status = $badges[$doc['status']] ?? 'bg-slate-100 text-slate-500';
@@ -184,10 +188,21 @@ include 'includes/sidebar.php';
                         $sla_cor = 'text-slate-300';
                     }
 
-                    $responsavel = "";
+                   $responsavel = "";
+
                     if ($doc['status'] === 'Aguardando Ajustes') {
-                        $responsavel = $doc['firstname']; 
-                    } elseif ($doc['status'] === 'Pendente T.I' || $doc['status'] === 'Em Análise'|| $doc['status'] === 'Aprovado') {
+                        $responsavel = $doc['firstname']; // Correto, pois a query trouxe u_criador.firstname puro
+                    } 
+                    elseif ($doc['status'] === 'Aprovado') {
+                        // Se a coluna de quem aprovou tiver preenchida (veio do usuário lá na ponta), mostra o nome dele.
+                        // Se estiver vazia (porque foi aprovado por vocês na gestão), assume o departamento!
+                        if (!empty($doc['aprovador_firstname'])) {
+                            $responsavel = $doc['aprovador_firstname'];
+                        } else {
+                            $responsavel = "Analise de Dados";
+                        }
+                    } 
+                    elseif ($doc['status'] === 'Pendente T.I' || $doc['status'] === 'Em Análise') {
                         $responsavel = "Analise de Dados";
                     }
                 ?>

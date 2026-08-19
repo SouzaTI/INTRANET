@@ -19,9 +19,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
     if ($acao === 'aprovar_usuario') {
         $doc_id = (int)$_POST['doc_id'];
         
-        // Atualiza o status diretamente para Aprovado no banco de dados
-       $stmt = $pdo_intra->prepare("UPDATE docs_fluxo_simples SET status = 'Aprovado' WHERE id = ?");
-        $stmt->execute([$doc_id]);
+        // Atualiza o status para Aprovado e grava quem aprovou no banco de dados
+        $stmt = $pdo_intra->prepare("UPDATE docs_fluxo_simples SET status = 'Aprovado', aprovado_por = ? WHERE id = ?");
+        $stmt->execute([$user_id, $doc_id]);
         
         // Opcional: Registra no histórico se sua classe permitir
         // $fluxo->transitar($doc_id, 'aprovar', $user_id, 'Documento aprovado pelo usuário.', [], null);
@@ -150,10 +150,6 @@ include 'includes/sidebar.php';
                     'Aguardando Ajustes' => 'bg-orange-100 text-orange-700 animate-pulse',
                     'Aprovado'           => 'bg-emerald-100 text-emerald-700',
                     'APROVADO'           => 'bg-emerald-100 text-emerald-700',
-                    'Aprovado - Análise' => 'bg-emerald-100 text-emerald-700',
-                    'APROVADO - ANÁLISE' => 'bg-emerald-100 text-emerald-700',
-                    'Aprovado - Usuário' => 'bg-emerald-100 text-emerald-700',
-                    'APROVADO - USUÁRIO' => 'bg-emerald-100 text-emerald-700',
                     'Recusado'           => 'bg-red-100 text-red-700',
                 ];
                     $cor_status = $badges[$doc['status']] ?? 'bg-slate-100 text-slate-500';
@@ -168,13 +164,14 @@ include 'includes/sidebar.php';
                                 
                     $responsavel = "Aguardando definição"; 
                     if ($doc['status'] === 'Aguardando Ajustes') {
-                        $responsavel = $_SESSION['nome_de_usuário'] ?? 'Usuário';
-                    } elseif (in_array($doc['status'], ['Pendente T.I', 'Em Análise', 'Aprovado'])) {
+                        $responsavel = "Aguardando suas correções";
+                    } elseif ($doc['status'] === 'Aprovado') {
+                        $responsavel = "Aprovado pelo usuário";
+                    } elseif (in_array($doc['status'], ['Pendente T.I', 'Em Análise'])) {
                         $responsavel = "Analise de Dados";
                     } else {
                         $responsavel = ""; 
                     }
- 
                 ?>
                 
                 <tbody x-data="{ aberto: false }">

@@ -108,6 +108,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 $stmt_s = $pdo_intra->prepare("INSERT INTO grupos_sistemas (grupo_id, sistema_id) VALUES (?, ?)");
                 foreach ($_POST['sistemas_grupo'] as $sid) { $stmt_s->execute([$gid, $sid]); }
             }
+
+            // Permissões internas da Gestão de Contratos.
+            $pdo_intra->prepare("DELETE FROM contratos_grupos_permissoes WHERE grupo_id = ?")->execute([$gid]);
+            if (!empty($_POST['contratos_permissoes']) && is_array($_POST['contratos_permissoes'])) {
+                $stmt_cp = $pdo_intra->prepare(
+                    "INSERT INTO contratos_grupos_permissoes (grupo_id, permissao_id, permitido) VALUES (?, ?, 1)"
+                );
+                foreach (array_unique(array_map('intval', $_POST['contratos_permissoes'])) as $permissao_id) {
+                    if ($permissao_id > 0) $stmt_cp->execute([$gid, $permissao_id]);
+                }
+            }
             
             header("Location: admin_gestao.php?sucesso=" . urlencode("Grupo '$nome' salvo com sucesso!"));
             exit;
@@ -121,6 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             $pdo_intra->prepare("DELETE FROM grupos_videos WHERE grupo_id = ?")->execute([$gid]);
             $pdo_intra->prepare("DELETE FROM usuarios_grupos WHERE grupo_id = ?")->execute([$gid]);
             $pdo_intra->prepare("DELETE FROM grupos_sistemas WHERE grupo_id = ?")->execute([$gid]);
+            $pdo_intra->prepare("DELETE FROM contratos_grupos_permissoes WHERE grupo_id = ?")->execute([$gid]);
             registrarLog($pdo_intra, 'EXCLUIU GRUPO', "Deletou o grupo de ID: $gid", $admin_id, $admin_ip);
             
             header("Location: admin_gestao.php?sucesso=" . urlencode("Grupo excluído com sucesso!"));
@@ -281,6 +293,11 @@ if (is_dir($diretorio_videos)) {
 
 $sistemas_db = $pdo_intra->query("SELECT * FROM sistemas_lista ORDER BY nome")->fetchAll(PDO::FETCH_ASSOC);
 
+$contratos_permissoes = $pdo_intra->query(
+    "SELECT id, codigo, nome FROM contratos_permissoes
+     ORDER BY CASE WHEN codigo = 'acessar_modulo' THEN 0 ELSE 1 END, nome"
+)->fetchAll(PDO::FETCH_ASSOC);
+
 $grupos = $pdo_intra->query("SELECT * FROM grupos_intranet ORDER BY nome")->fetchAll(PDO::FETCH_ASSOC);
 $grupos_map = [];
 foreach ($grupos as &$g) {
@@ -295,6 +312,13 @@ foreach ($grupos as &$g) {
     $stmt_sys = $pdo_intra->prepare("SELECT sistema_id FROM grupos_sistemas WHERE grupo_id = ?");
     $stmt_sys->execute([$g['id']]);
     $g['sistemas'] = $stmt_sys->fetchAll(PDO::FETCH_COLUMN);
+
+    $stmt_contratos = $pdo_intra->prepare(
+        "SELECT permissao_id FROM contratos_grupos_permissoes
+         WHERE grupo_id = ? AND permitido = 1"
+    );
+    $stmt_contratos->execute([$g['id']]);
+    $g['contratos_permissoes'] = $stmt_contratos->fetchAll(PDO::FETCH_COLUMN);
 
     $grupos_map[$g['id']] = $g;
 }
@@ -666,48 +690,62 @@ unset($u);
     </div>
 </div>
 
-<div id="modalGroup" class="fixed inset-0 bg-navy-900/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
-    <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-        <form method="POST">
+<div id="modalGroup" class="fixed inset-0 bg-navy-900/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-2 md:p-4">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-4xl h-[94vh] md:h-auto md:max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-300">
+        <form method="POST" class="flex h-full max-h-[94vh] md:max-h-[90vh] flex-col">
             <input type="hidden" name="acao" value="salvar_grupo">
             <input type="hidden" name="grupo_id" id="mg_id">
             
-            <div class="px-8 py-6 bg-corporate-blue text-white flex justify-between items-center">
-                <h3 class="text-xl font-black italic uppercase tracking-tighter" id="mg_titulo">Gerenciar Grupo</h3>
-                <button type="button" onclick="fecharModais()" class="text-white/50 hover:text-white text-3xl">&times;</button>
+            <div class="px-5 py-3.5 md:px-6 bg-corporate-blue text-white flex justify-between items-center shrink-0">
+                <div>
+                    <h3 class="text-base md:text-lg font-black italic uppercase tracking-tighter" id="mg_titulo">Gerenciar Grupo</h3>
+                    <p class="text-[9px] text-white/70">Defina os acessos e permissões do grupo</p>
+                </div>
+                <button type="button" onclick="fecharModais()" class="text-white/60 hover:text-white text-2xl leading-none">&times;</button>
+            </div>
+
+            <div class="shrink-0 border-b border-slate-200 bg-white px-4 pt-3 md:px-6">
+                <div class="grid grid-cols-5 gap-1 rounded-xl bg-slate-100 p-1">
+                    <button type="button" data-aba-grupo="geral" onclick="trocarAbaGrupo('geral')" class="aba-grupo rounded-lg px-2 py-2 text-[9px] font-black uppercase transition-all">Geral</button>
+                    <button type="button" data-aba-grupo="pastas" onclick="trocarAbaGrupo('pastas')" class="aba-grupo rounded-lg px-2 py-2 text-[9px] font-black uppercase transition-all">Pastas</button>
+                    <button type="button" data-aba-grupo="videos" onclick="trocarAbaGrupo('videos')" class="aba-grupo rounded-lg px-2 py-2 text-[9px] font-black uppercase transition-all">Vídeos</button>
+                    <button type="button" data-aba-grupo="contratos" onclick="trocarAbaGrupo('contratos')" class="aba-grupo rounded-lg px-2 py-2 text-[9px] font-black uppercase transition-all">Contratos</button>
+                    <button type="button" data-aba-grupo="sistemas" onclick="trocarAbaGrupo('sistemas')" class="aba-grupo rounded-lg px-2 py-2 text-[9px] font-black uppercase transition-all">Sistemas</button>
+                </div>
             </div>
             
-            <div class="p-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
-                <div class="mb-8">
+            <div class="min-h-0 flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6">
+                <section data-painel-grupo="geral">
+                <div class="mb-5">
                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">Nome do Grupo</label>
                     <input type="text" name="nome_grupo" id="mg_nome" required class="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl text-sm font-bold uppercase focus:ring-2 ring-corporate-blue outline-none transition-all">
                 </div>
 
-                <div class="mb-8">
+                <div>
                     <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-3">Acessos Administrativos</p>
-                    <div class="grid grid-cols-2 gap-3">
-                        <label class="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-transparent hover:border-slate-200 cursor-pointer transition-all">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <label class="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-transparent hover:border-slate-200 cursor-pointer transition-all">
                             <input type="checkbox" name="g_admin" id="mg_g_admin" class="w-5 h-5 rounded-lg border-slate-300 text-corporate-blue focus:ring-corporate-blue">
                             <div>
                                 <p class="text-xs font-black text-navy-900 uppercase">Administrador Total</p>
                                 <p class="text-[9px] text-slate-500 font-medium">Acesso a todas as configurações</p>
                             </div>
                         </label>
-                        <label class="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-transparent hover:border-slate-200 cursor-pointer transition-all">
+                        <label class="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-transparent hover:border-slate-200 cursor-pointer transition-all">
                             <input type="checkbox" name="g_feed" id="mg_g_feed" class="w-5 h-5 rounded-lg border-slate-300 text-amber-500 focus:ring-amber-500">
                             <div>
                                 <p class="text-xs font-black text-navy-900 uppercase">Gestão de Feed</p>
                                 <p class="text-[9px] text-slate-500 font-medium">Postar e excluir comunicados</p>
                             </div>
                         </label>
-                        <label class="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-transparent hover:border-slate-200 cursor-pointer transition-all">
+                        <label class="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-transparent hover:border-slate-200 cursor-pointer transition-all">
                             <input type="checkbox" name="g_docs" id="mg_g_docs" class="w-5 h-5 rounded-lg border-slate-300 text-blue-500 focus:ring-blue-500">
                             <div>
                                 <p class="text-xs font-black text-navy-900 uppercase">Gestão de Docs</p>
                                 <p class="text-[9px] text-slate-500 font-medium">Upload e remoção de arquivos</p>
                             </div>
                         </label>
-                        <label class="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-transparent hover:border-slate-200 cursor-pointer transition-all">
+                        <label class="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-transparent hover:border-slate-200 cursor-pointer transition-all">
                             <input type="checkbox" name="g_acessos" id="mg_g_acessos" class="w-5 h-5 rounded-lg border-slate-300 text-emerald-500 focus:ring-emerald-500">
                             <div>
                                 <p class="text-xs font-black text-navy-900 uppercase">Gestão de Acessos</p>
@@ -716,8 +754,9 @@ unset($u);
                         </label>
                     </div>
                 </div>
+                </section>
 
-                <div class="mb-8">
+                <section data-painel-grupo="pastas" class="hidden">
                     <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-3">📁 Pastas de Documentos</p>
                     <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
                         <?php foreach ($pastas_fisicas as $pasta): ?>
@@ -727,9 +766,9 @@ unset($u);
                         </label>
                         <?php endforeach; ?>
                     </div>
-                </div>
+                </section>
 
-                <div class="mb-8">
+                <section data-painel-grupo="videos" class="hidden">
                     <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-3">🎬 Playlists da Academia (Vídeos)</p>
                     <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
                         <?php foreach ($pastas_videos as $video_folder): ?>
@@ -739,9 +778,40 @@ unset($u);
                         </label>
                         <?php endforeach; ?>
                     </div>
-                </div>
+                </section>
 
-                <div>
+                <section data-painel-grupo="contratos" class="hidden rounded-2xl border border-blue-100 bg-blue-50/40 p-4">
+                    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <p class="text-[10px] font-black text-blue-700 uppercase tracking-widest">Gestão de Contratos</p>
+                                <span id="contador-contratos-grupo" class="rounded-full bg-blue-600 px-2.5 py-1 text-[9px] font-black text-white">0 liberadas</span>
+                            </div>
+                            <p class="mt-1 text-[10px] text-slate-500">Controle a exibição do módulo e as ações permitidas dentro da página.</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button type="button" onclick="marcarPermissoesContratos(true)" class="rounded-xl border border-blue-200 bg-white px-3 py-2 text-[9px] font-black uppercase text-blue-700 hover:bg-blue-50">Marcar todas</button>
+                            <button type="button" onclick="marcarPermissoesContratos(false)" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[9px] font-black uppercase text-slate-500 hover:bg-slate-50">Limpar</button>
+                        </div>
+                    </div>
+                    <input type="search" id="busca-contratos-grupo" oninput="filtrarPermissoesContratos()" placeholder="Buscar permissão..." class="mb-3 w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100">
+                    <div id="lista-contratos-grupo" class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                        <?php foreach ($contratos_permissoes as $permissao): ?>
+                        <label class="item-permissao-contrato flex items-start gap-3 rounded-xl border bg-white p-3 cursor-pointer transition-all hover:border-blue-300 <?php echo $permissao['codigo'] === 'acessar_modulo' ? 'border-blue-300 ring-1 ring-blue-100' : 'border-slate-200'; ?>" data-busca="<?php echo htmlspecialchars(mb_strtolower($permissao['nome'] . ' ' . $permissao['codigo'], 'UTF-8'), ENT_QUOTES, 'UTF-8'); ?>">
+                            <input type="checkbox" name="contratos_permissoes[]" value="<?php echo (int)$permissao['id']; ?>" data-codigo="<?php echo htmlspecialchars($permissao['codigo'], ENT_QUOTES, 'UTF-8'); ?>" onchange="atualizarContadorContratos()" class="chk-mg-contrato mt-0.5 w-5 h-5 rounded-lg border-slate-300 text-blue-600 focus:ring-blue-500">
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <p class="text-xs font-black text-navy-900 uppercase"><?php echo htmlspecialchars($permissao['nome'], ENT_QUOTES, 'UTF-8'); ?></p>
+                                    <?php if ($permissao['codigo'] === 'acessar_modulo'): ?><span class="rounded-full bg-emerald-100 px-2 py-0.5 text-[8px] font-black uppercase text-emerald-700">Principal</span><?php endif; ?>
+                                </div>
+                                <p class="mt-1 truncate font-mono text-[9px] text-slate-400"><?php echo htmlspecialchars($permissao['codigo'], ENT_QUOTES, 'UTF-8'); ?></p>
+                            </div>
+                        </label>
+                        <?php endforeach; ?>
+                    </div>
+                </section>
+
+                <section data-painel-grupo="sistemas" class="hidden">
                     <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-3">Sistemas Visíveis (Launchpad)</p>
                     <div class="grid grid-cols-2 gap-3">
                         <?php foreach ($sistemas_db as $s): ?>
@@ -754,12 +824,12 @@ unset($u);
                         </label>
                         <?php endforeach; ?>
                     </div>
-                </div>
+                </section>
             </div>
             
-            <div class="p-6 bg-slate-50 border-t border-slate-200 flex gap-3">
-                <button type="button" onclick="fecharModais()" class="flex-1 bg-white border border-slate-200 py-4 rounded-2xl text-xs font-black uppercase text-slate-500 hover:bg-slate-100 transition-all">Cancelar</button>
-                <button type="submit" class="flex-1 bg-corporate-blue text-white py-4 rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-blue-900/20 hover:scale-[1.02] transition-all">Salvar Grupo</button>
+            <div class="shrink-0 p-3 md:px-5 bg-slate-50 border-t border-slate-200 flex gap-3">
+                <button type="button" onclick="fecharModais()" class="flex-1 bg-white border border-slate-200 py-3 rounded-xl text-[10px] font-black uppercase text-slate-500 hover:bg-slate-100 transition-all">Cancelar</button>
+                <button type="submit" class="flex-1 bg-corporate-blue text-white py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-900/20 hover:bg-blue-700 transition-all">Salvar Grupo</button>
             </div>
         </form>
     </div>
@@ -781,6 +851,45 @@ unset($u);
 
     const dadosUsuarios = <?php echo json_encode($usuarios_json); ?>;
     const dadosGrupos = <?php echo json_encode($grupos_map); ?>;
+
+    function trocarAbaGrupo(aba) {
+        document.querySelectorAll('[data-painel-grupo]').forEach(painel => {
+            painel.classList.toggle('hidden', painel.dataset.painelGrupo !== aba);
+        });
+
+        document.querySelectorAll('[data-aba-grupo]').forEach(botao => {
+            const ativa = botao.dataset.abaGrupo === aba;
+            botao.classList.toggle('bg-white', ativa);
+            botao.classList.toggle('text-corporate-blue', ativa);
+            botao.classList.toggle('shadow-sm', ativa);
+            botao.classList.toggle('text-slate-500', !ativa);
+            botao.classList.toggle('hover:text-navy-900', !ativa);
+        });
+    }
+
+    function atualizarContadorContratos() {
+        const total = document.querySelectorAll('.chk-mg-contrato:checked').length;
+        const contador = document.getElementById('contador-contratos-grupo');
+        if (contador) contador.innerText = total + (total === 1 ? ' liberada' : ' liberadas');
+    }
+
+    function marcarPermissoesContratos(marcar) {
+        document.querySelectorAll('.item-permissao-contrato').forEach(item => {
+            if (!item.classList.contains('hidden')) {
+                const checkbox = item.querySelector('.chk-mg-contrato');
+                if (checkbox) checkbox.checked = marcar;
+            }
+        });
+        atualizarContadorContratos();
+    }
+
+    function filtrarPermissoesContratos() {
+        const campo = document.getElementById('busca-contratos-grupo');
+        const termo = (campo ? campo.value : '').trim().toLocaleLowerCase('pt-BR');
+        document.querySelectorAll('.item-permissao-contrato').forEach(item => {
+            item.classList.toggle('hidden', !item.dataset.busca.includes(termo));
+        });
+    }
 
     function fecharModais() {
         document.getElementById('modalUser').classList.replace('flex', 'hidden');
@@ -845,6 +954,7 @@ unset($u);
     }
 
     function abrirModalGrupo(id) {
+        trocarAbaGrupo('geral');
         document.getElementById('mg_id').value = '';
         document.getElementById('mg_nome').value = '';
         document.getElementById('mg_titulo').innerText = 'Novo Grupo';
@@ -857,6 +967,10 @@ unset($u);
         document.querySelectorAll('.chk-mg-sistema').forEach(cb => cb.checked = false);
         document.querySelectorAll('.chk-mg-pasta').forEach(cb => cb.checked = false);
         document.querySelectorAll('.chk-mg-video').forEach(cb => cb.checked = false); // LIMPA VÍDEOS
+        document.querySelectorAll('.chk-mg-contrato').forEach(cb => cb.checked = false);
+        const buscaContratos = document.getElementById('busca-contratos-grupo');
+        if (buscaContratos) buscaContratos.value = '';
+        filtrarPermissoesContratos();
 
         if (id !== 0) {
             const g = dadosGrupos[id];
@@ -892,8 +1006,16 @@ unset($u);
                         if(cb) cb.checked = true;
                     });
                 }
+
+                if(g.contratos_permissoes) {
+                    g.contratos_permissoes.forEach(permissaoId => {
+                        const cb = document.querySelector(`.chk-mg-contrato[value="${permissaoId}"]`);
+                        if(cb) cb.checked = true;
+                    });
+                }
             }
         }
+        atualizarContadorContratos();
         document.getElementById('modalGroup').classList.replace('hidden', 'flex');
     }
 

@@ -1,4 +1,17 @@
 <?php
+require_once __DIR__ . '/../api/ContratoAuth.php';
+
+$usuarioIdSidebar = (int) ($_SESSION['user_id'] ?? 0);
+$ehAdminSidebar = isset($_SESSION['is_admin']) && $_SESSION['is_admin'] === true;
+
+$contratoAuthSidebar = new ContratoAuth(
+    $pdo_intra,
+    $usuarioIdSidebar,
+    $ehAdminSidebar
+);
+
+$mostrarGestaoContratos = $contratoAuthSidebar->pode('acessar_modulo');
+
 // Identifica a página atual para o estado "selecionado"
 $current_page = basename($_SERVER['PHP_SELF']);
 $is_docs_active = ($current_page == 'view.php' || isset($_GET['path']));
@@ -41,6 +54,10 @@ while ($row = $stmt_aprovados->fetch(PDO::FETCH_ASSOC)) {
 }
 $is_proc_active = ($current_page == 'visualizar_processo.php');
 $setor_atual_sidebar = isset($_GET['setor_origem']) ? urldecode($_GET['setor_origem']) : '';
+
+
+
+
 ?>
 
 <div id="mobile-overlay" onclick="toggleMobileMenu()" class="fixed inset-0 bg-black/60 z-40 hidden lg:hidden backdrop-blur-sm transition-opacity opacity-0"></div>
@@ -84,30 +101,24 @@ $setor_atual_sidebar = isset($_GET['setor_origem']) ? urldecode($_GET['setor_ori
                     </a>
                 </li>
             </ul>
-              
-           <!-- 
-                Início do bloco de Gestão de Contratos - Menu Lateral 
-                Utiliza Tailwind CSS para estilização e PHP para verificar a página ativa ($current_page)
-                -->
-                <!-- 
-                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-3">Gestão de Contratos</p>
+            
+            <?php if ($mostrarGestaoContratos): ?>
+                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-3">
+                    Gestão de Contratos
+                </p>
+
                 <ul class="space-y-1 mb-6">
                     <li>
-                        <a href="painel_contratos.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'painel_contratos.php') ? 'bg-corporate-blue text-white' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>">
-                            <span>📑</span> 
-                            <span class="text-sm font-semibold">Painel de Contratos</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="gestao_contratos.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page == 'gestao_contratos.php') ? 'bg-corporate-blue text-white' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>">
-                            <span>➕</span> 
-                            <span class="text-sm font-semibold">Novo Contrato</span>
+                        <a href="contratos.php"
+                        class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all <?php echo ($current_page === 'contratos.php') ? 'bg-corporate-blue text-white' : 'text-slate-400 hover:text-white hover:bg-navy-800'; ?>">
+                            <span>📑</span>
+                            <span class="text-sm font-semibold">
+                                Gestão de Contratos
+                            </span>
                         </a>
                     </li>
                 </ul>
-                -->
-                <!-- Fim do bloco de Gestão de Contratos -->
-                        
+            <?php endif; ?>
 
             
             <?php 

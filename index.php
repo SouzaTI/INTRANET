@@ -433,9 +433,15 @@ if (empty($aniversariantes)) {
         <div class="absolute -top-24 -right-24 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl"></div>
         <button onclick="fecharModalSistemas()" class="absolute top-5 right-6 text-white/30 hover:text-white transition-colors text-3xl font-light z-30">&times;</button>
 
-        <div class="mb-8 text-left border-b border-white/5 pb-4 mt-4 md:mt-0">
-            <h2 id="tituloModalSistemas" class="text-white text-xl font-black tracking-tighter uppercase italic">Sistemas de Navegação</h2>
-            <p id="subtituloModalSistemas" class="text-blue-400 text-[10px] font-bold uppercase tracking-widest">Sistemas e ferramentas autorizados para seu perfil</p>
+       <div class="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center border-b border-white/5 pb-4 mt-4 md:mt-0">
+            <div>
+                <h2 id="tituloModalSistemas" class="text-white text-xl font-black tracking-tighter uppercase italic">Sistemas de Navegação</h2>
+                <p id="subtituloModalSistemas" class="text-blue-400 text-[10px] font-bold uppercase tracking-widest">Sistemas e ferramentas autorizados para seu perfil</p>
+            </div>
+            <!-- Caixinha de Pesquisa -->
+            <div class="mt-3 md:mt-0">
+                <input type="text" id="inputBuscaSistemas" onkeyup="filtrarSistemas()" placeholder="Pesquisar sistema..." class="bg-slate-800 text-white text-xs px-3 py-2 rounded border border-white/10 focus:outline-none focus:border-blue-500 w-48 md:w-64">
+            </div>
         </div>
 
         <?php 
@@ -471,41 +477,40 @@ if (empty($aniversariantes)) {
         ?>
 
         <div id="gridSistemasPrincipal" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar-compact animate-in fade-in duration-300">
-            <?php if (empty($sistemas_raiz)): ?>
-                <div class="col-span-full text-center py-10 text-white/40 text-xs font-bold uppercase tracking-widest">
-                    ⚠️ NENHUM ACESSO LIBERADO PARA SEU PERFIL.
-                </div>
-            <?php else: ?>
-                <?php foreach ($sistemas_raiz as $sys): 
-                    $is_grupo = ($sys['url'] === '#');
-                    
-                    // Tratamento dinâmico para as bordas de cores vindas do banco
-                    $cor_base = !empty($sys['cor']) ? str_replace('bg-', '', $sys['cor']) : 'slate-600';
+                <?php if (empty($sistemas_raiz)): ?>
+            <div class="col-span-full text-center py-10 text-white/40 text-xs font-bold uppercase tracking-widest">
+                ⚠️ NENHUM ACESSO LIBERADO PARA SEU PERFIL.
+            </div>
+        <?php else: ?>
+            <?php foreach ($sistemas_raiz as $sys): 
+                $is_grupo = ($sys['url'] === '#');
+                $cor_base = !empty($sys['cor']) ? str_replace('bg-', '', $sys['cor']) : 'slate-600';
+            ?>
+                <?php if ($is_grupo): 
+                    $sub_json = isset($sistemas_filhos[$sys['id']]) ? json_encode($sistemas_filhos[$sys['id']], JSON_HEX_APOS | JSON_HEX_QUOT) : '[]';
                 ?>
-                    <?php if ($is_grupo): 
-                        $sub_json = isset($sistemas_filhos[$sys['id']]) ? json_encode($sistemas_filhos[$sys['id']], JSON_HEX_APOS | JSON_HEX_QUOT) : '[]';
-                    ?>
-                        <div onclick='abrirPastaSistemas("<?php echo htmlspecialchars($sys['nome'], ENT_QUOTES, 'UTF-8'); ?>", <?php echo $sub_json; ?>)' class="cursor-pointer group flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-white/5 transition-all duration-300">
-                            <div class="w-14 h-14 rounded-full bg-white/5 border-2 border-dashed border-<?= $cor_base ?>/40 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 group-hover:bg-white/10 group-hover:border-solid group-hover:ring-4 group-hover:ring-<?= $cor_base ?>/20 transition-all duration-300 relative">
-                                <?php echo $sys['icone']; ?>
-                                <span class="absolute top-0 right-0 w-2.5 h-2.5 bg-blue-500 rounded-full border border-navy-900 shadow-sm"></span>
-                            </div>
-                            <span class="mt-2 text-white/70 font-bold text-[10px] uppercase tracking-tighter text-center leading-tight group-hover:text-white">
-                                <?php echo htmlspecialchars($sys['nome']); ?>
-                            </span>
+                
+                <div onclick='abrirPastaSistemas(<?php echo json_encode($sys['nome']); ?>, <?php echo $sub_json; ?>)' class="sistema-card cursor-pointer group flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-white/5 transition-all duration-300" data-nome="<?php echo strtoupper(htmlspecialchars($sys['nome'], ENT_QUOTES, 'UTF-8')); ?>" data-subitens='<?php echo htmlspecialchars($sub_json, ENT_QUOTES, 'UTF-8'); ?>'>
+                    <div class="w-14 h-14 rounded-full bg-white/5 border-2 border-dashed border-<?= $cor_base ?>/40 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 group-hover:bg-white/10 group-hover:border-solid group-hover:ring-4 group-hover:ring-<?= $cor_base ?>/20 transition-all duration-300 relative">
+                        <?php echo $sys['icone']; ?>
+                        <span class="absolute top-0 right-0 w-2.5 h-2.5 bg-blue-500 rounded-full border border-navy-900 shadow-sm"></span>
                         </div>
-                    <?php else: ?>
-                        <a href="<?php echo htmlspecialchars($sys['url']); ?>" target="_blank" class="group flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-white/5 transition-all duration-300">
-                            <div class="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 group-hover:bg-white/10 group-hover:border-<?= $cor_base ?>/60 transition-all duration-300">
-                                <?php echo $sys['icone']; ?>
-                            </div>
-                            <span class="mt-2 text-white/50 font-semibold text-[10px] uppercase tracking-tighter text-center leading-tight group-hover:text-white">
-                                <?php echo htmlspecialchars($sys['nome']); ?>
-                            </span>
-                        </a>
-                    <?php endif; ?>
-                <?php endforeach; ?>
-            <?php endif; ?>
+                        <span class="mt-2 text-white/70 font-bold text-[10px] uppercase tracking-tighter text-center leading-tight group-hover:text-white">
+                            <?php echo htmlspecialchars($sys['nome']); ?>
+                        </span>
+                    </div>
+                <?php else: ?>
+                    <a href="<?php echo htmlspecialchars($sys['url']); ?>" target="_blank" class="sistema-card group flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-white/5 transition-all duration-300" data-nome="<?php echo strtoupper(htmlspecialchars($sys['nome'])); ?>">
+                        <div class="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 group-hover:bg-white/10 group-hover:border-<?= $cor_base ?>/60 transition-all duration-300">
+                            <?php echo $sys['icone']; ?>
+                        </div>
+                        <span class="mt-2 text-white/50 font-semibold text-[10px] uppercase tracking-tighter text-center leading-tight group-hover:text-white">
+                            <?php echo htmlspecialchars($sys['nome']); ?>
+                        </span>
+                    </a>
+                <?php endif; ?>
+            <?php endforeach; ?>
+        <?php endif; ?>
         </div>
 
         <div id="gridSistemasSub" class="hidden grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar-compact animate-in slide-in-from-right-5 duration-300"></div>
@@ -1019,6 +1024,66 @@ setInterval(function() {
         el.querySelector('.c-segs').innerText = Math.floor((distancia % (1000 * 60)) / 1000).toString().padStart(2, '0');
     });
 }, 1000);
+
+ function filtrarSistemas() {
+    let input = document.getElementById('inputBuscaSistemas');
+    let filtro = input.value.toUpperCase();
+    let gridPrincipal = document.getElementById('gridSistemasPrincipal');
+    let cards = document.querySelectorAll('.sistema-card');
+
+    if (filtro === "") {
+        // Se limpou a busca, restaura os cards normais e remove os injetados
+        cards.forEach(card => card.style.display = "");
+        let dinamicos = document.querySelectorAll('.card-dinamico-busca');
+        dinamicos.forEach(d => d.remove());
+        return;
+    }
+
+    // Esconde tudo primeiro
+    cards.forEach(card => card.style.display = "none");
+    
+    // Remove resultados dinâmicos anteriores
+    let dinamicosAntigos = document.querySelectorAll('.card-dinamico-busca');
+    dinamicosAntigos.forEach(d => d.remove());
+
+    cards.forEach(card => {
+        let nomeSistema = card.getAttribute('data-nome') || '';
+        let subitensJson = card.getAttribute('data-subitens') || '';
+
+        // Se o pai bateu com a busca, mostra o pai normal
+        if (nomeSistema.includes(filtro)) {
+            card.style.display = "";
+        }
+
+        // Se tem subitens, varre para ver se algum filho bate com a busca
+        if (subitensJson) {
+            try {
+                let subitens = JSON.parse(subitensJson);
+                subitens.forEach(sub => {
+                    if (sub.nome.toUpperCase().includes(filtro)) {
+                        // O pulo do gato: cria o card do subitem direto no grid principal!
+                        let corBase = sub.cor ? sub.cor.replace('bg-', '') : 'white/10';
+                        let novoCard = document.createElement('a');
+                        novoCard.href = sub.url;
+                        novoCard.target = "_blank";
+                        novoCard.className = "sistema-card card-dinamico-busca group flex flex-col items-center justify-center p-3 rounded-2xl hover:bg-white/5 transition-all duration-300";
+                        novoCard.innerHTML = `
+                            <div class="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 group-hover:bg-white/10 group-hover:border-${corBase} transition-all duration-300">
+                                ${sub.icone}
+                            </div>
+                            <span class="mt-2 text-white/60 font-semibold text-[10px] uppercase tracking-tighter text-center leading-tight group-hover:text-white">
+                                ${sub.nome}
+                            </span>
+                        `;
+                        gridPrincipal.appendChild(novoCard);
+                    }
+                });
+            } catch (e) {
+                console.error("Erro ao interpretar subitens:", e);
+            }
+        }
+    });
+}
 
 </script>
 
