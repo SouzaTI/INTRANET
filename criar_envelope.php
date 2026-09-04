@@ -5,16 +5,15 @@ include 'includes/sidebar.php';
 
 // Carrega assinantes disponíveis do GLPI
 $stmt_users = $pdo_intra->query("
-    SELECT u.id, CONCAT(u.firstname, ' ', u.realname) AS nome_completo,
-           l.name AS setor
-    FROM   " . DB_GLPI . ".glpi_users u
-    LEFT JOIN " . DB_GLPI . ".glpi_useremails ue ON ue.users_id = u.id
-    LEFT JOIN " . DB_GLPI . ".glpi_groups_users gu ON gu.users_id = u.id
-    LEFT JOIN " . DB_GLPI . ".glpi_groups l ON l.id = gu.groups_id
-    WHERE  u.is_active = 1 AND u.is_deleted = 0
-    GROUP  BY u.id
-    ORDER  BY u.firstname ASC, u.realname ASC
+    SELECT
+        u.id,
+        TRIM(CONCAT_WS(' ', u.firstname, u.realname)) AS nome_completo
+    FROM " . DB_GLPI . ".glpi_users AS u
+    WHERE u.is_active = 1
+      AND u.is_deleted = 0
+    ORDER BY u.firstname ASC, u.realname ASC
 ");
+
 $usuarios_glpi = $stmt_users->fetchAll(PDO::FETCH_ASSOC);
 
 // Serializa para o JS usar
@@ -382,7 +381,7 @@ function adicionarAssinante() {
     USUARIOS.forEach(u => {
         const opt    = document.createElement('option');
         opt.value    = u.id;
-        opt.textContent = u.nome_completo + (u.setor ? ` — ${u.setor}` : '');
+        opt.textContent = u.nome_completo;
         select.appendChild(opt);
     });
 
