@@ -425,7 +425,7 @@ if (empty($aniversariantes)) {
 
 <?php
 // Módulo separado: Sistemas de Navegação / NOC
-include __DIR__ . '/includes/sistemas_navegacao.php';
+include __DIR__ . '/includes/sistemas_navegacao_teste.php';
 ?>
 
 <div id="modalAgendamento" class="fixed inset-0 z-[1100] hidden items-center justify-center p-4 backdrop-blur-md bg-navy-900/40">
