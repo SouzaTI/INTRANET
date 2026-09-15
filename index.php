@@ -305,14 +305,6 @@ if (empty($aniversariantes)) {
                                 <span class="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">Suporte</span>
                             </div>
                         </a>
-                        <button onclick="abrirModalSistemas()" 
-                                class="w-full flex items-center gap-4 p-3 rounded-xl bg-navy-900 hover:bg-blue-700 border border-transparent transition-all group shadow-md">
-                            <div class="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-lg group-hover:rotate-12 transition-transform">🚀</div>
-                            <div class="flex flex-col text-left text-white">
-                                <span class="text-xs font-black leading-tight uppercase">Outros</span>
-                                <span class="text-[9px] text-white/50 font-bold uppercase tracking-tighter italic">Navegação</span>
-                            </div>
-                        </button>
                     </div>
                 </div>
 
@@ -427,6 +419,20 @@ if (empty($aniversariantes)) {
 // Módulo separado: Sistemas de Navegação / NOC
 include __DIR__ . '/includes/sistemas_navegacao.php';
 ?>
+
+<?php if (isset($_GET['abrir_sistemas']) && $_GET['abrir_sistemas'] === '1'): ?>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (typeof abrirModalSistemas === 'function') {
+        abrirModalSistemas();
+
+        const url = new URL(window.location.href);
+        url.searchParams.delete('abrir_sistemas');
+        window.history.replaceState({}, document.title, url.pathname + url.search + url.hash);
+    }
+});
+</script>
+<?php endif; ?>
 
 <div id="modalAgendamento" class="fixed inset-0 z-[1100] hidden items-center justify-center p-4 backdrop-blur-md bg-navy-900/40">
     <div class="relative bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl flex flex-col md:flex-row overflow-hidden animate-in zoom-in-95 duration-300">
