@@ -293,52 +293,6 @@ if (empty($aniversariantes)) {
                     </div>
                 </div>
 
-                <!-- [BLOCO: SISTEMAS INTERNOS] -->
-                <div id="bloco-sistemas" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-3">
-                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-5">Sistemas Internos</h3>
-                    <div class="grid grid-cols-1 gap-3">
-                        <a href="http://192.168.0.63:8080/glpi17/index.php" target="_blank" 
-                           class="flex items-center gap-4 p-3 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-100 transition-all group">
-                            <div class="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-lg group-hover:scale-110 transition-transform">🛠️</div>
-                            <div class="flex flex-col">
-                                <span class="text-xs font-black text-navy-900 leading-tight">HELP CHAMADOS</span>
-                                <span class="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">Suporte</span>
-                            </div>
-                        </a>
-                    </div>
-                </div>
-
-                <!-- [BLOCO: CENTRAL DE AJUDA] -->
-                <div id="bloco-central-ajuda" class="bg-navy-900 rounded-2xl p-5 text-white shadow-xl border-l-4 border-blue-500 relative overflow-hidden group">
-                    <div class="absolute inset-0 bg-gradient-to-r from-blue-500/0 via-blue-500/5 to-blue-500/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                    
-                    <div class="flex flex-col h-full justify-between relative z-10">
-                        <div>
-                            <div class="flex items-center gap-2 mb-2">
-                                <span class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
-                                <p class="text-[9px] font-black uppercase tracking-widest text-blue-400 italic">Central de Ajuda</p>
-                            </div>
-                            <p class="font-bold text-sm leading-snug">Dúvidas ou suporte técnico?</p>
-                        </div>
-                        
-                        <div class="mt-4 flex items-end justify-between">
-                            <div>
-                                <p class="text-[10px] text-slate-400 uppercase font-bold mb-1">Ramal Interno</p>
-                                <div class="flex items-center gap-2">
-                                    <span class="text-xl font-black text-white tracking-tighter italic">3171</span>
-                                    <span class="text-blue-500 text-xs animate-bounce">📞</span>
-                                </div>
-                            </div>
-                            
-                            <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/40 group-hover:scale-110 transition-transform">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- [BLOCO: PROJETOS ATIVOS] -->
                 <?php
                 $projetos_ativos = [];
@@ -403,13 +357,14 @@ if (empty($aniversariantes)) {
                 </div>
                 <?php endif; ?>
 
-                <!-- [BLOCO: PRESENÇA / EQUIPE ONLINE] -->
+                <!-- [BLOCO: PRESENÇA / EQUIPE ONLINE] 
                 <div id="bloco-equipe-online" class="w-full transition-all duration-500">
                     <div id="painel-presenca">
                         <div class="animate-pulse bg-white rounded-2xl h-64 w-full border border-slate-200"></div>
                     </div>
                 </div>
-
+                -->
+                
             </div> 
         </div>
     </div>

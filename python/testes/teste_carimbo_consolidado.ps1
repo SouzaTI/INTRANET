@@ -2,13 +2,14 @@ $ErrorActionPreference = "Stop"
 
 $PastaTeste = $PSScriptRoot
 $UrlBase = "http://127.0.0.1:5055"
+$PdfTemporario = $null
 
 function Mostrar-Etapa([string]$Texto) {
     Write-Host "`n$Texto" -ForegroundColor Cyan
 }
 
 try {
-    Mostrar-Etapa "[1/5] Verificando o servico..."
+    Mostrar-Etapa "[1/8] Verificando o servico..."
     $Status = Invoke-RestMethod -Uri "$UrlBase/teste" -Method Get -TimeoutSec 10
 
     if (-not $Status.ok) {
@@ -20,7 +21,7 @@ try {
         throw "Versao incorreta. Esperado: 4.0-consolidado. Atual: $($Status.versao)"
     }
 
-    Mostrar-Etapa "[2/5] Procurando um PDF na pasta de testes..."
+    Mostrar-Etapa "[2/8] Procurando um PDF na pasta de testes..."
     $PdfOriginal = Get-ChildItem -LiteralPath $PastaTeste -File -Filter "*.pdf" |
         Where-Object { $_.Name -notlike "RESULTADO_TESTE_*" } |
         Sort-Object LastWriteTime -Descending |
@@ -57,13 +58,38 @@ try {
             assinante_email = "teste2@empresa.local"
             ordem           = 2
             ip_origem       = "127.0.0.1"
+        },
+        @{
+            assinante_nome  = "ASSINANTE TESTE 3"
+            assinante_setor = "FINANCEIRO"
+            assinante_email = "teste3@empresa.local"
+            ordem           = 3
+            ip_origem       = "127.0.0.1"
+        },
+        @{
+            assinante_nome  = "ASSINANTE TESTE 4"
+            assinante_setor = "COMERCIAL"
+            assinante_email = "teste4@empresa.local"
+            ordem           = 4
+            ip_origem       = "127.0.0.1"
+        },
+        @{
+            assinante_nome  = "ASSINANTE TESTE 5"
+            assinante_setor = "DIRETORIA"
+            assinante_email = "teste5@empresa.local"
+            ordem           = 5
+            ip_origem       = "127.0.0.1"
         }
     )
 
+    $TotalAssinaturas = $Assinaturas.Count
+    $TotalEtapas = $TotalAssinaturas + 3
     $Numero = 0
+
     foreach ($Assinatura in $Assinaturas) {
         $Numero++
-        Mostrar-Etapa "[$($Numero + 2)/5] Aplicando assinatura ficticia $Numero de 2..."
+        $EtapaAtual = $Numero + 2
+        Mostrar-Etapa "[$EtapaAtual/$TotalEtapas] Aplicando assinatura ficticia $Numero de $TotalAssinaturas..."
 
         $Dados = @{
             caminho_entrada = $PdfTemporario
@@ -93,15 +119,20 @@ try {
 
     Copy-Item -LiteralPath $PdfTemporario -Destination $PdfResultado
     Remove-Item -LiteralPath $PdfTemporario -Force
+    $PdfTemporario = $null
 
-    Mostrar-Etapa "[5/5] Teste concluido com sucesso."
+    Mostrar-Etapa "[$TotalEtapas/$TotalEtapas] Teste concluido com sucesso."
     Write-Host "Resultado: $PdfResultado" -ForegroundColor Green
-    Write-Host "`nConfira se os dois assinantes aparecem juntos na mesma pagina final." -ForegroundColor Yellow
+    Write-Host "`nConfira se os $TotalAssinaturas assinantes aparecem juntos na mesma pagina final." -ForegroundColor Yellow
     Write-Host "Nenhum banco, envelope ou e-mail foi utilizado neste teste." -ForegroundColor Yellow
 
     Start-Process -FilePath $PdfResultado
 }
 catch {
+    if ($PdfTemporario -and (Test-Path -LiteralPath $PdfTemporario -PathType Leaf)) {
+        Remove-Item -LiteralPath $PdfTemporario -Force -ErrorAction SilentlyContinue
+    }
+
     Write-Host "`n[ERRO] $($_.Exception.Message)" -ForegroundColor Red
     Write-Host "`nConfirme se:" -ForegroundColor Yellow
     Write-Host "- o carimbador esta aberto na porta 5055;"
