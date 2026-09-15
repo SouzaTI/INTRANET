@@ -17,7 +17,7 @@
 <div id="modalSistemas" class="fixed inset-0 z-[1000] hidden items-center justify-center p-4 backdrop-blur-xl bg-navy-900/40 transition-all duration-500">
  <div id="modalSistemasPainel" class="modal-sistemas-painel relative w-[98vw] max-w-[1750px] rounded-[2rem] p-7 animate-in zoom-in-95 duration-300 overflow-hidden">
         
-        <button id="btnVoltarModal" onclick="exibirPrincipalSistemas()" class="hidden absolute top-6 left-6 text-blue-400 hover:text-white hover:scale-105 transition-all text-xs font-black flex items-center gap-2 z-30 bg-white/5 border border-white/10 px-4 py-2 rounded-xl backdrop-blur-md">
+        <button id="btnVoltarModal" onclick="exibirPrincipalSistemas()" class="hidden absolute top-6 left-6 z-30 flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all">
             ⬅️ VOLTAR
         </button>
 
@@ -28,7 +28,7 @@
          <div class="modal-sistemas-header mb-8 flex flex-col md:flex-row justify-between items-start md:items-center border-b border-cyan-400/10 pb-4 mt-4 md:mt-0">
             <div>
                 <h2 id="tituloModalSistemas" class="text-white text-xl font-black tracking-tighter uppercase italic">Sistemas de Navegação</h2>
-                <p id="subtituloModalSistemas" class="text-blue-400 text-[10px] font-bold uppercase tracking-widest">Sistemas e ferramentas autorizados para seu perfil</p>
+                <p id="subtituloModalSistemas" class="text-black-400 text-[10px] font-bold uppercase tracking-widest">Sistemas e ferramentas autorizados para seu perfil</p>
             </div>
            
             <!-- Pesquisa tecnológica de sistemas -->
@@ -114,132 +114,153 @@
             }
 
             // ======================================================
-// PASSO 2 - CATEGORIAS TEMPORÁRIAS DO NOVO PAINEL
-// ======================================================
+            // PASSO 2 - CONFIGURAÇÃO VISUAL DAS CATEGORIAS
+            // ======================================================
+            //
+            // IMPORTANTE:
+            // Os sistemas pertencentes a cada categoria NÃO são mais
+            // definidos por IDs neste arquivo.
+            //
+            // A associação agora vem da coluna `categoria`
+            // da tabela sistemas_lista.
+            //
+            // Aqui ficam somente:
+            // - nome visual
+            // - ícone
+            // - cor
+            // - ordem de exibição
+            // ======================================================
 
-// Aqui usamos os IDs REAIS dos sistemas raiz.
-// Nenhum pai_id do banco será alterado neste teste.
+         $nav_categorias_config = [
 
-$nav_categorias_config = [
+            'monitoramento' => [
+                'nome'  => 'MONITORAMENTO & OBSERVABILIDADE',
+                'icone' => '📡'
+            ],
 
-    'monitoramento' => [
-        'nome'  => 'MONITORAMENTO & OBSERVABILIDADE',
-        'icone' => '📡',
-        'cor'   => '#22d3ee',
-        'ids'   => [
-            53, // Monitoramento TI
-            16, // pfSense e Zabbix
-            59, // Sistema Incidentes
-            61, // Grafana
-            62  // Controle de Atualização por Equipamento
-        ]
-    ],
+            'infraestrutura' => [
+                'nome'  => 'INFRAESTRUTURA & CONECTIVIDADE',
+                'icone' => '🖥️'
+            ],
 
-    'infraestrutura' => [
-        'nome'  => 'INFRAESTRUTURA & CONECTIVIDADE',
-        'icone' => '🖥️',
-        'cor'   => '#3b82f6',
-        'ids'   => [
-            34, // T.I.
-            50, // Internet
-            31, // UniFi
-            32, // Incontrol
-            30  // iCloud
-        ]
-    ],
+            'gestao' => [
+                'nome'  => 'GESTÃO & PROCESSOS',
+                'icone' => '📊'
+            ],
 
-    'gestao' => [
-        'nome'  => 'GESTÃO & PROCESSOS',
-        'icone' => '📊',
-        'cor'   => '#a855f7',
-        'ids'   => [
-            20, // Estrutura de Projetos
-            29, // Kanban
-            39  // Ticket
-        ]
-    ],
+            'corporativos' => [
+                'nome'  => 'SISTEMAS CORPORATIVOS',
+                'icone' => '💼'
+            ],
 
-    'corporativos' => [
-        'nome'  => 'SISTEMAS CORPORATIVOS',
-        'icone' => '💼',
-        'cor'   => '#6366f1',
-        'ids'   => [
-            42  // TOTVS
-        ]
-    ],
+            'facilities' => [
+                'nome'  => 'FACILITIES & OPERAÇÃO',
+                'icone' => '🏢'
+            ],
 
-    'facilities' => [
-        'nome'  => 'FACILITIES & OPERAÇÃO',
-        'icone' => '🏢',
-        'cor'   => '#10b981',
-        'ids'   => [
-            3, // Facilities & T.I.
-            1  // Recebimento
-        ]
-    ],
+            'pessoas' => [
+                'nome'  => 'PESSOAS & RH',
+                'icone' => '👥'
+            ],
 
-    'pessoas' => [
-        'nome'  => 'PESSOAS & RH',
-        'icone' => '👥',
-        'cor'   => '#f59e0b',
-        'ids'   => [
-            11 // Gestão de Ponto
-        ]
-    ],
+            'comunicacao' => [
+                'nome'  => 'COMUNICAÇÃO & TELEFONIA',
+                'icone' => '☎️'
+            ],
 
-    'comunicacao' => [
-        'nome'  => 'COMUNICAÇÃO & TELEFONIA',
-        'icone' => '☎️',
-        'cor'   => '#ec4899',
-        'ids'   => [
-            33, // PABX
-            14  // Vivo 0800
-        ]
-    ]
+            'autocorrecao' => [
+                'nome'  => 'CORREÇÃO AUTOMÁTICA',
+                'icone' => '⚙️'
+            ],
 
-];
+            'escalonamento' => [
+                'nome'  => 'ABERTURA DE CHAMADO',
+                'icone' => '✉️'
+            ]
 
-
-// ======================================================
-// MONTA AS CATEGORIAS RESPEITANDO AS PERMISSÕES
-// ======================================================
-
-$nav_categorias = [];
-
-foreach ($nav_categorias_config as $nav_slug => $nav_config) {
-
-    $nav_sistemas_categoria = [];
-
-    foreach ($nav_config['ids'] as $nav_id_sistema) {
-
-        // Só entra se o sistema estiver entre os
-        // sistemas raiz permitidos para este usuário.
-        if (isset($nav_sistemas_raiz_por_id[$nav_id_sistema])) {
-
-            // Pega o sistema real da tabela
-            $nav_item_sistema = $nav_sistemas_raiz_por_id[$nav_id_sistema];
-
-            // Anexa os filhos reais desse sistema, caso existam
-            $nav_item_sistema['subitens'] =
-                $nav_sistemas_filhos[$nav_id_sistema] ?? [];
-
-            // Adiciona na categoria
-            $nav_sistemas_categoria[] = $nav_item_sistema;
-        }
-    }
-
-    // Categoria sem nenhum acesso não aparece.
-    if (!empty($nav_sistemas_categoria)) {
-
-        $nav_categorias[] = [
-            'slug'     => $nav_slug,
-            'nome'     => $nav_config['nome'],
-            'icone'    => $nav_config['icone'],
-            'cor'      => $nav_config['cor'],
-            'sistemas' => $nav_sistemas_categoria
         ];
-    }
-}
+
+
+            // ======================================================
+            // PASSO 3 - AGRUPA SISTEMAS PELA CATEGORIA DO BANCO
+            // ======================================================
+
+            $nav_categorias_agrupadas = [];
+
+            foreach ($nav_sistemas_raiz as $nav_sys) {
+
+                $nav_id_sistema = (int)$nav_sys['id'];
+
+                // ID 52 continua sendo o NOC central.
+                // Ele não pertence a nenhuma categoria lateral.
+                if ($nav_id_sistema === 52) {
+                    continue;
+                }
+
+                $nav_categoria_slug = trim(
+                    (string)($nav_sys['categoria'] ?? '')
+                );
+
+                // Sistema sem categoria não entra no NOC.
+                if ($nav_categoria_slug === '') {
+                    continue;
+                }
+
+                // Proteção contra uma categoria inválida no banco.
+                if (!isset($nav_categorias_config[$nav_categoria_slug])) {
+                    continue;
+                }
+
+                // Mantém os subitens reais vinculados pelo pai_id.
+                $nav_item_sistema = $nav_sys;
+
+                $nav_item_sistema['subitens'] =
+                    $nav_sistemas_filhos[$nav_id_sistema] ?? [];
+
+                $nav_categorias_agrupadas[$nav_categoria_slug][] =
+                    $nav_item_sistema;
+            }
+
+
+            // ======================================================
+            // PASSO 4 - MONTA AS CATEGORIAS RESPEITANDO PERMISSÕES
+            // ======================================================
+
+            $nav_categorias = [];
+
+            $nav_sistemas_autocorrecao =
+                $nav_categorias_agrupadas['autocorrecao'] ?? [];
+
+            $nav_sistemas_escalonamento =
+                $nav_categorias_agrupadas['escalonamento'] ?? [];
+
+            $nav_categorias_saida = [
+                'autocorrecao',
+                'escalonamento'
+            ];
+
+            foreach ($nav_categorias_config as $nav_slug => $nav_config) {
+
+            if (in_array($nav_slug, $nav_categorias_saida, true)) {
+                continue;
+            }
+
+                $nav_sistemas_categoria =
+                    $nav_categorias_agrupadas[$nav_slug] ?? [];
+
+                // Se o usuário não possui nenhum sistema daquela
+                // categoria, ela simplesmente não aparece.
+                if (empty($nav_sistemas_categoria)) {
+                    continue;
+                }
+
+                $nav_categorias[] = [
+                    'slug'     => $nav_slug,
+                    'nome'     => $nav_config['nome'],
+                    'icone'    => $nav_config['icone'],
+                    'sistemas' => $nav_sistemas_categoria
+                ];
+            }
 
         ?>
 
@@ -285,115 +306,63 @@ foreach ($nav_categorias_config as $nav_slug => $nav_config) {
         ></svg>
 
         <!-- ====================================================== -->
-<!-- PASSO 3 - TESTE VISUAL DAS NOVAS CATEGORIAS -->
-<!-- ====================================================== -->
+        <!-- PASSO 3 - TESTE VISUAL DAS NOVAS CATEGORIAS -->
+        <!-- ====================================================== -->
 
-<div id="nocCategoriasTeste" style="max-width: 380px; display: flex; flex-direction: column; gap: 12px;">
+        <div id="nocCategoriasTeste" class="noc-categorias">
 
-    <div style="
-        color: #22d3ee;
-        font-size: 10px;
-        font-weight: 900;
-        letter-spacing: .18em;
-        margin-bottom: 5px;
-    ">
-        ENTRADA
-    </div>
+            <div class="noc-categorias__titulo">
+                ENTRADA
+            </div>
 
-    <?php foreach ($nav_categorias as $nav_categoria): ?>
+            <?php foreach ($nav_categorias as $nav_categoria): ?>
 
-        <?php
-            $nav_categoria_json = htmlspecialchars(
-                json_encode(
-                    $nav_categoria['sistemas'],
-                    JSON_UNESCAPED_UNICODE |
-                    JSON_HEX_APOS |
-                    JSON_HEX_QUOT
-                ),
-                ENT_QUOTES,
-                'UTF-8'
-            );
-        ?>
+                <?php
+                    $nav_categoria_json = htmlspecialchars(
+                        json_encode(
+                            $nav_categoria['sistemas'],
+                            JSON_UNESCAPED_UNICODE |
+                            JSON_HEX_APOS |
+                            JSON_HEX_QUOT
+                        ),
+                        ENT_QUOTES,
+                        'UTF-8'
+                    );
+                ?>
 
-        <button
+                <button
+                    type="button"
+                    class="noc-categoria-btn"
+                    data-nome="<?= htmlspecialchars(
+                        $nav_categoria['nome'],
+                        ENT_QUOTES,
+                        'UTF-8'
+                    ); ?>"
+                    data-subitens="<?= $nav_categoria_json; ?>"
+                    onclick="abrirCategoriaNoc(this)"
+                >
 
-        data-nome="<?= htmlspecialchars($nav_categoria['nome'], ENT_QUOTES, 'UTF-8'); ?>"
-        data-subitens="<?= $nav_categoria_json; ?>"
-        onclick="abrirCategoriaNoc(this)"
+                    <span class="noc-categoria-btn__icone">
+                        <?= $nav_categoria['icone']; ?>
+                    </span>
 
-            type="button"
-            style="
-                --categoria-cor: <?= htmlspecialchars($nav_categoria['cor'], ENT_QUOTES, 'UTF-8'); ?>;
+                    <span class="noc-categoria-btn__nome">
+                        <?= htmlspecialchars(
+                            $nav_categoria['nome'],
+                            ENT_QUOTES,
+                            'UTF-8'
+                        ); ?>
+                    </span>
 
-                width: 100%;
-                min-height: 72px;
+                    <span class="noc-categoria-btn__seta">
+                        ▶
+                    </span>
 
-                display: grid;
-                grid-template-columns: 50px 1fr 28px;
-                align-items: center;
-                gap: 10px;
+                </button>
 
-                padding: 9px 12px;
+            <?php endforeach; ?>
 
-                color: white;
-                text-align: left;
-
-                border: 1px solid <?= htmlspecialchars($nav_categoria['cor'], ENT_QUOTES, 'UTF-8'); ?>;
-                border-radius: 11px;
-
-                background: linear-gradient(
-                    145deg,
-                    rgba(15,23,42,.96),
-                    rgba(2,12,28,.96)
-                );
-
-                cursor: pointer;
-            "
-        >
-
-            <span style="
-                width: 44px;
-                height: 44px;
-
-                display: flex;
-                align-items: center;
-                justify-content: center;
-
-                border-radius: 9px;
-                background: rgba(2,6,23,.70);
-
-                font-size: 24px;
-            ">
-                <?= $nav_categoria['icone']; ?>
-            </span>
-
-
-            <span style="
-                font-size: 10px;
-                font-weight: 900;
-                line-height: 1.2;
-                text-transform: uppercase;
-            ">
-                <?= htmlspecialchars(
-                    $nav_categoria['nome'],
-                    ENT_QUOTES,
-                    'UTF-8'
-                ); ?>
-            </span>
-
-
-            <span style="
-                color: <?= htmlspecialchars($nav_categoria['cor'], ENT_QUOTES, 'UTF-8'); ?>;
-                font-size: 14px;
-            ">
-                ▶
-            </span>
-
-        </button>
-
-    <?php endforeach; ?>
-
-</div>
+        </div>
 
 <!-- ====================================================== -->
 <!-- PASSO 4 - NOC CENTRAL REAL -->
@@ -407,7 +376,7 @@ foreach ($nav_categorias_config as $nav_slug => $nav_config) {
 
     <?php if ($nav_noc_central): ?>
 
-        <a
+       <a
             href="<?= htmlspecialchars(
                 $nav_noc_central['url'],
                 ENT_QUOTES,
@@ -416,84 +385,31 @@ foreach ($nav_categorias_config as $nav_slug => $nav_config) {
             target="_blank"
             rel="noopener noreferrer"
             id="nocCentralTeste"
-            style="
-                width: 350px;
-                height: 290px;
-
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-
-                text-decoration: none;
-                text-align: center;
-                color: white;
-
-                clip-path: polygon(
-                    25% 0%,
-                    75% 0%,
-                    100% 50%,
-                    75% 100%,
-                    25% 100%,
-                    0% 50%
-                );
-
-                background:
-                    radial-gradient(
-                        circle,
-                        rgba(14, 116, 144, .38),
-                        rgba(3, 18, 38, .98) 70%
-                    );
-
-                filter:
-                    drop-shadow(
-                        0 0 14px rgba(34, 211, 238, .55)
-                    );
-
-                transition:
-                    transform .25s ease,
-                    filter .25s ease;
-            "
+            class="noc-sol-souza"
         >
 
-            <div style="
-                font-size: 38px;
-                margin-bottom: 12px;
-            ">
-                <?= $nav_noc_central['icone']; ?>
+            <div class="noc-sol-rotacao">
+                <img src="img/sol_souza.png" alt="Sol Souza">
             </div>
 
-            <div style="
-                color: #22d3ee;
-                font-size: 21px;
-                font-weight: 900;
-                text-transform: uppercase;
-            ">
-                <?= htmlspecialchars(
-                    $nav_noc_central['nome'],
-                    ENT_QUOTES,
-                    'UTF-8'
-                ); ?>
-            </div>
+            <div class="noc-sol-miolo">
 
-            <div style="
-                margin-top: 5px;
-                color: #67e8f9;
-                font-size: 8px;
-                font-weight: 700;
-                text-transform: uppercase;
-                letter-spacing: .08em;
-            ">
-                CENTRAL DE ATENDIMENTO
-            </div>
+                <div class="noc-sol-icone">
+                    <?= $nav_noc_central['icone']; ?>
+                </div>
 
-            <div style="
-                margin-top: 12px;
-                color: rgba(255,255,255,.75);
-                font-size: 8px;
-                font-weight: 700;
-            ">
-                ACESSO AO NOC DE CHAMADOS
+                <div class="noc-sol-titulo">
+                    <?= htmlspecialchars(
+                        $nav_noc_central['nome'],
+                        ENT_QUOTES,
+                        'UTF-8'
+                    ); ?>
+                </div>
+
+                <div class="noc-sol-descricao">
+                    ACESSO AO NOC DE CHAMADOS
+                </div>
+
             </div>
 
         </a>
@@ -534,18 +450,35 @@ foreach ($nav_categorias_config as $nav_slug => $nav_config) {
         gap: 28px;
     ">
 
+    <?php
+    $nav_autocorrecao_json = htmlspecialchars(
+        json_encode(
+            $nav_sistemas_autocorrecao,
+            JSON_UNESCAPED_UNICODE |
+            JSON_HEX_APOS |
+            JSON_HEX_QUOT
+        ),
+        ENT_QUOTES,
+        'UTF-8'
+    );
+    ?>
+
         <!-- AUTOCORREÇÃO -->
         <div
             id="nocSaidaAutocorrecao"
+            data-nome="CORREÇÃO AUTOMÁTICA"
+            data-subitens="<?= $nav_autocorrecao_json; ?>"
+            onclick="abrirCategoriaNoc(this)"
             style="
                 min-height: 190px;
+                cursor: pointer;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
                 justify-content: center;
                 padding: 18px;
                 text-align: center;
-                border: 1px solid rgba(168, 85, 247, .75);
+                border: 3px solid rgba(255, 196, 0, .72);
                 border-radius: 14px;
                 background:
                     linear-gradient(
@@ -574,17 +507,17 @@ foreach ($nav_categorias_config as $nav_slug => $nav_config) {
             <div style="
                 margin-top: 3px;
                 color: #c084fc;
-                font-size: 8px;
+                font-size: 12px;
                 font-weight: 700;
                 text-transform: uppercase;
-            ">
+            ">  
                 SELF-HEALING
             </div>
 
             <div style="
                 margin-top: 10px;
                 color: rgba(255,255,255,.78);
-                font-size: 8px;
+                font-size: 12px;
                 font-weight: 700;
                 line-height: 1.45;
             ">
@@ -594,19 +527,36 @@ foreach ($nav_categorias_config as $nav_slug => $nav_config) {
 
         </div>
 
+        <?php
+        $nav_escalonamento_json = htmlspecialchars(
+            json_encode(
+                $nav_sistemas_escalonamento,
+                JSON_UNESCAPED_UNICODE |
+                JSON_HEX_APOS |
+                JSON_HEX_QUOT
+            ),
+            ENT_QUOTES,
+            'UTF-8'
+        );
+        ?>
+
 
         <!-- ESCALONAMENTO ITSM -->
         <div
             id="nocSaidaItsm"
+            data-nome="ABERTURA DE CHAMADO"
+            data-subitens="<?= $nav_escalonamento_json; ?>"
+            onclick="abrirCategoriaNoc(this)"
             style="
                 min-height: 190px;
+                cursor: pointer;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
                 justify-content: center;
                 padding: 18px;
                 text-align: center;
-                border: 1px solid rgba(168, 85, 247, .75);
+                border: 3px solid rgba(255, 196, 0, .72);
                 border-radius: 14px;
                 background:
                     linear-gradient(
@@ -635,7 +585,7 @@ foreach ($nav_categorias_config as $nav_slug => $nav_config) {
             <div style="
                 margin-top: 3px;
                 color: #c084fc;
-                font-size: 8px;
+                font-size: 12px;
                 font-weight: 700;
                 text-transform: uppercase;
             ">
@@ -645,7 +595,7 @@ foreach ($nav_categorias_config as $nav_slug => $nav_config) {
             <div style="
                 margin-top: 10px;
                 color: rgba(255,255,255,.78);
-                font-size: 8px;
+                font-size: 12px;
                 font-weight: 700;
                 line-height: 1.45;
             ">
@@ -754,10 +704,6 @@ foreach ($nav_categorias_config as $nav_slug => $nav_config) {
 
         <div id="gridSistemasSub" class="hidden grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar-compact animate-in slide-in-from-right-5 duration-300"></div>
 
-        <div id="rodapeSistemasModal" class="mt-8 pt-4 border-t border-white/5 flex justify-between items-center text-[9px] font-bold text-white/20 uppercase tracking-widest">
-            <span>Launchpad de Aplicações</span>
-            <span>Comercial Souza Atacado</span>
-        </div>
     </div>
 </div>
 
@@ -808,12 +754,11 @@ unset(
             height: 92vh;
             max-height: 950px;
 
-            background:
-                linear-gradient(
-                    145deg,
-                    rgba(15, 23, 42, 0.98),
-                    rgba(2, 6, 23, 0.98)
-                );
+            background-image: url('img/background.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-color: #24529b;
 
             border: 1px solid rgba(103, 232, 249, 0.22);
 
@@ -858,7 +803,10 @@ unset(
                 0 0 22px rgba(34, 211, 238, 0.12);
         }
 
-        /* Card principal, card filho e resultado da pesquisa */
+      /* =========================================================
+        CARDS INTERNOS - IDENTIDADE SOUZA
+        ========================================================= */
+
         .sistema-card-neon {
             --neon-cor: #22d3ee;
 
@@ -876,119 +824,168 @@ unset(
             justify-content: center;
 
             border-radius: 16px;
-            border: 1px solid color-mix(in srgb, var(--neon-cor) 32%, transparent);
+
+            /* NOVO PADRÃO SOUZA */
+            border: 3px solid rgba(255, 196, 0, .72);
+
             background:
-                linear-gradient(145deg, rgba(30, 41, 59, 0.88), rgba(15, 23, 42, 0.94));
+                linear-gradient(
+                    145deg,
+                    rgba(8, 31, 72, .97),
+                    rgba(5, 22, 53, .97)
+                );
 
             box-shadow:
-                inset 0 1px 0 rgba(255, 255, 255, 0.04),
-                0 10px 25px rgba(0, 0, 0, 0.24);
+                inset 0 1px 0 rgba(255, 255, 255, .05),
+                0 10px 25px rgba(0, 25, 70, .24);
 
             transition:
-                transform 0.25s ease,
-                border-color 0.25s ease,
-                box-shadow 0.25s ease,
-                background 0.25s ease;
+                transform .25s ease,
+                border-color .25s ease,
+                box-shadow .25s ease,
+                background .25s ease;
         }
 
+
+        /* LUZ DECORATIVA */
         .sistema-card-neon::before {
             content: "";
             position: absolute;
-            width: 90px;
-            height: 90px;
-            top: -50px;
-            right: -45px;
+
+            width: 100px;
+            height: 100px;
+
+            top: -55px;
+            right: -50px;
+
             z-index: -1;
+
             border-radius: 999px;
-            background: var(--neon-cor);
-            opacity: 0.12;
-            filter: blur(22px);
-            transition: opacity 0.25s ease;
+
+            background: #ffc400;
+
+            opacity: .06;
+            filter: blur(24px);
+
+            transition: opacity .25s ease;
         }
 
+
+        /* DETALHE INFERIOR */
         .sistema-card-neon::after {
             content: "";
+
             position: absolute;
-            left: 15%;
-            right: 15%;
+
+            left: 18%;
+            right: 18%;
             bottom: 0;
+
             height: 1px;
-            background: linear-gradient(
-                90deg,
-                transparent,
-                var(--neon-cor),
-                transparent
-            );
-            opacity: 0.55;
+
+            background:
+                linear-gradient(
+                    90deg,
+                    transparent,
+                    rgba(255, 196, 0, .65),
+                    transparent
+                );
+
+            opacity: .65;
         }
 
+
+        /* HOVER */
         .sistema-card-neon:hover {
             transform: translateY(-5px);
-            border-color: color-mix(in srgb, var(--neon-cor) 75%, white 8%);
+
+            border-color: #ff9700;
+
             background:
-                linear-gradient(145deg, rgba(30, 41, 59, 0.98), rgba(15, 23, 42, 1));
+                linear-gradient(
+                    145deg,
+                    rgba(15, 53, 113, .98),
+                    rgba(7, 28, 66, .98)
+                );
 
             box-shadow:
-                0 0 0 1px color-mix(in srgb, var(--neon-cor) 18%, transparent),
-                0 0 24px color-mix(in srgb, var(--neon-cor) 20%, transparent),
-                0 18px 34px rgba(0, 0, 0, 0.36);
+                0 0 0 1px rgba(255, 196, 0, .10),
+                0 10px 25px rgba(0, 25, 70, .28),
+                0 0 18px rgba(255, 151, 0, .12);
         }
+
 
         .sistema-card-neon:hover::before {
-            opacity: 0.25;
+            opacity: .14;
         }
 
-        /* Área do ícone */
-        .sistema-card-neon__icone {
+       /* =========================================================
+        ÍCONE - PADRÃO SOUZA
+        ========================================================= */
+
+       .sistema-card-neon__icone {
             position: relative;
-            width: 52px;
-            height: 52px;
+
+            width: 72px;
+            height: 72px;
             flex-shrink: 0;
 
             display: flex;
             align-items: center;
             justify-content: center;
 
-            border-radius: 14px;
-            border: 1px solid color-mix(in srgb, var(--neon-cor) 60%, transparent);
-            background:
-                radial-gradient(circle, color-mix(in srgb, var(--neon-cor) 16%, transparent), transparent 68%),
-                rgba(2, 6, 23, 0.72);
+            border-radius: 18px;
 
-            color: white;
-            font-size: 24px;
+            border: 1px solid rgba(255, 196, 0, .60);
+
+            background:
+                linear-gradient(
+                    145deg,
+                    rgba(20, 67, 140, .88),
+                    rgba(5, 25, 60, .96)
+                );
+
+            color: #ffffff;
+            font-size: 40px;
 
             box-shadow:
-                inset 0 0 18px color-mix(in srgb, var(--neon-cor) 10%, transparent),
-                0 0 16px color-mix(in srgb, var(--neon-cor) 12%, transparent);
+                inset 0 1px 0 rgba(255,255,255,.06),
+                0 4px 12px rgba(0,25,70,.18);
 
             transition:
-                transform 0.25s ease,
-                box-shadow 0.25s ease;
-        }
+                transform .25s ease,
+                border-color .25s ease,
+                box-shadow .25s ease;
+}
 
         .sistema-card-neon:hover .sistema-card-neon__icone {
             transform: scale(1.08);
+
+            border-color: #ff9700;
+
             box-shadow:
-                inset 0 0 22px color-mix(in srgb, var(--neon-cor) 18%, transparent),
-                0 0 22px color-mix(in srgb, var(--neon-cor) 28%, transparent);
+                0 0 14px rgba(255, 151, 0, .18);
         }
 
         /* Nome do sistema */
+    
         .sistema-card-neon__nome {
             position: relative;
             z-index: 2;
+
             margin-top: 14px;
 
-            color: rgba(226, 232, 240, 0.78);
+            color: rgba(255, 255, 255, .90);
+
             font-size: 10.5px;
             font-weight: 800;
             line-height: 1.2;
+
             text-align: center;
             text-transform: uppercase;
-            letter-spacing: 0.025em;
+            letter-spacing: .025em;
 
-            transition: color 0.25s ease;
+            transition: color .25s ease;
         }
 
         .sistema-card-neon:hover .sistema-card-neon__nome {
@@ -998,25 +995,34 @@ unset(
         /* Indicador das pastas */
         .sistema-card-neon__status {
             position: absolute;
+
             top: 9px;
             right: 9px;
+
             width: 7px;
             height: 7px;
+
             border-radius: 999px;
-            background: var(--neon-cor);
-            box-shadow: 0 0 10px var(--neon-cor);
+
+            background: #ffc400;
+
+            box-shadow:
+                0 0 8px rgba(255, 196, 0, .65);
         }
 
+       /* IDENTIFICAÇÃO SISTEMA / MÓDULO */
         .sistema-card-neon__tipo {
             position: absolute;
+
             top: 8px;
             left: 9px;
 
-            color: color-mix(in srgb, var(--neon-cor) 80%, white);
-            font-size: 7px;
+            color: #ffffff;
+            font-size: 9px; 
             font-weight: 900;
+
             text-transform: uppercase;
-            letter-spacing: 0.12em;
+            letter-spacing: .12em;
         }
 
         /* Ajustes para telas menores */
@@ -1026,11 +1032,11 @@ unset(
                 padding: 12px 7px;
             }
 
-            .sistema-card-neon__icone {
-                width: 46px;
-                height: 46px;
-                font-size: 21px;
-            }
+         .sistema-card-neon__icone {
+            width: 58px;
+            height: 58px;
+            font-size: 32px;
+        }
 
             .sistema-card-neon__nome {
                 font-size: 8px;
@@ -1052,10 +1058,10 @@ unset(
             overflow: visible;
             pointer-events: none;
         }
-        .rede-sistemas-linha {
+       .rede-sistemas-linha {
             fill: none;
             stroke: #22d3ee;
-            stroke-width: 2;
+            stroke-width: 3;
             stroke-linecap: round;
             stroke-linejoin: round;
             stroke-dasharray: 7 7;
@@ -1090,8 +1096,8 @@ unset(
 
         @media (max-width: 640px) {
             .rede-sistemas-linha {
-                opacity: 0.40;
-                stroke-width: 1.5;
+                opacity: 0.48;
+                stroke-width: 2.2;
             }
         }
 
@@ -1260,6 +1266,351 @@ unset(
                     drop-shadow(0 0 12px rgba(103, 232, 249, .80));
             }
         }
+
+        /* Quando estiver dentro de uma categoria,
+        reserva espaço para o botão VOLTAR */
+        #modalSistemasPainel.modo-sub .modal-sistemas-header {
+            padding-left: 115px;
+        }
+
+        @media (max-width: 640px) {
+            #modalSistemasPainel.modo-sub .modal-sistemas-header {
+                padding-left: 0;
+                padding-top: 45px;
+            }
+        }
+
+        /* Evita cortar os cards durante a animação de hover */
+        #gridSistemasPrincipal,
+        #gridSistemasSub {
+            padding-top: 10px;
+            padding-bottom: 30px;
+        }
+
+        /* Garante que o card animado fique acima dos vizinhos */
+        #gridSistemasPrincipal > .sistema-card-neon:hover,
+        #gridSistemasSub > .sistema-card-neon:hover {
+            position: relative;
+            z-index: 20;
+        }
+
+      /* =========================================================
+   PARTE 2 - SOL CENTRAL REAL DA SOUZA
+   ========================================================= */
+
+.noc-sol-souza {
+    position: relative;
+
+    width: 320px;
+    height: 320px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    text-decoration: none;
+    color: white;
+
+    transition: transform .25s ease;
+}
+
+.noc-sol-souza:hover {
+    transform: scale(1.04);
+}
+
+
+/* SOL REAL DA SOUZA - PARTE QUE GIRA */
+.noc-sol-rotacao {
+    position: absolute;
+    inset: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    animation: girarSolSouza 18s linear infinite;
+}
+
+.noc-sol-rotacao img {
+    width: 350px;
+    height: 350px;
+
+    object-fit: contain;
+    display: block;
+
+    user-select: none;
+    pointer-events: none;
+}
+
+
+/* CONTEÚDO CENTRAL - FICA PARADO */
+.noc-sol-miolo {
+    position: relative;
+    z-index: 2;
+
+    width: 155px;
+    height: 155px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    text-align: center;
+
+    padding: 12px;
+
+    /* transparente porque o miolo já existe no PNG */
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    box-shadow: none;
+}
+
+
+/* ÍCONE */
+.noc-sol-icone {
+    font-size: 25px;
+    line-height: 1;
+    margin-bottom: 6px;
+}
+
+
+/* NOME DO NOC */
+.noc-sol-titulo {
+    max-width: 145px;
+
+    color: #164a97;
+
+    font-size: 17px;
+    font-weight: 900;
+    line-height: 1.05;
+
+    text-transform: uppercase;
+}
+
+/* ACESSO AO NOC */
+.noc-sol-descricao {
+    margin-top: 10px;
+
+    color: #174d9c;
+
+    font-size: 12px;
+    font-weight: 800;
+
+    text-transform: uppercase;
+}
+
+
+/* ROTAÇÃO SUAVE */
+@keyframes girarSolSouza {
+
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+
+}
+
+/* =========================================================
+   PARTE 3 - CATEGORIAS | IDENTIDADE SOUZA
+   ========================================================= */
+
+.noc-categorias {
+    max-width: 380px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.noc-categorias__titulo {
+    margin-bottom: 5px;
+
+    color: #ffffff;
+
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: .18em;
+
+    text-shadow: 0 1px 4px rgba(0, 35, 90, .8);
+}
+
+
+/* BOTÃO */
+.noc-categoria-btn {
+    width: 100%;
+    min-height: 72px;
+
+    display: grid;
+    grid-template-columns: 50px 1fr 28px;
+    align-items: center;
+    gap: 10px;
+
+    padding: 9px 12px;
+
+    color: #ffffff;
+    text-align: left;
+
+    border: 3px solid rgba(255, 196, 0, .72);
+    border-radius: 11px;
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(8, 31, 72, .96),
+            rgba(5, 22, 53, .96)
+        );
+
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.05),
+        0 5px 15px rgba(0,25,70,.22);
+
+    cursor: pointer;
+
+    transition:
+        transform .22s ease,
+        border-color .22s ease,
+        box-shadow .22s ease,
+        background .22s ease;
+}
+
+
+/* HOVER */
+.noc-categoria-btn:hover {
+    transform: translateX(5px);
+
+    border-color: #ff9700;
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(15, 53, 113, .98),
+            rgba(7, 28, 66, .98)
+        );
+
+    box-shadow:
+        0 7px 20px rgba(0,30,80,.28),
+        0 0 14px rgba(255,151,0,.18);
+}
+
+
+/* ÍCONE */
+.noc-categoria-btn__icone {
+    width: 44px;
+    height: 44px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border: 1px solid rgba(255,196,0,.30);
+    border-radius: 9px;
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(24,80,160,.80),
+            rgba(7,31,75,.95)
+        );
+
+    font-size: 24px;
+}
+
+
+/* NOME */
+.noc-categoria-btn__nome {
+    color: #ffffff;
+
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1.2;
+
+    text-transform: uppercase;
+}
+
+
+/* SETA */
+.noc-categoria-btn__seta {
+    color: #ffc400;
+
+    font-size: 14px;
+
+    transition:
+        transform .22s ease,
+        color .22s ease;
+}
+
+.noc-categoria-btn:hover .noc-categoria-btn__seta {
+    color: #ff9700;
+    transform: translateX(3px);
+}
+
+/* =========================================================
+   BOTÃO VOLTAR - MAIS VISÍVEL
+   ========================================================= */
+    #btnVoltarModal {
+        color: #ffffff;
+
+        background:
+            linear-gradient(
+                135deg,
+                #0b1f46,
+                #071733
+            );
+
+        border: 1px solid #ffc400;
+
+        box-shadow:
+            0 5px 14px rgba(0, 20, 60, .30);
+
+        text-shadow: 0 1px 2px rgba(0,0,0,.30);
+    }
+
+    #btnVoltarModal:hover {
+        color: #ffffff;
+
+        background:
+            linear-gradient(
+                135deg,
+                #164a97,
+                #0b2f69
+            );
+
+        border-color: #ff9700;
+
+        transform: translateY(-1px) scale(1.03);
+
+        box-shadow:
+            0 7px 18px rgba(0, 25, 70, .35),
+            0 0 10px rgba(255, 196, 0, .18);
+    }
+
+        #subtituloModalSistemas {
+            color: #111111 !important;
+        }
+
+        /* ANIMAÇÃO DOS CARDS DE SAÍDA DO NOC */
+        #nocSaidaAutocorrecao,
+        #nocSaidaItsm {
+            transition:
+                transform .22s ease,
+                border-color .22s ease,
+                box-shadow .22s ease;
+        }
+
+        #nocSaidaAutocorrecao:hover,
+        #nocSaidaItsm:hover {
+            transform: translateX(-5px);
+            border-color: #ff9700 !important;
+            box-shadow:
+                0 7px 20px rgba(0, 30, 80, .28),
+                0 0 18px rgba(255, 151, 0, .22) !important;
+        }
+
 </style>
 
 <script>
@@ -2019,11 +2370,11 @@ function testarLinhaNoc() {
     // FUNÇÃO PARA CRIAR LINHA
     // =====================================================
 
-    function criarLinha(
-        d,
-        larguraLinha = 2.5,
-        seta = false
-    ) {
+        function criarLinha(
+            d,
+            larguraLinha = 3.5,
+            seta = false
+        ){
 
         const path =
             document.createElementNS(
@@ -2121,7 +2472,7 @@ function testarLinhaNoc() {
                 M ${pos.direita} ${pos.centroY}
                 H ${xTronco}
                 `,
-                2,
+                3,
                 true
             );
 
@@ -2138,7 +2489,7 @@ function testarLinhaNoc() {
         M ${xTronco} ${primeiroY}
         V ${ultimoY}
         `,
-        3
+        4
     );
 
 
@@ -2152,14 +2503,14 @@ function testarLinhaNoc() {
     const ySaidaPrincipal =
         posCategorias[indiceCentral].centroY;
 
-    criarLinha(
-        `
-        M ${xTronco} ${ySaidaPrincipal}
-        H ${posNoc.esquerda - 14}
-        `,
-        3,
-        true
-    );
+        criarLinha(
+            `
+            M ${xTronco} ${ySaidaPrincipal}
+            H ${posNoc.esquerda - 14}
+            `,
+            4,
+            true
+        );
 
     // =====================================================
     // NOC → AUTOCORREÇÃO / ITSM
@@ -2173,15 +2524,15 @@ function testarLinhaNoc() {
         const pAuto = posicao(auto);
         const pItsm = posicao(itsm);
 
-        const inicioX = posNoc.direita + 8;
-        const ramalX = inicioX + 65;
+        const inicioX = posNoc.direita - 55;
+        const ramalX = posNoc.direita + 65;
 
         criarLinha(
             `M ${inicioX} ${posNoc.centroY}
             H ${ramalX}
             V ${pAuto.centroY}
             H ${pAuto.esquerda - 12}`,
-            3,
+            4,
             true
         );
 
@@ -2190,7 +2541,7 @@ function testarLinhaNoc() {
             H ${ramalX}
             V ${pItsm.centroY}
             H ${pItsm.esquerda - 12}`,
-            3,
+            4,
             true
         );
     }
