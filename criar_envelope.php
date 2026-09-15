@@ -20,11 +20,11 @@ $usuarios_glpi = $stmt_users->fetchAll(PDO::FETCH_ASSOC);
 $usuarios_json = json_encode($usuarios_glpi, JSON_HEX_TAG | JSON_HEX_APOS);
 ?>
 
-<main class="flex-1 overflow-y-auto bg-slate-50 p-6 md:p-10">
-<div class="max-w-3xl mx-auto space-y-6">
+<main class="flex-1 overflow-y-auto bg-slate-50 p-4 md:p-6 xl:p-8">
+<div class="max-w-[1500px] mx-auto space-y-5">
 
     <!-- Breadcrumb -->
-    <a href="minhas_assinaturas.php"
+    <a href="minhas_assinaturas.php" data-retornar-assinaturas
        class="inline-flex items-center gap-2 text-slate-400 hover:text-navy-900 font-bold text-xs uppercase tracking-widest transition-colors">
         ← Voltar para Assinaturas
     </a>
@@ -43,7 +43,10 @@ $usuarios_json = json_encode($usuarios_glpi, JSON_HEX_TAG | JSON_HEX_APOS);
           action="api/cadastrar_envelope.php"
           enctype="multipart/form-data"
           novalidate
-          class="space-y-5">
+          class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5 items-start">
+
+        <!-- Coluna 1 · Identificação e fluxo -->
+        <div class="space-y-5">
 
         <!-- 1 · Título -->
         <div class="bg-white rounded-[2rem] border border-slate-200 shadow-sm p-6 space-y-2">
@@ -113,6 +116,8 @@ $usuarios_json = json_encode($usuarios_glpi, JSON_HEX_TAG | JSON_HEX_APOS);
             </div>
         </div>
 
+        </div>
+
         <!-- 3 · Dropzone PDF -->
         <div class="bg-white rounded-[2rem] border border-slate-200 shadow-sm p-6 space-y-3">
             <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Documentos PDF</p>
@@ -127,7 +132,7 @@ $usuarios_json = json_encode($usuarios_glpi, JSON_HEX_TAG | JSON_HEX_APOS);
                  ondrop="dropArquivo(event)">
 
                 <!-- Estado vazio -->
-                <div id="dropzoneVazio" class="flex flex-col items-center gap-3 py-12 px-6">
+                <div id="dropzoneVazio" class="flex flex-col items-center gap-3 py-8 xl:py-10 px-6">
                     <div class="w-14 h-14 rounded-2xl bg-slate-100 group-hover:bg-corporate-blue/10
                                 flex items-center justify-center transition-all">
                         <svg class="w-7 h-7 text-slate-300 group-hover:text-corporate-blue transition-colors"
@@ -203,7 +208,9 @@ $usuarios_json = json_encode($usuarios_glpi, JSON_HEX_TAG | JSON_HEX_APOS);
             </div>
 
             <!-- Lista dinâmica -->
-            <div id="listaAssinantes" class="space-y-2.5"></div>
+            <div id="listaAssinantes"
+                 class="space-y-2.5 max-h-[360px] overflow-y-auto overscroll-contain pr-2 custom-scrollbar"
+                 aria-label="Lista de assinantes adicionados"></div>
 
             <!-- Empty state -->
             <div id="emptyAssinantes"
@@ -220,7 +227,7 @@ $usuarios_json = json_encode($usuarios_glpi, JSON_HEX_TAG | JSON_HEX_APOS);
             <p id="erroAssinantes" class="hidden text-rose-500 text-[11px] font-bold"></p>
         </div>
 
-        <div class="bg-white rounded-[2rem] border border-slate-200 shadow-sm p-6 space-y-2">
+        <div class="bg-white rounded-[2rem] border border-slate-200 shadow-sm p-6 space-y-2 lg:col-span-2 xl:col-span-3">
             <label for="emails_finalizacao" class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 block">
                 Enviar documentos concluídos para
             </label>
@@ -231,11 +238,11 @@ $usuarios_json = json_encode($usuarios_glpi, JSON_HEX_TAG | JSON_HEX_APOS);
         </div>
 
         <!-- ── Submit ──────────────────────────────────────────────────── -->
-        <div class="flex flex-col sm:flex-row gap-3">
-            <a href="minhas_assinaturas.php"
+        <div class="flex flex-col sm:flex-row justify-end gap-3 lg:col-span-2 xl:col-span-3">
+            <a href="minhas_assinaturas.php" data-retornar-assinaturas
                class="flex-1 text-center py-4 rounded-2xl border-2 border-slate-200 text-slate-400
                       hover:border-slate-300 hover:text-slate-600 font-black text-xs uppercase
-                      tracking-widest transition-all">
+                      tracking-widest transition-all sm:max-w-xs">
                 Cancelar
             </a>
             <button type="submit"
@@ -243,7 +250,7 @@ $usuarios_json = json_encode($usuarios_glpi, JSON_HEX_TAG | JSON_HEX_APOS);
                     class="flex-1 bg-navy-900 hover:bg-corporate-blue text-white font-black py-4
                            rounded-2xl shadow-lg hover:shadow-xl transition-all text-xs uppercase
                            tracking-widest flex items-center justify-center gap-2
-                           disabled:opacity-50 disabled:cursor-not-allowed">
+                           disabled:opacity-50 disabled:cursor-not-allowed sm:max-w-md">
                 <span id="btnSubmitTexto">🚀 Criar Envelope e Enviar</span>
                 <svg id="btnSubmitSpinner"
                      class="hidden animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
@@ -318,6 +325,31 @@ const USUARIOS = <?= $usuarios_json ?>;
 // ── Estado ────────────────────────────────────────────────────────────────
 let fluxoAtual    = 'paralelo';
 let contadorLinhas = 0;
+let formularioEnviado = false;
+
+function formularioPossuiDados() {
+    return document.getElementById('titulo').value.trim() !== ''
+        || document.getElementById('inputPDF').files.length > 0
+        || document.querySelectorAll('.assinante-linha').length > 0
+        || document.getElementById('emails_finalizacao').value.trim() !== '';
+}
+
+document.querySelectorAll('[data-retornar-assinaturas]').forEach(link => {
+    link.addEventListener('click', event => {
+        if (formularioPossuiDados() && !confirm('Descartar os dados preenchidos e voltar para Minhas Assinaturas?')) {
+            event.preventDefault();
+            return;
+        }
+        formularioEnviado = true;
+    });
+});
+
+window.addEventListener('beforeunload', event => {
+    if (!formularioEnviado && formularioPossuiDados()) {
+        event.preventDefault();
+        event.returnValue = '';
+    }
+});
 
 // ── Seletor de Fluxo ─────────────────────────────────────────────────────
 document.querySelectorAll('.fluxo-opcao').forEach(label => {
@@ -393,10 +425,13 @@ function adicionarAssinante() {
     inputOrdem.required = isSeq;
     if (isSeq) inputOrdem.value = contadorLinhas; // pré-preenche com posição atual
 
-    document.getElementById('listaAssinantes').appendChild(clone);
+    const listaAssinantes = document.getElementById('listaAssinantes');
+    listaAssinantes.appendChild(clone);
     document.getElementById('emptyAssinantes').classList.add('hidden');
 
     atualizarBadges();
+    // Mantém o assinante recém-adicionado visível dentro da rolagem do card.
+    listaAssinantes.scrollTo({ top: listaAssinantes.scrollHeight, behavior: 'smooth' });
     // Foca no select recém-adicionado
     document.querySelector('.assinante-linha:last-child .select-usuario')?.focus();
 }
@@ -544,6 +579,7 @@ document.getElementById('formEnvelope').addEventListener('submit', function(e) {
         .then(async resposta => {
             const data = await resposta.json().catch(() => ({ ok: false, msg: 'Resposta inválida do servidor.' }));
             if (!resposta.ok || !data.ok) throw new Error(data.msg || 'Falha ao criar envelope.');
+            formularioEnviado = true;
             window.location.href = 'detalhe_envelope.php?id=' + data.envelope_id + '&sucesso=criado';
         })
         .catch(erro => {

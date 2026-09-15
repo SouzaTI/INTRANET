@@ -94,6 +94,9 @@ $enviados = $stmt_enviados->fetchAll(PDO::FETCH_ASSOC);
             </h1>
         </div>
         <div class="flex flex-wrap items-center gap-2">
+        <a href="criar_envelope.php" class="px-4 py-3 rounded-2xl bg-corporate-blue hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest shadow-sm transition-colors">
+            + Criar envelope
+        </a>
         <?php if ($usuario_admin): ?>
             <a href="configuracoes_assinaturas.php" class="px-4 py-3 rounded-2xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest shadow-sm">Configurar e-mails</a>
         <?php endif; ?>
