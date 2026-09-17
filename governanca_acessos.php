@@ -14,6 +14,7 @@ if (!$ehAdmin) {
     http_response_code(403);
     ?>
     <main class="flex-1 min-w-0 overflow-y-auto bg-slate-100">
+    <?php require __DIR__ . '/includes/governanca_nav.php'; ?>
         <div class="max-w-3xl mx-auto px-5 py-10">
             <div class="bg-white border border-red-200 rounded-2xl p-6 shadow-sm">
                 <p class="text-[10px] font-black uppercase tracking-[.18em] text-red-500">Acesso restrito</p>

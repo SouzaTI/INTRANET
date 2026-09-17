@@ -3,8 +3,10 @@ require_once __DIR__ . '/includes/header.php';
 require_once __DIR__ . '/includes/sidebar.php';
 ?>
 
-<main class="flex-1 min-w-0 min-h-0 overflow-hidden bg-slate-100">
-    <section id="gov-org" class="h-full min-h-0 flex flex-col bg-slate-50">
+<main class="flex-1 min-w-0 min-h-0 overflow-hidden bg-slate-100 flex flex-col">
+    <?php require __DIR__ . '/includes/governanca_nav.php'; ?>
+
+    <section id="gov-org" class="flex-1 min-h-0 flex flex-col bg-slate-50">
 
         <!-- Barra superior do módulo -->
         <div class="gov-orgbar">

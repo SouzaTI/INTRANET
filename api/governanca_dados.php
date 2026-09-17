@@ -639,7 +639,7 @@ try {
 
     $accessScope = 'FULL_ADMIN';
     $allowedRoots = [];
-    $nivelAcesso = 'GERENCIAR';
+    $nivelAcesso = $isAdmin ? 'GERENCIAR' : 'VISUALIZAR';
     $grants = [];
 
     $idsPermitidos = [];

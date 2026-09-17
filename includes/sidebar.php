@@ -81,7 +81,10 @@ $podeVisualizarAdministracaoSidebar = $ehAdminSidebar || $podeGerenciarDocsSideb
 
 // Estado dos grupos principais
 $is_sistemas_active = in_array($current_page, [
+    'governanca_organograma.php',
     'governanca_ti.php',
+    'governanca_pessoas.php',
+    'governanca_minha_area.php',
     'ti_base_erros.php',
     'acompanhamento_winthor.php',
     'acompanhamento_implantacao.php'
@@ -440,7 +443,7 @@ function sidebarGroupState(bool $open): string {
     }
 
     #sidebar-menu .sidebar-help-label {
-        color: #718096;
+        color: #ffffffff;
         font-size: 10px;
         font-weight: 850;
         letter-spacing: .08em;
@@ -450,7 +453,7 @@ function sidebarGroupState(bool $open): string {
     #sidebar-menu .sidebar-help-ramal {
         margin-top: 2px;
         color: #fff;
-        font-size: 16px;
+        font-size: 20px;
         line-height: 1;
         font-weight: 900;
     }
@@ -472,7 +475,7 @@ function sidebarGroupState(bool $open): string {
         padding: 10px 16px;       /* Dá espaçamento interno nas laterais e altura */
         white-space: nowrap;      /* Garante que o texto fique em uma única linha */
         width: auto;              /* Permite que o botão estique para caber o texto */
-        height: auto;
+        height: auto;             /* Remove restrições de altura fixa se houver */
     }
 
     #sidebar-menu .sidebar-help-button:hover {
@@ -535,8 +538,17 @@ function sidebarGroupState(bool $open): string {
                 </a>
 
 
-                <!-- Governança: disponível para todo usuário autenticado -->
-                <a href="governanca_ti.php" class="sidebar-sub-link<?= $current_page === 'governanca_ti.php' ? ' is-active' : '' ?>">
+                <!-- Governança: entrada oficial pelo Organograma -->
+                <?php
+                $govPagesSidebar = [
+                    'governanca_organograma.php',
+                    'governanca_ti.php',
+                    'governanca_pessoas.php',
+                    'governanca_minha_area.php'
+                ];
+                $govModuloAtivoSidebar = in_array($current_page, $govPagesSidebar, true);
+                ?>
+                <a href="governanca_organograma.php" class="sidebar-sub-link<?= $govModuloAtivoSidebar ? ' is-active' : '' ?>">
                     <span class="sidebar-sub-icon">🧭</span>
                     <span>Governança</span>
                 </a>
@@ -816,10 +828,11 @@ function sidebarGroupState(bool $open): string {
                     target="_blank" rel="noopener noreferrer"
                     class="sidebar-help-button text-button"
                     title="Abrir Help Chamados"
-                    aria-label="Abrir Help Chamados"
+                    aria-label="Abrir HelpDesk Chamados"
                     >
                         Abrir Chamado
                     </a>
+
                 </div>
             </div>
 
