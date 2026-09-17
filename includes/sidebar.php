@@ -81,6 +81,7 @@ $podeVisualizarAdministracaoSidebar = $ehAdminSidebar || $podeGerenciarDocsSideb
 
 // Estado dos grupos principais
 $is_sistemas_active = in_array($current_page, [
+    'governanca_ti.php',
     'ti_base_erros.php',
     'acompanhamento_winthor.php',
     'acompanhamento_implantacao.php'
@@ -111,7 +112,8 @@ $is_administracao_active = in_array($current_page, [
     'admin_docs.php',
     'admin_gestao.php',
     'admin_logs.php',
-    'gestao_fluxo.php'
+    'gestao_fluxo.php',
+    'governanca_acessos.php'
 ], true);
 
 // Helpdesk / GLPI
@@ -439,7 +441,7 @@ function sidebarGroupState(bool $open): string {
 
     #sidebar-menu .sidebar-help-label {
         color: #718096;
-        font-size: 7px;
+        font-size: 10px;
         font-weight: 850;
         letter-spacing: .08em;
         text-transform: uppercase;
@@ -454,17 +456,23 @@ function sidebarGroupState(bool $open): string {
     }
 
     #sidebar-menu .sidebar-help-button {
-        width: 34px;
-        height: 34px;
-        border-radius: 10px;
+        background-color: #2563eb; /* Tom de azul aproximado da sua imagem */
+        color: #ffffff;
+        text-decoration: none;
+        font-weight: bold;
+        font-size: 10px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        background: #2563eb;
-        color: #fff;
-        font-size: 15px;
-        box-shadow: 0 8px 18px rgba(37, 99, 235, .30);
-        transition: transform .18s ease, background-color .18s ease;
+        border-radius: 12px;
+        box-shadow: 0px 4px 10px rgba(37, 99, 235, 0.3);
+        transition: background 0.2s ease;
+        
+        /* Ajustes para o novo formato com texto */
+        padding: 10px 16px;       /* Dá espaçamento interno nas laterais e altura */
+        white-space: nowrap;      /* Garante que o texto fique em uma única linha */
+        width: auto;              /* Permite que o botão estique para caber o texto */
+        height: auto;
     }
 
     #sidebar-menu .sidebar-help-button:hover {
@@ -524,6 +532,13 @@ function sidebarGroupState(bool $open): string {
                    class="sidebar-sub-link<?= isset($_GET['abrir_sistemas']) ? ' is-active' : '' ?>">
                     <span class="sidebar-sub-icon">🚀</span>
                     <span>Botões navegação</span>
+                </a>
+
+
+                <!-- Governança: disponível para todo usuário autenticado -->
+                <a href="governanca_ti.php" class="sidebar-sub-link<?= $current_page === 'governanca_ti.php' ? ' is-active' : '' ?>">
+                    <span class="sidebar-sub-icon">🧭</span>
+                    <span>Governança</span>
                 </a>
 
                 <?php if ($podeVisualizarBaseErrosSidebar): ?>
@@ -774,6 +789,11 @@ function sidebarGroupState(bool $open): string {
                             <span class="sidebar-sub-icon">🛠️</span>
                             <span>Aprovações de Processos</span>
                         </a>
+
+                        <a href="governanca_acessos.php" class="sidebar-sub-link<?= $current_page === 'governanca_acessos.php' ? ' is-active' : '' ?>">
+                            <span class="sidebar-sub-icon">🧭</span>
+                            <span>Acessos da Governança</span>
+                        </a>
                     <?php endif; ?>
                 </div>
             <?php endif; ?>
@@ -793,12 +813,12 @@ function sidebarGroupState(bool $open): string {
                     </div>
 
                     <a href="<?= htmlspecialchars($helpdeskUrlSidebar) ?>"
-                       target="_blank" rel="noopener noreferrer"
-                       class="sidebar-help-button"
-                       title="Abrir Help Chamados"
-                       aria-label="Abrir Help Chamados"
-                       >
-                        📞
+                    target="_blank" rel="noopener noreferrer"
+                    class="sidebar-help-button text-button"
+                    title="Abrir Help Chamados"
+                    aria-label="Abrir Help Chamados"
+                    >
+                        Abrir Chamado
                     </a>
                 </div>
             </div>
