@@ -172,6 +172,22 @@ function docResponsavelVisual(array $doc): string
     };
 }
 
+function docTipoArquivo(string $nomeOriginal, string $mimeType): array
+{
+    $extensao = mb_strtolower(pathinfo($nomeOriginal, PATHINFO_EXTENSION), 'UTF-8');
+    return match ($extensao) {
+        'pdf' => ['PDF', 'bg-rose-50 border-rose-200 text-rose-700'],
+        'doc', 'docx' => ['WORD', 'bg-blue-50 border-blue-200 text-blue-700'],
+        'xls', 'xlsx' => ['EXCEL', 'bg-emerald-50 border-emerald-200 text-emerald-700'],
+        'jpg', 'jpeg', 'png', 'gif', 'webp' => ['IMG', 'bg-violet-50 border-violet-200 text-violet-700'],
+        'mp4', 'webm', 'mov' => ['VÍDEO', 'bg-fuchsia-50 border-fuchsia-200 text-fuchsia-700'],
+        'md', 'txt' => ['TEXTO', 'bg-slate-100 border-slate-200 text-slate-700'],
+        default => str_starts_with($mimeType, 'image/')
+            ? ['IMG', 'bg-violet-50 border-violet-200 text-violet-700']
+            : ['ARQ', 'bg-slate-100 border-slate-200 text-slate-700'],
+    };
+}
+
 include 'includes/header.php';
 include 'includes/sidebar.php';
 ?>
@@ -264,13 +280,14 @@ include 'includes/sidebar.php';
                     $docId = (int) $doc['id'];
                     $urlVisualizar = 'api/DocumentoCentralArquivo.php?id=' . $docId . '&modo=visualizar';
                     $urlBaixar = 'api/DocumentoCentralArquivo.php?id=' . $docId . '&modo=baixar';
+                    [$tipoArquivo, $classeTipoArquivo] = docTipoArquivo((string) $doc['nome_original'], (string) $doc['mime_type']);
                 ?>
                     <div class="flex flex-col gap-3 px-5 py-4 transition hover:bg-blue-50/40 md:flex-row md:items-center">
                         <div class="flex min-w-0 flex-1 items-center gap-4">
-                            <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-xl"><?= str_starts_with((string) $doc['mime_type'], 'image/') ? '🖼️' : ((string) $doc['mime_type'] === 'video/mp4' ? '🎬' : '📄') ?></span>
+                            <span class="flex h-12 w-14 shrink-0 items-center justify-center rounded-xl border text-[10px] font-black tracking-tight <?= $classeTipoArquivo ?>"><?= htmlspecialchars($tipoArquivo) ?></span>
                             <div class="min-w-0">
                                 <h3 class="truncate text-sm font-black text-navy-900"><?= htmlspecialchars((string) $doc['titulo']) ?></h3>
-                                <p class="mt-1 text-[11px] font-medium text-slate-400"><?= htmlspecialchars((string) $doc['tipo']) ?> · V<?= (int) $doc['versao_numero'] ?> · <?= htmlspecialchars(trim((string) $doc['criador_nome']) ?: 'Sistema') ?></p>
+                                <p class="mt-1 text-[11px] font-medium text-slate-400"><?= htmlspecialchars($tipoArquivo) ?> · <?= htmlspecialchars((string) $doc['tipo']) ?> · V<?= (int) $doc['versao_numero'] ?> · <?= htmlspecialchars(trim((string) $doc['criador_nome']) ?: 'Sistema') ?></p>
                             </div>
                         </div>
                         <div class="flex shrink-0 gap-2">
@@ -289,6 +306,7 @@ include 'includes/sidebar.php';
         <div class="grid grid-cols-1 xl:grid-cols-2 gap-5">
         <?php foreach ($documentos as $doc):
             [$statusTexto, $statusClasse] = docStatusVisual((string) $doc['status']);
+            [$tipoArquivo, $classeTipoArquivo] = docTipoArquivo((string) $doc['nome_original'], (string) $doc['mime_type']);
             $docId = (int) $doc['id'];
             $podeAnalisar = $auth->isValidador() && $doc['status'] === 'EM_ANALISE'
                 && ($auth->isAdmin() || (int) $doc['responsavel_id'] === $usuarioId);
@@ -298,6 +316,7 @@ include 'includes/sidebar.php';
                     <div class="min-w-0">
                         <div class="flex flex-wrap items-center gap-2 mb-2">
                             <span class="rounded-full px-2.5 py-1 text-[9px] font-black uppercase <?= $statusClasse ?>"><?= htmlspecialchars($statusTexto) ?></span>
+                            <span class="rounded-full border px-2.5 py-1 text-[9px] font-black uppercase <?= $classeTipoArquivo ?>"><?= htmlspecialchars($tipoArquivo) ?></span>
                             <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[9px] font-black uppercase text-slate-500"><?= htmlspecialchars((string) $doc['setor']) ?></span>
                             <span class="text-[10px] font-bold text-slate-400">V<?= (int) $doc['versao_numero'] ?></span>
                         </div>
@@ -477,11 +496,15 @@ include 'includes/sidebar.php';
             elemento = document.createElement('div');
             elemento.className = 'flex h-full flex-col items-center justify-center p-8 text-center';
             const icone = document.createElement('div');
-            icone.className = 'mb-4 text-5xl';
-            icone.textContent = '📄';
+            const ehWord = mime.includes('wordprocessingml') || mime === 'application/msword';
+            const ehExcel = mime.includes('spreadsheetml') || mime === 'application/vnd.ms-excel';
+            icone.className = 'mb-4 flex h-20 min-w-20 items-center justify-center rounded-2xl border px-4 text-lg font-black ' + (ehWord
+                ? 'border-blue-200 bg-blue-50 text-blue-700'
+                : (ehExcel ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-600'));
+            icone.textContent = ehWord ? 'WORD' : (ehExcel ? 'EXCEL' : 'ARQUIVO');
             const mensagem = document.createElement('p');
             mensagem.className = 'font-black text-slate-700';
-            mensagem.textContent = 'Este formato não possui visualização nativa no navegador.';
+            mensagem.textContent = (ehWord ? 'O Word' : (ehExcel ? 'O Excel' : 'Este formato')) + ' não possui visualização nativa neste navegador.';
             const instrucao = document.createElement('p');
             instrucao.className = 'mt-2 text-sm text-slate-400';
             instrucao.textContent = 'Use o botão Baixar para abrir o arquivo no aplicativo correspondente.';
