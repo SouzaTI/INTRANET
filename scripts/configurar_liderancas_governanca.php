@@ -18,10 +18,14 @@ $structures = [
     ['CS-FAC', 'Facilities', 'CS-GG', 10],
     ['CS-TI', 'T.I', 'CS-GG', 20],
     ['CS-FISC', 'Fiscal', 'CS-GG', 30],
-    ['CS-FIN', 'Financeiro', 'CS-GG', 40],
-    ['CS-RH', 'Recursos Humanos', 'CS-GG', 50],
-    ['CS-COM', 'Comercial', 'CS-GG', 60],
+    ['CS-TES', 'Tesouraria', 'CS-GG', 40],
+    ['CS-CAR', 'Contas a Receber', 'CS-GG', 50],
+    ['CS-CAP', 'Contas a Pagar', 'CS-GG', 60],
+    ['CS-RH', 'Recursos Humanos', 'CS-GG', 70],
+    ['CS-COM', 'Comercial', 'CS-GG', 80],
 ];
+
+$retiredStructures = ['CS-FIN'];
 
 $leaders = [
     ['Adelson Silva', null, 'CS-GG', 'LIDER'],
@@ -29,11 +33,11 @@ $leaders = [
     ['Alex Cunha', 40, 'CS-TI', 'LIDER'],
     ['Anderson Souza', 19, 'CS-DIR', 'DIRETOR'],
     ['Daniela Roza', 21, 'CS-FISC', 'LIDER'],
-    ['Dayane Correia', 71, 'CS-FIN', 'LIDER'],
+    ['Dayane Correia', 71, 'CS-CAR', 'LIDER'],
     ['Eloise Tancredi', 108, 'CS-RH', 'LIDER'],
     ['Fabio Souza', 23, 'CS-DIR', 'DIRETOR'],
-    ['Leila Moreira', 28, 'CS-FIN', 'LIDER'],
-    ['Milton Michels', null, 'CS-FIN', 'LIDER'],
+    ['Leila Moreira', 28, 'CS-TES', 'LIDER'],
+    ['Milton Michels', null, 'CS-CAP', 'LIDER'],
     ['Wilson Soares', 100, 'CS-COM', 'LIDER'],
 ];
 
@@ -213,6 +217,18 @@ try {
         $cleanup->execute($params);
         if ($cleanup->rowCount() > 0) {
             echo "liderança anterior encerrada: {$name}\n";
+        }
+    }
+
+    foreach ($retiredStructures as $retiredCode) {
+        $retire = $pdo_intra->prepare("
+            UPDATE governanca_estruturas
+            SET ativo = 0
+            WHERE codigo = ? AND ativo = 1
+        ");
+        $retire->execute([$retiredCode]);
+        if ($retire->rowCount() > 0) {
+            echo "estrutura anterior desativada: {$retiredCode}\n";
         }
     }
 
