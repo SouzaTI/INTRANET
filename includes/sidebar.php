@@ -89,6 +89,7 @@ $is_sistemas_active = in_array($current_page, [
     'governanca_ti.php',
     'governanca_pessoas.php',
     'governanca_minha_area.php',
+    'governanca_liderancas.php',
     'ti_base_erros.php',
     'acompanhamento_winthor.php',
     'acompanhamento_implantacao.php'
@@ -543,7 +544,8 @@ function sidebarGroupState(bool $open): string {
                     'governanca_organograma.php',
                     'governanca_ti.php',
                     'governanca_pessoas.php',
-                    'governanca_minha_area.php'
+                    'governanca_minha_area.php',
+                    'governanca_liderancas.php'
                 ];
                 $govModuloAtivoSidebar = in_array($current_page, $govPagesSidebar, true);
                 ?>

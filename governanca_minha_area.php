@@ -179,6 +179,85 @@ $csrf = $_SESSION['governanca_csrf'];
                 </div>
             </form>
 
+            <form id="responsibilityForm" class="gov-modal-body hidden">
+                <input id="responsibilityId" type="hidden">
+                <input id="responsibilityFunctionId" type="hidden">
+
+                <div class="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+                    <span class="block text-[9px] font-black uppercase tracking-wider text-blue-600">Função / cargo</span>
+                    <strong id="responsibilityFunctionName" class="block mt-1 text-sm font-black text-blue-950">—</strong>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="gov-label" for="responsibilityMacroprocess">Macroprocesso</label>
+                        <input id="responsibilityMacroprocess" class="gov-field" maxlength="180">
+                    </div>
+                    <div>
+                        <label class="gov-label" for="responsibilityProcess">Processo</label>
+                        <input id="responsibilityProcess" class="gov-field" maxlength="180">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="gov-label" for="responsibilityActivity">Atividade / responsabilidade *</label>
+                    <input id="responsibilityActivity" class="gov-field" maxlength="255" required>
+                </div>
+
+                <div>
+                    <label class="gov-label" for="responsibilitySubactivity">Subatividade</label>
+                    <input id="responsibilitySubactivity" class="gov-field" maxlength="255">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="gov-label" for="responsibilityRole">Papel *</label>
+                        <select id="responsibilityRole" class="gov-field" required>
+                            <option value="Principal">Principal</option>
+                            <option value="Apoio">Apoio</option>
+                            <option value="Backup">Backup</option>
+                            <option value="Consultado">Consultado</option>
+                            <option value="Informado">Informado</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="gov-label" for="responsibilityDomain">Domínio</label>
+                        <input id="responsibilityDomain" class="gov-field" maxlength="80">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="gov-label" for="responsibilityCriticality">Criticidade</label>
+                        <select id="responsibilityCriticality" class="gov-field">
+                            <option value="">Não definida</option>
+                            <option value="Baixa">Baixa</option>
+                            <option value="Média">Média</option>
+                            <option value="Alta">Alta</option>
+                            <option value="Crítica">Crítica</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="gov-label" for="responsibilityStatus">Status</label>
+                        <select id="responsibilityStatus" class="gov-field">
+                            <option value="Ativo">Ativo</option>
+                            <option value="Em revisão">Em revisão</option>
+                            <option value="Pendente">Pendente</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="gov-label" for="responsibilityNotes">Observações</label>
+                    <textarea id="responsibilityNotes" class="gov-field gov-textarea" maxlength="5000"></textarea>
+                </div>
+
+                <div class="gov-modal-actions">
+                    <button type="button" class="gov-btn secondary" data-close-modal>Cancelar</button>
+                    <button type="submit" id="saveResponsibility" class="gov-btn primary">Salvar responsabilidade</button>
+                </div>
+            </form>
+
         </div>
     </section>
 
@@ -260,7 +339,7 @@ $csrf = $_SESSION['governanca_csrf'];
 }
 #gov-my-area .gov-current-title span{color:#94a3b8;font-size:8px}
 #gov-my-area .gov-current-scroll{
-    max-height:290px;overflow:auto;padding-right:3px
+    max-height:430px;overflow:auto;padding-right:3px
 }
 #gov-my-area .gov-current-scroll::-webkit-scrollbar{width:7px}
 #gov-my-area .gov-current-scroll::-webkit-scrollbar-thumb{
@@ -316,6 +395,29 @@ $csrf = $_SESSION['governanca_csrf'];
 #gov-my-area .gov-person-chip .mini-avatar{
     width:20px;height:20px;border-radius:50%;display:grid;place-items:center;
     background:#dbeafe;color:#2563eb;font-size:6px;font-weight:900
+}
+#gov-my-area .gov-responsibility-list{
+    margin-top:9px;padding-top:9px;border-top:1px solid #e2e8f0;
+    display:flex;flex-direction:column;gap:6px
+}
+#gov-my-area .gov-responsibility-head{
+    display:flex;align-items:center;justify-content:space-between;gap:8px
+}
+#gov-my-area .gov-responsibility-head strong{
+    color:#475569;font-size:8px;font-weight:900;text-transform:uppercase;letter-spacing:.06em
+}
+#gov-my-area .gov-responsibility-row{
+    padding:8px;border:1px solid #dbeafe;border-radius:9px;background:#f8fbff
+}
+#gov-my-area .gov-responsibility-row strong{
+    display:block;color:#1e3a8a;font-size:9px;font-weight:900
+}
+#gov-my-area .gov-responsibility-row small{
+    display:block;margin-top:3px;color:#64748b;font-size:8px;line-height:1.35
+}
+#gov-my-area .gov-responsibility-role{
+    display:inline-block;margin-top:5px;padding:3px 6px;border-radius:999px;
+    background:#dbeafe;color:#1d4ed8;font-size:7px;font-weight:900;text-transform:uppercase
 }
 #gov-my-area .gov-empty-existing{
     padding:13px;border:1px dashed #cbd5e1;border-radius:10px;
@@ -485,6 +587,21 @@ $csrf = $_SESSION['governanca_csrf'];
     const movePersonFunction = document.getElementById('movePersonFunction');
     const saveMovePerson = document.getElementById('saveMovePerson');
 
+    const responsibilityForm = document.getElementById('responsibilityForm');
+    const responsibilityId = document.getElementById('responsibilityId');
+    const responsibilityFunctionId = document.getElementById('responsibilityFunctionId');
+    const responsibilityFunctionName = document.getElementById('responsibilityFunctionName');
+    const responsibilityMacroprocess = document.getElementById('responsibilityMacroprocess');
+    const responsibilityProcess = document.getElementById('responsibilityProcess');
+    const responsibilityActivity = document.getElementById('responsibilityActivity');
+    const responsibilitySubactivity = document.getElementById('responsibilitySubactivity');
+    const responsibilityRole = document.getElementById('responsibilityRole');
+    const responsibilityDomain = document.getElementById('responsibilityDomain');
+    const responsibilityCriticality = document.getElementById('responsibilityCriticality');
+    const responsibilityStatus = document.getElementById('responsibilityStatus');
+    const responsibilityNotes = document.getElementById('responsibilityNotes');
+    const saveResponsibility = document.getElementById('saveResponsibility');
+
     const confirmModal = document.getElementById('govConfirm');
     const confirmBackdrop = document.getElementById('govConfirmBackdrop');
     const confirmTitle = document.getElementById('govConfirmTitle');
@@ -637,6 +754,7 @@ $csrf = $_SESSION['governanca_csrf'];
         functionForm.classList.remove('hidden');
         personForm.classList.add('hidden');
         movePersonForm.classList.add('hidden');
+        responsibilityForm.classList.add('hidden');
 
         functionId.value = '';
         fillStructures(code);
@@ -663,6 +781,7 @@ $csrf = $_SESSION['governanca_csrf'];
         functionForm.classList.remove('hidden');
         personForm.classList.add('hidden');
         movePersonForm.classList.add('hidden');
+        responsibilityForm.classList.add('hidden');
 
         functionId.value = String(fn.id);
         fillStructures(fn.estrutura_codigo);
@@ -686,6 +805,7 @@ $csrf = $_SESSION['governanca_csrf'];
         functionForm.classList.add('hidden');
         personForm.classList.remove('hidden');
         movePersonForm.classList.add('hidden');
+        responsibilityForm.classList.add('hidden');
 
         personId.value = '';
         personLinkId.value = '';
@@ -725,6 +845,7 @@ $csrf = $_SESSION['governanca_csrf'];
         functionForm.classList.add('hidden');
         personForm.classList.remove('hidden');
         movePersonForm.classList.add('hidden');
+        responsibilityForm.classList.add('hidden');
 
         personId.value = String(person.id);
         personLinkId.value = String(person.vinculo_id);
@@ -768,6 +889,7 @@ $csrf = $_SESSION['governanca_csrf'];
         functionForm.classList.add('hidden');
         personForm.classList.add('hidden');
         movePersonForm.classList.remove('hidden');
+        responsibilityForm.classList.add('hidden');
 
         movePersonLinkId.value = String(person.vinculo_id);
         movePersonName.textContent = person.nome || 'Pessoa';
@@ -788,6 +910,76 @@ $csrf = $_SESSION['governanca_csrf'];
         openMainModal();
     }
 
+    function openCreateResponsibility(functionIdValue){
+        const fn = (state.payload?.data?.funcoes || [])
+            .find(item => Number(item.id) === Number(functionIdValue));
+        if (!fn) return;
+
+        state.modalMode = 'create_responsibility';
+        modalKicker.textContent = 'Responsabilidade da função';
+        modalTitle.textContent = 'Nova responsabilidade';
+        functionForm.classList.add('hidden');
+        personForm.classList.add('hidden');
+        movePersonForm.classList.add('hidden');
+        responsibilityForm.classList.remove('hidden');
+
+        responsibilityId.value = '';
+        responsibilityFunctionId.value = String(fn.id);
+        responsibilityFunctionName.textContent =
+            `${fn.estrutura_nome || fn.estrutura_codigo} → ${fn.nome}`;
+        responsibilityMacroprocess.value = '';
+        responsibilityProcess.value = '';
+        responsibilityActivity.value = '';
+        responsibilitySubactivity.value = '';
+        responsibilityRole.value = 'Principal';
+        responsibilityDomain.value = '';
+        responsibilityCriticality.value = '';
+        responsibilityStatus.value = 'Ativo';
+        responsibilityNotes.value = '';
+        saveResponsibility.textContent = 'Salvar responsabilidade';
+
+        openMainModal();
+        setTimeout(() => responsibilityActivity.focus(),80);
+    }
+
+    function openEditResponsibility(responsibilityIdValue){
+        const item = (state.manage?.responsibilities || [])
+            .find(row => Number(row.id) === Number(responsibilityIdValue));
+        if (!item) return;
+
+        state.modalMode = 'edit_responsibility';
+        modalKicker.textContent = 'Responsabilidade da função';
+        modalTitle.textContent = 'Editar responsabilidade';
+        functionForm.classList.add('hidden');
+        personForm.classList.add('hidden');
+        movePersonForm.classList.add('hidden');
+        responsibilityForm.classList.remove('hidden');
+
+        responsibilityId.value = String(item.id);
+        responsibilityFunctionId.value = String(item.funcao_id);
+        responsibilityFunctionName.textContent =
+            `${item.estrutura_nome || item.estrutura_codigo} → ${item.funcao_nome}`;
+        responsibilityMacroprocess.value = item.macroprocesso || '';
+        responsibilityProcess.value = item.processo || '';
+        responsibilityActivity.value = item.atividade || '';
+        responsibilitySubactivity.value = item.subatividade || '';
+        responsibilityRole.value = ['Principal','Apoio','Backup','Consultado','Informado']
+            .find(value => value.toUpperCase() === String(item.papel || '').toUpperCase())
+            || 'Principal';
+        responsibilityDomain.value = item.dominio || '';
+        responsibilityCriticality.value = ['Baixa','Média','Alta','Crítica']
+            .find(value => value.localeCompare(String(item.criticidade || ''),'pt-BR',{sensitivity:'base'}) === 0)
+            || '';
+        responsibilityStatus.value = ['Ativo','Em revisão','Pendente']
+            .find(value => value.localeCompare(String(item.status || ''),'pt-BR',{sensitivity:'base'}) === 0)
+            || 'Ativo';
+        responsibilityNotes.value = item.observacoes || '';
+        saveResponsibility.textContent = 'Salvar alterações';
+
+        openMainModal();
+        setTimeout(() => responsibilityActivity.focus(),80);
+    }
+
     function openConfirm(title,text,action){
         state.confirmAction = action;
         confirmTitle.textContent = title;
@@ -804,6 +996,38 @@ $csrf = $_SESSION['governanca_csrf'];
         state.confirmAction = null;
     }
 
+    function responsibilitiesForFunction(functionIdValue){
+        const managed = (state.manage?.responsibilities || [])
+            .filter(item => Number(item.funcao_id) === Number(functionIdValue));
+
+        if (managed.length || state.manage?.can_manage) {
+            return managed;
+        }
+
+        const unique = new Map();
+        (state.payload?.data?.responsabilidades || [])
+            .filter(item => Number(item._FUNCAO_ID) === Number(functionIdValue))
+            .forEach(item => {
+                const id = Number(item._ATRIBUICAO_ID || 0);
+                if (!id || unique.has(id)) return;
+                unique.set(id, {
+                    id,
+                    funcao_id:Number(item._FUNCAO_ID || 0),
+                    macroprocesso:item.MACROPROCESSO || '',
+                    processo:item.PROCESSO || '',
+                    atividade:item.ATIVIDADE || '',
+                    subatividade:item.SUBATIVIDADE || '',
+                    papel:item.PAPEL || '',
+                    dominio:item['DOMÍNIO'] || item['DOMÃNIO'] || '',
+                    criticidade:item.CRITICIDADE || '',
+                    status:item.STATUS || '',
+                    observacoes:item['OBSERVAÇÕES'] || item['OBSERVAÃ‡Ã•ES'] || ''
+                });
+            });
+
+        return [...unique.values()];
+    }
+
     function statsForStructure(code){
         const data = state.payload?.data || {};
         const fns = (data.funcoes || []).filter(
@@ -815,9 +1039,10 @@ $csrf = $_SESSION['governanca_csrf'];
             (fn.ocupantes || []).forEach(p => people.add(String(p.id)));
         });
 
-        const resp = (data.responsabilidades || []).filter(
-            r => String(r.ID_ESTRUTURA || '') === String(code)
-        ).length;
+        const resp = fns.reduce(
+            (total, fn) => total + responsibilitiesForFunction(fn.id).length,
+            0
+        );
 
         return {
             functions:fns.length,
@@ -834,6 +1059,30 @@ $csrf = $_SESSION['governanca_csrf'];
         const body = functions.length
             ? functions.map(fn => {
                 const occupants = fn.ocupantes || [];
+                const responsibilities = responsibilitiesForFunction(fn.id);
+
+                const responsibilitiesHtml = responsibilities.length
+                    ? responsibilities.map(item => `
+                        <div class="gov-responsibility-row">
+                            <strong>${esc(item.atividade || 'Responsabilidade')}</strong>
+                            <small>${esc([
+                                item.macroprocesso,
+                                item.processo,
+                                item.subatividade
+                            ].filter(Boolean).join(' → ') || 'Sem detalhamento adicional')}</small>
+                            <span class="gov-responsibility-role">${esc(item.papel || 'PRINCIPAL')}</span>
+                            ${canManageThis ? `
+                                <div class="gov-inline-actions" style="margin-top:6px;">
+                                    <button type="button" class="gov-mini-btn"
+                                            data-edit-responsibility="${Number(item.id)}">Editar</button>
+                                    <button type="button" class="gov-mini-btn danger"
+                                            data-deactivate-responsibility="${Number(item.id)}"
+                                            data-responsibility-name="${esc(item.atividade)}">Inativar</button>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `).join('')
+                    : '<div class="gov-empty-existing">Nenhuma responsabilidade cadastrada.</div>';
 
                 const peopleHtml = occupants.length
                     ? occupants.map(person => `
@@ -906,6 +1155,12 @@ $csrf = $_SESSION['governanca_csrf'];
                                     </button>
 
                                     <button type="button"
+                                            class="gov-mini-btn"
+                                            data-add-responsibility="${Number(fn.id)}">
+                                        + Responsabilidade
+                                    </button>
+
+                                    <button type="button"
                                             class="gov-mini-btn danger"
                                             data-deactivate-function="${Number(fn.id)}"
                                             data-function-name="${esc(fn.nome)}">
@@ -918,6 +1173,14 @@ $csrf = $_SESSION['governanca_csrf'];
 
                         <div class="gov-existing-people">
                             ${peopleHtml}
+                        </div>
+
+                        <div class="gov-responsibility-list">
+                            <div class="gov-responsibility-head">
+                                <strong>Responsabilidades da função</strong>
+                                <span class="gov-existing-resp">${responsibilities.length}</span>
+                            </div>
+                            ${responsibilitiesHtml}
                         </div>
                     </div>
                 `;
@@ -1001,7 +1264,12 @@ $csrf = $_SESSION['governanca_csrf'];
                 String(item.estrutura_codigo || '') === String(code)
             );
 
-        if (!inactiveFunctions.length && !inactiveLinks.length) {
+        const inactiveResponsibilities = (state.manage?.inactive_responsibilities || [])
+            .filter(item =>
+                String(item.estrutura_codigo || '') === String(code)
+            );
+
+        if (!inactiveFunctions.length && !inactiveLinks.length && !inactiveResponsibilities.length) {
             return '';
         }
 
@@ -1035,6 +1303,20 @@ $csrf = $_SESSION['governanca_csrf'];
             </div>
         `).join('');
 
+        const responsibilityHtml = inactiveResponsibilities.map(item => `
+            <div class="gov-inactive-row">
+                <div class="gov-inactive-copy">
+                    <strong>${esc(item.atividade)}</strong>
+                    <small>${esc(item.funcao_nome)} · responsabilidade inativa</small>
+                </div>
+                <button type="button"
+                        class="gov-reactivate-btn"
+                        data-reactivate-responsibility="${Number(item.id)}">
+                    Reativar
+                </button>
+            </div>
+        `).join('');
+
         return `
             <div class="gov-inactive-section">
                 <div class="gov-inactive-title">
@@ -1043,6 +1325,7 @@ $csrf = $_SESSION['governanca_csrf'];
                 </div>
                 ${functionHtml}
                 ${linkHtml}
+                ${responsibilityHtml}
             </div>
         `;
     }
@@ -1174,6 +1457,18 @@ $csrf = $_SESSION['governanca_csrf'];
             });
         });
 
+        grid.querySelectorAll('[data-add-responsibility]').forEach(btn => {
+            btn.addEventListener('click',() => {
+                openCreateResponsibility(Number(btn.dataset.addResponsibility));
+            });
+        });
+
+        grid.querySelectorAll('[data-edit-responsibility]').forEach(btn => {
+            btn.addEventListener('click',() => {
+                openEditResponsibility(Number(btn.dataset.editResponsibility));
+            });
+        });
+
 
         grid.querySelectorAll('[data-edit-person]').forEach(btn => {
             btn.addEventListener('click',() => {
@@ -1243,6 +1538,25 @@ $csrf = $_SESSION['governanca_csrf'];
             });
         });
 
+        grid.querySelectorAll('[data-deactivate-responsibility]').forEach(btn => {
+            btn.addEventListener('click',() => {
+                const id = Number(btn.dataset.deactivateResponsibility);
+                const name = btn.dataset.responsibilityName || 'esta responsabilidade';
+                openConfirm(
+                    'Inativar responsabilidade',
+                    `Deseja inativar "${name}"? O histórico será preservado.`,
+                    async () => {
+                        const result = await request(
+                            MANAGE_API + '?action=deactivate_responsibility',
+                            {method:'POST',body:JSON.stringify({responsabilidade_id:id})}
+                        );
+                        showAlert(result.message);
+                        await load();
+                    }
+                );
+            });
+        });
+
         grid.querySelectorAll('[data-reactivate-function]').forEach(btn => {
             btn.addEventListener('click',() => {
                 const id = Number(btn.dataset.reactivateFunction);
@@ -1284,6 +1598,24 @@ $csrf = $_SESSION['governanca_csrf'];
                             }
                         );
 
+                        showAlert(result.message);
+                        await load();
+                    }
+                );
+            });
+        });
+
+        grid.querySelectorAll('[data-reactivate-responsibility]').forEach(btn => {
+            btn.addEventListener('click',() => {
+                const id = Number(btn.dataset.reactivateResponsibility);
+                openConfirm(
+                    'Reativar responsabilidade',
+                    'Deseja reativar esta responsabilidade?',
+                    async () => {
+                        const result = await request(
+                            MANAGE_API + '?action=reactivate_responsibility',
+                            {method:'POST',body:JSON.stringify({responsabilidade_id:id})}
+                        );
                         showAlert(result.message);
                         await load();
                     }
@@ -1427,6 +1759,54 @@ $csrf = $_SESSION['governanca_csrf'];
                 savePerson,
                 false,
                 editing ? 'Salvar alterações' : 'Salvar pessoa'
+            );
+        }
+    });
+
+    responsibilityForm.addEventListener('submit',async event => {
+        event.preventDefault();
+        const editing = state.modalMode === 'edit_responsibility';
+        setSaving(
+            saveResponsibility,
+            true,
+            editing ? 'Salvar alterações' : 'Salvar responsabilidade'
+        );
+
+        try{
+            const body = {
+                funcao_id:Number(responsibilityFunctionId.value),
+                macroprocesso:responsibilityMacroprocess.value.trim(),
+                processo:responsibilityProcess.value.trim(),
+                atividade:responsibilityActivity.value.trim(),
+                subatividade:responsibilitySubactivity.value.trim(),
+                papel:responsibilityRole.value,
+                dominio:responsibilityDomain.value.trim(),
+                criticidade:responsibilityCriticality.value,
+                status:responsibilityStatus.value,
+                observacoes:responsibilityNotes.value.trim()
+            };
+
+            if (editing) {
+                body.responsabilidade_id = Number(responsibilityId.value);
+            }
+
+            const result = await request(
+                MANAGE_API + '?action=' + (
+                    editing ? 'update_responsibility' : 'create_responsibility'
+                ),
+                {method:'POST',body:JSON.stringify(body)}
+            );
+
+            closeModal();
+            showAlert(result.message);
+            await load();
+        }catch(error){
+            showAlert(error.message,'error');
+        }finally{
+            setSaving(
+                saveResponsibility,
+                false,
+                editing ? 'Salvar alterações' : 'Salvar responsabilidade'
             );
         }
     });

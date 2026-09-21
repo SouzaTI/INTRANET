@@ -166,6 +166,33 @@ function govMGrants(
     return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 }
 
+function govMLeadershipGrants(PDO $pdo, int $userId): array {
+    try {
+        $stmt = $pdo->prepare("
+            SELECT
+                E.codigo AS estrutura_codigo,
+                1 AS inclui_descendentes,
+                'GERENCIAR' AS nivel_acesso
+            FROM governanca_liderancas L
+            JOIN governanca_estruturas E
+              ON E.id = L.estrutura_id
+            JOIN governanca_pessoas P
+              ON P.id = L.pessoa_id
+            WHERE L.ativo = 1
+              AND E.ativo = 1
+              AND P.ativo = 1
+              AND P.glpi_user_id = ?
+              AND (L.data_fim IS NULL OR L.data_fim >= CURDATE())
+            ORDER BY L.id ASC
+        ");
+        $stmt->execute([$userId]);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Throwable $e) {
+        return [];
+    }
+}
+
 function govMScope(PDO $pdo, int $userId): array {
     $structures = govMStructures($pdo);
     $isAdmin = govMIsAdmin($pdo, $userId);
@@ -195,7 +222,10 @@ function govMScope(PDO $pdo, int $userId): array {
     }
 
     $groupIds = govMGroupIds($pdo, $userId);
-    $grants = govMGrants($pdo, $userId, $groupIds);
+    $grants = array_merge(
+        govMGrants($pdo, $userId, $groupIds),
+        govMLeadershipGrants($pdo, $userId)
+    );
     $allowed = [];
 
     $addDescendants = function (
@@ -668,6 +698,134 @@ function govMPeopleInScope(
     return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 }
 
+function govMResponsibilitiesInScope(
+    PDO $pdo,
+    array $scopeCodes,
+    bool $active = true
+): array {
+    if (!$scopeCodes) {
+        return [];
+    }
+
+    $codes = array_keys($scopeCodes);
+    $placeholders = implode(',', array_fill(0, count($codes), '?'));
+    $activeValue = $active ? 1 : 0;
+
+    $stmt = $pdo->prepare("
+        SELECT
+            FR.id,
+            FR.atividade_id,
+            FR.funcao_id,
+            FR.papel,
+            FR.dominio,
+            FR.observacoes,
+            F.nome AS funcao_nome,
+            E.codigo AS estrutura_codigo,
+            E.nome AS estrutura_nome,
+            A.macroprocesso,
+            A.processo,
+            A.atividade,
+            A.subatividade,
+            A.criticidade,
+            A.status
+        FROM governanca_funcao_responsabilidades FR
+        JOIN governanca_funcoes F
+          ON F.id = FR.funcao_id
+        JOIN governanca_estruturas E
+          ON E.id = F.estrutura_id
+        JOIN governanca_atividades A
+          ON A.id = FR.atividade_id
+        WHERE FR.ativo = {$activeValue}
+          AND F.ativo = 1
+          AND E.ativo = 1
+          AND A.ativo = 1
+          AND E.codigo IN ($placeholders)
+        ORDER BY
+            E.nome ASC,
+            F.ordem ASC,
+            F.nome ASC,
+            A.macroprocesso ASC,
+            A.processo ASC,
+            A.atividade ASC,
+            FR.id ASC
+    ");
+    $stmt->execute($codes);
+
+    return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+}
+
+function govMResponsibilityAny(PDO $pdo, int $responsibilityId): array {
+    $stmt = $pdo->prepare("
+        SELECT
+            FR.id,
+            FR.atividade_id,
+            FR.funcao_id,
+            FR.papel,
+            FR.dominio,
+            FR.observacoes,
+            FR.ativo,
+            F.estrutura_id,
+            F.nome AS funcao_nome,
+            E.codigo AS estrutura_codigo,
+            E.nome AS estrutura_nome,
+            A.macroprocesso,
+            A.processo,
+            A.atividade,
+            A.subatividade,
+            A.estrutura_id AS atividade_estrutura_id,
+            AE.codigo AS atividade_estrutura_codigo,
+            A.criticidade,
+            A.status,
+            A.hash_chave
+        FROM governanca_funcao_responsabilidades FR
+        JOIN governanca_funcoes F
+          ON F.id = FR.funcao_id
+        JOIN governanca_estruturas E
+          ON E.id = F.estrutura_id
+        JOIN governanca_atividades A
+          ON A.id = FR.atividade_id
+        JOIN governanca_estruturas AE
+          ON AE.id = A.estrutura_id
+        WHERE FR.id = ?
+        LIMIT 1
+    ");
+    $stmt->execute([$responsibilityId]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$row) {
+        govMError('Responsabilidade não encontrada.', 404);
+    }
+
+    return $row;
+}
+
+function govMActivityHash(
+    string $structureCode,
+    string $macroprocess,
+    string $process,
+    string $activity,
+    string $subactivity
+): string {
+    $normalize = static function (string $value): string {
+        $value = trim($value);
+        $value = preg_replace('/\s+/u', ' ', $value) ?? $value;
+        return mb_strtolower($value, 'UTF-8');
+    };
+
+    return hash('sha256', implode('|', [
+        $normalize($structureCode),
+        $normalize($macroprocess),
+        $normalize($process),
+        $normalize($activity),
+        $normalize($subactivity),
+    ]));
+}
+
+function govMNullable(string $value): ?string {
+    $value = trim($value);
+    return $value === '' ? null : $value;
+}
+
 $userId = (int) ($_SESSION['user_id'] ?? 0);
 
 if ($userId <= 0) {
@@ -712,6 +870,16 @@ try {
             'inactive_links' => govMInactiveLinks(
                 $pdo_intra,
                 $scope['codes']
+            ),
+            'responsibilities' => govMResponsibilitiesInScope(
+                $pdo_intra,
+                $scope['codes'],
+                true
+            ),
+            'inactive_responsibilities' => govMResponsibilitiesInScope(
+                $pdo_intra,
+                $scope['codes'],
+                false
             ),
         ]);
     }
@@ -919,6 +1087,506 @@ try {
         govMJson([
             'ok' => true,
             'message' => 'Função/cargo atualizada com sucesso.',
+        ]);
+    }
+
+    if ($action === 'create_responsibility') {
+        $functionId = (int) ($body['funcao_id'] ?? 0);
+        $macroprocess = trim((string) ($body['macroprocesso'] ?? ''));
+        $process = trim((string) ($body['processo'] ?? ''));
+        $activity = trim((string) ($body['atividade'] ?? ''));
+        $subactivity = trim((string) ($body['subatividade'] ?? ''));
+        $role = mb_strtoupper(trim((string) ($body['papel'] ?? 'PRINCIPAL')), 'UTF-8');
+        $domain = trim((string) ($body['dominio'] ?? ''));
+        $criticality = trim((string) ($body['criticidade'] ?? ''));
+        $statusValue = trim((string) ($body['status'] ?? ''));
+        $notes = trim((string) ($body['observacoes'] ?? ''));
+
+        if ($functionId <= 0 || $activity === '') {
+            govMError('Função/cargo e atividade são obrigatórias.');
+        }
+
+        if (
+            mb_strlen($macroprocess) > 180
+            || mb_strlen($process) > 180
+            || mb_strlen($activity) > 255
+            || mb_strlen($subactivity) > 255
+            || mb_strlen($role) > 40
+            || mb_strlen($domain) > 80
+            || mb_strlen($criticality) > 40
+            || mb_strlen($statusValue) > 60
+            || mb_strlen($notes) > 5000
+        ) {
+            govMError('Um ou mais campos ultrapassam o tamanho permitido.');
+        }
+
+        $function = govMFunction($pdo_intra, $functionId);
+        govMRequireStructure(
+            $pdo_intra,
+            $userId,
+            (string) $function['estrutura_codigo']
+        );
+
+        $hash = govMActivityHash(
+            (string) $function['estrutura_codigo'],
+            $macroprocess,
+            $process,
+            $activity,
+            $subactivity
+        );
+
+        $pdo_intra->beginTransaction();
+
+        try {
+            $activityStmt = $pdo_intra->prepare("
+                SELECT id
+                FROM governanca_atividades
+                WHERE hash_chave = ?
+                  AND ativo = 1
+                LIMIT 1
+            ");
+            $activityStmt->execute([$hash]);
+            $activityId = (int) ($activityStmt->fetchColumn() ?: 0);
+
+            if ($activityId <= 0) {
+                $insertActivity = $pdo_intra->prepare("
+                    INSERT INTO governanca_atividades
+                        (
+                            estrutura_id,
+                            macroprocesso,
+                            processo,
+                            atividade,
+                            subatividade,
+                            area_responsavel_texto,
+                            criticidade,
+                            status,
+                            ativo,
+                            observacoes,
+                            hash_chave,
+                            criado_por,
+                            atualizado_por
+                        )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, NULL, ?, ?, ?)
+                ");
+                $insertActivity->execute([
+                    (int) $function['estrutura_id'],
+                    govMNullable($macroprocess),
+                    govMNullable($process),
+                    $activity,
+                    govMNullable($subactivity),
+                    $role === 'PRINCIPAL'
+                        ? (string) $function['nome']
+                        : null,
+                    govMNullable($criticality),
+                    govMNullable($statusValue),
+                    $hash,
+                    $userId,
+                    $userId,
+                ]);
+                $activityId = (int) $pdo_intra->lastInsertId();
+            }
+
+            $duplicate = $pdo_intra->prepare("
+                SELECT id
+                FROM governanca_funcao_responsabilidades
+                WHERE atividade_id = ?
+                  AND funcao_id = ?
+                  AND papel = ?
+                  AND ativo = 1
+                LIMIT 1
+            ");
+            $duplicate->execute([$activityId, $functionId, $role]);
+
+            if ($duplicate->fetchColumn()) {
+                govMError(
+                    'Esta responsabilidade já está vinculada à função/cargo.',
+                    409
+                );
+            }
+
+            $insertResponsibility = $pdo_intra->prepare("
+                INSERT INTO governanca_funcao_responsabilidades
+                    (
+                        atividade_id,
+                        funcao_id,
+                        papel,
+                        dominio,
+                        origem_id_resp,
+                        ativo,
+                        observacoes,
+                        criado_por,
+                        atualizado_por
+                    )
+                VALUES (?, ?, ?, ?, NULL, 1, ?, ?, ?)
+            ");
+            $insertResponsibility->execute([
+                $activityId,
+                $functionId,
+                $role !== '' ? $role : 'PRINCIPAL',
+                govMNullable($domain),
+                govMNullable($notes),
+                $userId,
+                $userId,
+            ]);
+            $responsibilityId = (int) $pdo_intra->lastInsertId();
+
+            govMLog(
+                $pdo_intra,
+                $userId,
+                (int) $function['estrutura_id'],
+                'RESPONSABILIDADE',
+                $responsibilityId,
+                'CRIAR',
+                null,
+                [
+                    'funcao_id' => $functionId,
+                    'atividade_id' => $activityId,
+                    'atividade' => $activity,
+                    'papel' => $role,
+                ]
+            );
+
+            $pdo_intra->commit();
+
+            govMJson([
+                'ok' => true,
+                'message' => 'Responsabilidade cadastrada com sucesso.',
+            ], 201);
+        } catch (Throwable $e) {
+            if ($pdo_intra->inTransaction()) {
+                $pdo_intra->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    if ($action === 'update_responsibility') {
+        $responsibilityId = (int) ($body['responsabilidade_id'] ?? 0);
+        $macroprocess = trim((string) ($body['macroprocesso'] ?? ''));
+        $process = trim((string) ($body['processo'] ?? ''));
+        $activity = trim((string) ($body['atividade'] ?? ''));
+        $subactivity = trim((string) ($body['subatividade'] ?? ''));
+        $role = mb_strtoupper(trim((string) ($body['papel'] ?? 'PRINCIPAL')), 'UTF-8');
+        $domain = trim((string) ($body['dominio'] ?? ''));
+        $criticality = trim((string) ($body['criticidade'] ?? ''));
+        $statusValue = trim((string) ($body['status'] ?? ''));
+        $notes = trim((string) ($body['observacoes'] ?? ''));
+
+        if ($responsibilityId <= 0 || $activity === '') {
+            govMError('Responsabilidade e atividade são obrigatórias.');
+        }
+
+        if (
+            mb_strlen($macroprocess) > 180
+            || mb_strlen($process) > 180
+            || mb_strlen($activity) > 255
+            || mb_strlen($subactivity) > 255
+            || mb_strlen($role) > 40
+            || mb_strlen($domain) > 80
+            || mb_strlen($criticality) > 40
+            || mb_strlen($statusValue) > 60
+            || mb_strlen($notes) > 5000
+        ) {
+            govMError('Um ou mais campos ultrapassam o tamanho permitido.');
+        }
+
+        $current = govMResponsibilityAny($pdo_intra, $responsibilityId);
+
+        if (empty($current['ativo'])) {
+            govMError('Esta responsabilidade está inativa.', 409);
+        }
+
+        govMRequireStructure(
+            $pdo_intra,
+            $userId,
+            (string) $current['estrutura_codigo']
+        );
+
+        $newHash = govMActivityHash(
+            (string) $current['atividade_estrutura_codigo'],
+            $macroprocess,
+            $process,
+            $activity,
+            $subactivity
+        );
+
+        $pdo_intra->beginTransaction();
+
+        try {
+            $activityId = (int) $current['atividade_id'];
+
+            if (!hash_equals((string) $current['hash_chave'], $newHash)) {
+                $sameActivity = $pdo_intra->prepare("
+                    SELECT id
+                    FROM governanca_atividades
+                    WHERE hash_chave = ?
+                      AND ativo = 1
+                    LIMIT 1
+                ");
+                $sameActivity->execute([$newHash]);
+                $targetActivityId = (int) ($sameActivity->fetchColumn() ?: 0);
+
+                if ($targetActivityId > 0) {
+                    $activityId = $targetActivityId;
+                } else {
+                    $references = $pdo_intra->prepare("
+                        SELECT COUNT(*)
+                        FROM governanca_funcao_responsabilidades
+                        WHERE atividade_id = ?
+                          AND ativo = 1
+                    ");
+                    $references->execute([(int) $current['atividade_id']]);
+                    $referenceCount = (int) $references->fetchColumn();
+
+                    if ($referenceCount <= 1) {
+                        $updateActivity = $pdo_intra->prepare("
+                            UPDATE governanca_atividades
+                            SET
+                                macroprocesso = ?,
+                                processo = ?,
+                                atividade = ?,
+                                subatividade = ?,
+                                criticidade = ?,
+                                status = ?,
+                                hash_chave = ?,
+                                atualizado_por = ?
+                            WHERE id = ?
+                        ");
+                        $updateActivity->execute([
+                            govMNullable($macroprocess),
+                            govMNullable($process),
+                            $activity,
+                            govMNullable($subactivity),
+                            govMNullable($criticality),
+                            govMNullable($statusValue),
+                            $newHash,
+                            $userId,
+                            $activityId,
+                        ]);
+                    } else {
+                        $cloneActivity = $pdo_intra->prepare("
+                            INSERT INTO governanca_atividades
+                                (
+                                    estrutura_id,
+                                    macroprocesso,
+                                    processo,
+                                    atividade,
+                                    subatividade,
+                                    area_responsavel_texto,
+                                    criticidade,
+                                    status,
+                                    ativo,
+                                    observacoes,
+                                    hash_chave,
+                                    criado_por,
+                                    atualizado_por
+                                )
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, NULL, ?, ?, ?)
+                        ");
+                        $cloneActivity->execute([
+                            (int) $current['atividade_estrutura_id'],
+                            govMNullable($macroprocess),
+                            govMNullable($process),
+                            $activity,
+                            govMNullable($subactivity),
+                            $role === 'PRINCIPAL'
+                                ? (string) $current['funcao_nome']
+                                : null,
+                            govMNullable($criticality),
+                            govMNullable($statusValue),
+                            $newHash,
+                            $userId,
+                            $userId,
+                        ]);
+                        $activityId = (int) $pdo_intra->lastInsertId();
+                    }
+                }
+            } else {
+                $updateActivity = $pdo_intra->prepare("
+                    UPDATE governanca_atividades
+                    SET
+                        criticidade = ?,
+                        status = ?,
+                        atualizado_por = ?
+                    WHERE id = ?
+                ");
+                $updateActivity->execute([
+                    govMNullable($criticality),
+                    govMNullable($statusValue),
+                    $userId,
+                    $activityId,
+                ]);
+            }
+
+            $duplicate = $pdo_intra->prepare("
+                SELECT id
+                FROM governanca_funcao_responsabilidades
+                WHERE atividade_id = ?
+                  AND funcao_id = ?
+                  AND papel = ?
+                  AND ativo = 1
+                  AND id <> ?
+                LIMIT 1
+            ");
+            $duplicate->execute([
+                $activityId,
+                (int) $current['funcao_id'],
+                $role,
+                $responsibilityId,
+            ]);
+
+            if ($duplicate->fetchColumn()) {
+                govMError(
+                    'Já existe uma responsabilidade igual para esta função/cargo.',
+                    409
+                );
+            }
+
+            $updateResponsibility = $pdo_intra->prepare("
+                UPDATE governanca_funcao_responsabilidades
+                SET
+                    atividade_id = ?,
+                    papel = ?,
+                    dominio = ?,
+                    observacoes = ?,
+                    atualizado_por = ?
+                WHERE id = ?
+                  AND ativo = 1
+            ");
+            $updateResponsibility->execute([
+                $activityId,
+                $role !== '' ? $role : 'PRINCIPAL',
+                govMNullable($domain),
+                govMNullable($notes),
+                $userId,
+                $responsibilityId,
+            ]);
+
+            govMLog(
+                $pdo_intra,
+                $userId,
+                (int) $current['estrutura_id'],
+                'RESPONSABILIDADE',
+                $responsibilityId,
+                'EDITAR',
+                $current,
+                [
+                    'atividade_id' => $activityId,
+                    'atividade' => $activity,
+                    'papel' => $role,
+                    'dominio' => $domain,
+                ]
+            );
+
+            $pdo_intra->commit();
+
+            govMJson([
+                'ok' => true,
+                'message' => 'Responsabilidade atualizada com sucesso.',
+            ]);
+        } catch (Throwable $e) {
+            if ($pdo_intra->inTransaction()) {
+                $pdo_intra->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    if ($action === 'deactivate_responsibility') {
+        $responsibilityId = (int) ($body['responsabilidade_id'] ?? 0);
+        $current = govMResponsibilityAny($pdo_intra, $responsibilityId);
+
+        if (empty($current['ativo'])) {
+            govMError('Esta responsabilidade já está inativa.', 409);
+        }
+
+        govMRequireStructure(
+            $pdo_intra,
+            $userId,
+            (string) $current['estrutura_codigo']
+        );
+
+        $stmt = $pdo_intra->prepare("
+            UPDATE governanca_funcao_responsabilidades
+            SET ativo = 0, atualizado_por = ?
+            WHERE id = ? AND ativo = 1
+        ");
+        $stmt->execute([$userId, $responsibilityId]);
+
+        govMLog(
+            $pdo_intra,
+            $userId,
+            (int) $current['estrutura_id'],
+            'RESPONSABILIDADE',
+            $responsibilityId,
+            'INATIVAR',
+            $current,
+            ['ativo' => 0]
+        );
+
+        govMJson([
+            'ok' => true,
+            'message' => 'Responsabilidade inativada com sucesso.',
+        ]);
+    }
+
+    if ($action === 'reactivate_responsibility') {
+        $responsibilityId = (int) ($body['responsabilidade_id'] ?? 0);
+        $current = govMResponsibilityAny($pdo_intra, $responsibilityId);
+
+        if (!empty($current['ativo'])) {
+            govMError('Esta responsabilidade já está ativa.', 409);
+        }
+
+        govMRequireStructure(
+            $pdo_intra,
+            $userId,
+            (string) $current['estrutura_codigo']
+        );
+
+        $duplicate = $pdo_intra->prepare("
+            SELECT id
+            FROM governanca_funcao_responsabilidades
+            WHERE atividade_id = ?
+              AND funcao_id = ?
+              AND papel = ?
+              AND ativo = 1
+            LIMIT 1
+        ");
+        $duplicate->execute([
+            (int) $current['atividade_id'],
+            (int) $current['funcao_id'],
+            (string) $current['papel'],
+        ]);
+
+        if ($duplicate->fetchColumn()) {
+            govMError(
+                'Já existe uma responsabilidade ativa equivalente.',
+                409
+            );
+        }
+
+        $stmt = $pdo_intra->prepare("
+            UPDATE governanca_funcao_responsabilidades
+            SET ativo = 1, atualizado_por = ?
+            WHERE id = ? AND ativo = 0
+        ");
+        $stmt->execute([$userId, $responsibilityId]);
+
+        govMLog(
+            $pdo_intra,
+            $userId,
+            (int) $current['estrutura_id'],
+            'RESPONSABILIDADE',
+            $responsibilityId,
+            'REATIVAR',
+            ['ativo' => 0],
+            ['ativo' => 1]
+        );
+
+        govMJson([
+            'ok' => true,
+            'message' => 'Responsabilidade reativada com sucesso.',
         ]);
     }
 

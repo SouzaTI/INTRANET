@@ -110,6 +110,39 @@ function govGetPermissions(PDO $pdo, int $userId, array $groupIds): array {
     return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 }
 
+function govGetLeadershipPermissions(PDO $pdo, int $userId): array {
+    if (
+        !govTableExists($pdo, 'governanca_liderancas')
+        || !govTableExists($pdo, 'governanca_pessoas')
+    ) {
+        return [];
+    }
+
+    $stmt = $pdo->prepare("
+        SELECT
+            L.id,
+            'USUARIO' AS alvo_tipo,
+            ? AS alvo_id,
+            E.codigo AS estrutura_codigo,
+            1 AS inclui_descendentes,
+            'GERENCIAR' AS nivel_acesso
+        FROM governanca_liderancas L
+        JOIN governanca_estruturas E
+          ON E.id = L.estrutura_id
+        JOIN governanca_pessoas P
+          ON P.id = L.pessoa_id
+        WHERE L.ativo = 1
+          AND E.ativo = 1
+          AND P.ativo = 1
+          AND P.glpi_user_id = ?
+          AND (L.data_fim IS NULL OR L.data_fim >= CURDATE())
+        ORDER BY L.id ASC
+    ");
+    $stmt->execute([$userId, $userId]);
+
+    return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+}
+
 function govBuildStructureMaps(array $estrutura): array {
     $byId = [];
     $children = [];
@@ -656,10 +689,13 @@ try {
 
     if (!$isAdmin && $permissoesAtivas) {
         $groupIds = govGetUserGroupIds($pdo_intra, $usuarioId);
-        $permissions = govGetPermissions(
-            $pdo_intra,
-            $usuarioId,
-            $groupIds
+        $permissions = array_merge(
+            govGetPermissions(
+                $pdo_intra,
+                $usuarioId,
+                $groupIds
+            ),
+            govGetLeadershipPermissions($pdo_intra, $usuarioId)
         );
 
         if (!$permissions) {
