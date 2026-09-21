@@ -488,8 +488,8 @@ require_once __DIR__ . '/includes/sidebar.php';
 }
 
 #gov-org .org-leader{
-    margin-top:auto;
-    padding-top:8px;
+    margin-top:8px;
+    padding-top:0;
     display:flex;
     align-items:center;
     gap:7px;
@@ -1229,17 +1229,24 @@ require_once __DIR__ . '/includes/sidebar.php';
         return CARD_W[type] || CARD_W.person;
     }
 
-    function cardHeight(type){
+    function cardHeight(nodeOrType){
+        const node = typeof nodeOrType === 'string'
+            ? {type:nodeOrType,leaderCount:0}
+            : nodeOrType;
+        const type = node?.type || 'person';
+        const baseHeight = CARD_H[type] || CARD_H.person;
+
         if (state.level !== 'areas' && (type === 'area' || type === 'subarea')) {
-            return 118;
+            const leaderCount = Math.max(1,Number(node?.leaderCount || 0));
+            return baseHeight + Math.max(0,leaderCount - 1) * 13;
         }
 
-        return CARD_H[type] || CARD_H.person;
+        return baseHeight;
     }
 
     function computeLayout(node){
         const cw = cardWidth(node.type);
-        const ch = cardHeight(node.type);
+        const ch = cardHeight(node);
 
         if (!node.children.length){
             return {
@@ -1324,7 +1331,7 @@ require_once __DIR__ . '/includes/sidebar.php';
 
     function nodeCard(node){
         const w = cardWidth(node.type);
-        const h = cardHeight(node.type);
+        const h = cardHeight(node);
         const leaderNames = Array.isArray(node.leaderNames) && node.leaderNames.length
             ? node.leaderNames
             : ['Líder não definido'];
