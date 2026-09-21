@@ -342,9 +342,23 @@ require_once __DIR__ . '/includes/sidebar.php';
     height:100%;
     overflow:hidden;
     background:#fff;
-    border:1px solid rgba(148,163,184,.28);
-    border-radius:12px;
-    box-shadow:0 3px 12px rgba(15,23,42,.08);
+    background:linear-gradient(
+        145deg,
+        color-mix(in srgb,var(--node-color,#3b82f6) 10%,white),
+        white 72%
+    );
+    border:1px solid #dbe4ee;
+    border:1px solid color-mix(in srgb,var(--node-color,#3b82f6) 28%,#dbe4ee);
+    border-radius:14px;
+    box-shadow:
+        0 5px 18px rgba(15,23,42,.09),
+        inset 0 1px 0 rgba(255,255,255,.82);
+    transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;
+}
+
+#gov-org .org-node:hover .org-card{
+    border-color:color-mix(in srgb,var(--node-color,#3b82f6) 55%,#cbd5e1);
+    box-shadow:0 9px 24px rgba(15,23,42,.13),inset 0 1px 0 rgba(255,255,255,.9);
 }
 
 #gov-org .org-node.company .org-card{
@@ -357,6 +371,48 @@ require_once __DIR__ . '/includes/sidebar.php';
 
 #gov-org .org-node.company:hover .org-card{
     box-shadow:0 13px 38px rgba(13,27,62,.34),0 3px 10px rgba(15,23,42,.15);
+}
+
+#gov-org .org-node.depth-1 .org-card{
+    border:0;
+    background:#4338ca;
+    background:linear-gradient(
+        135deg,
+        color-mix(in srgb,var(--node-color,#4f46e5) 82%,#111827),
+        var(--node-color,#4f46e5)
+    );
+    box-shadow:0 9px 26px color-mix(in srgb,var(--node-color,#4f46e5) 28%,transparent);
+}
+
+#gov-org .org-node.depth-1 .org-stripe{
+    background:rgba(255,255,255,.34);
+}
+
+#gov-org .org-node.depth-1 .org-area-title,
+#gov-org .org-node.depth-1 .org-leader-name{
+    color:#fff;
+}
+
+#gov-org .org-node.depth-1 .org-leader-caption{
+    color:rgba(255,255,255,.64);
+}
+
+#gov-org .org-node.depth-1 .org-avatar{
+    background:rgba(255,255,255,.18);
+    color:#fff;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.2);
+}
+
+#gov-org .org-node.depth-2 .org-card{
+    border-width:1.5px;
+    border-color:#c4b5fd;
+    background:#f5f3ff;
+    background:linear-gradient(
+        145deg,
+        color-mix(in srgb,var(--node-color,#7c3aed) 20%,white),
+        color-mix(in srgb,var(--node-color,#7c3aed) 7%,white)
+    );
+    box-shadow:0 7px 22px color-mix(in srgb,var(--node-color,#7c3aed) 18%,transparent);
 }
 
 #gov-org .org-company-body{
@@ -392,12 +448,15 @@ require_once __DIR__ . '/includes/sidebar.php';
 }
 
 #gov-org .org-stripe{
-    height:4px;
+    height:5px;
     background:var(--node-color,#3b82f6);
 }
 
 #gov-org .org-area-body{
-    padding:10px 12px 11px;
+    height:calc(100% - 5px);
+    padding:10px 13px 11px;
+    display:flex;
+    flex-direction:column;
 }
 
 #gov-org .org-area-title{
@@ -406,8 +465,8 @@ require_once __DIR__ . '/includes/sidebar.php';
     gap:7px;
     min-width:0;
     font-size:12px;
-    line-height:1.2;
-    font-weight:800;
+    line-height:1.25;
+    font-weight:900;
     color:#0f172a;
 }
 
@@ -420,18 +479,45 @@ require_once __DIR__ . '/includes/sidebar.php';
 }
 
 #gov-org .org-area-title span:last-child{
-    white-space:nowrap;
+    display:-webkit-box;
+    white-space:normal;
     overflow:hidden;
-    text-overflow:ellipsis;
+    -webkit-box-orient:vertical;
+    -webkit-line-clamp:2;
+    line-clamp:2;
 }
 
 #gov-org .org-leader{
-    margin-top:9px;
+    margin-top:auto;
+    padding-top:8px;
     display:flex;
     align-items:center;
     gap:7px;
-    color:#64748b;
+    color:#475569;
     font-size:10px;
+}
+
+#gov-org .org-leader-meta{min-width:0;display:flex;flex-direction:column;gap:1px}
+
+#gov-org .org-leader-caption{
+    color:#94a3b8;
+    font-size:7px;
+    line-height:1;
+    font-weight:900;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+}
+
+#gov-org .org-leader-name{
+    display:-webkit-box;
+    color:#475569;
+    font-size:9px;
+    line-height:1.25;
+    font-weight:750;
+    overflow:hidden;
+    -webkit-box-orient:vertical;
+    -webkit-line-clamp:2;
+    line-clamp:2;
 }
 
 #gov-org .org-avatar{
@@ -445,12 +531,6 @@ require_once __DIR__ . '/includes/sidebar.php';
     color:var(--node-color,#3b82f6);
     font-size:8px;
     font-weight:900;
-}
-
-#gov-org .org-leader span:last-child{
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
 }
 
 #gov-org .org-node.person .org-card{
@@ -800,31 +880,31 @@ require_once __DIR__ . '/includes/sidebar.php';
     const API = 'api/governanca_dados.php';
 
     const CARD_W = {
-        company: 210,
-        area: 176,
-        subarea: 158,
-        person: 145
+        company: 228,
+        area: 204,
+        subarea: 190,
+        person: 166
     };
 
     const CARD_H = {
-        company: 76,
-        area: 70,
-        subarea: 62,
-        person: 50
+        company: 80,
+        area: 88,
+        subarea: 92,
+        person: 56
     };
 
-    const H_GAP = 18;
-    const V_GAP = 44;
-    const PAD = 44;
+    const H_GAP = 24;
+    const V_GAP = 50;
+    const PAD = 54;
 
     const COLORS = [
-        '#3b82f6',
-        '#10b981',
-        '#8b5cf6',
-        '#f59e0b',
-        '#0ea5e9',
-        '#ec4899',
-        '#14b8a6'
+        '#2563eb',
+        '#0f766e',
+        '#d97706',
+        '#0284c7',
+        '#db2777',
+        '#059669',
+        '#7c3aed'
     ];
 
     const state = {
@@ -919,15 +999,26 @@ require_once __DIR__ . '/includes/sidebar.php';
     }
 
     function leadershipMap(){
-        const map = new Map();
+        const grouped = new Map();
 
         (state.data?.liderancas || []).forEach(item => {
             const code = String(item.estrutura_codigo || '').trim();
-            if (!code || map.has(code)) return;
+            if (!code) return;
+            if (!grouped.has(code)) grouped.set(code,[]);
 
-            map.set(code,{
+            grouped.get(code).push({
                 name: item.pessoa_nome || 'Líder não definido',
                 initials: initials(item.pessoa_nome || '')
+            });
+        });
+
+        const map = new Map();
+        grouped.forEach((items,code) => {
+            map.set(code,{
+                name:items.map(item => item.name).join(' · '),
+                initials:items[0]?.initials || '—',
+                count:items.length,
+                names:items.map(item => item.name)
             });
         });
 
@@ -1009,6 +1100,27 @@ require_once __DIR__ . '/includes/sidebar.php';
         return COLORS[0];
     }
 
+    function hierarchyColor(code,rootCode,colorRootCode,byId,colorByTop){
+        if (code === rootCode) return '#0d1b3e';
+        if (code === 'CS-DIR') return '#4f46e5';
+        if (code === 'CS-GG') return '#7c3aed';
+
+        let current = byId.get(code);
+        let guard = 0;
+
+        while (current && guard < 100){
+            const parent = String(current.ID_PAI || '').trim();
+            if (parent === colorRootCode){
+                return colorByTop.get(String(current.ID)) || COLORS[0];
+            }
+            if (!parent) break;
+            current = byId.get(parent);
+            guard++;
+        }
+
+        return topBranchColor(code,rootCode,byId,colorByTop);
+    }
+
     function buildOrgTree(){
         const {byId,children} = structureMaps();
         const leaders = leadershipMap();
@@ -1019,25 +1131,31 @@ require_once __DIR__ . '/includes/sidebar.php';
             throw new Error('Nenhuma estrutura raiz foi encontrada.');
         }
 
-        const rootChildren = children.get(root.ID) || [];
+        const colorRootCode = byId.has('CS-GG')
+            ? 'CS-GG'
+            : String(root.ID);
+        const colorChildren = children.get(colorRootCode) || [];
         const colorByTop = new Map();
 
-        rootChildren.forEach((row,index) => {
+        colorChildren.forEach((row,index) => {
             colorByTop.set(row.ID,COLORS[index % COLORS.length]);
         });
 
         function buildStructure(row,depth){
             const code = String(row.ID || '');
-            const color = topBranchColor(
+            const color = hierarchyColor(
                 code,
                 String(root.ID),
+                colorRootCode,
                 byId,
                 colorByTop
             );
 
             const leader = leaders.get(code) || {
                 name:'Líder não definido',
-                initials:'—'
+                initials:'—',
+                count:0,
+                names:[]
             };
 
             const childrenNodes = (children.get(code) || [])
@@ -1078,6 +1196,8 @@ require_once __DIR__ . '/includes/sidebar.php';
                 initials: depth === 0
                     ? initials(row.NOME || 'CS')
                     : leader.initials,
+                leaderCount:depth === 0 ? 0 : leader.count,
+                leaderNames:depth === 0 ? [] : leader.names,
                 color,
                 depth,
                 children: state.level === 'areas'
@@ -1098,6 +1218,7 @@ require_once __DIR__ . '/includes/sidebar.php';
             leaders,
             fnMap,
             colorByTop,
+            colorRootCode,
             externalRoots:[...byId.values()].filter(row => {
                 const parent = String(row.ID_PAI || '').trim();
                 return !parent && String(row.ID || '') !== String(root.ID);
@@ -1205,8 +1326,9 @@ require_once __DIR__ . '/includes/sidebar.php';
         if (node.type === 'company'){
             return `
                 <button type="button"
-                        class="org-node company"
+                        class="org-node company depth-0"
                         data-id="${esc(node.id)}"
+                        title="${esc(node.label)}"
                         style="left:${node.cx - w/2}px;top:${node.top}px;width:${w}px;height:${h}px;--node-color:${esc(node.color)}">
                     <div class="org-card">
                         <div class="org-company-body">
@@ -1224,8 +1346,9 @@ require_once __DIR__ . '/includes/sidebar.php';
         if (node.type === 'person'){
             return `
                 <button type="button"
-                        class="org-node person"
+                        class="org-node person depth-${Number(node.depth || 0)}"
                         data-id="${esc(node.id)}"
+                        title="${esc(node.label)} · ${esc(node.sublabel || '')}"
                         style="left:${node.cx - w/2}px;top:${node.top}px;width:${w}px;height:${h}px;--node-color:${esc(node.color)}">
                     <div class="org-card">
                         <div class="org-person-body">
@@ -1242,8 +1365,9 @@ require_once __DIR__ . '/includes/sidebar.php';
 
         return `
             <button type="button"
-                    class="org-node ${esc(node.type)}"
+                    class="org-node ${esc(node.type)} depth-${Number(node.depth || 0)}"
                     data-id="${esc(node.id)}"
+                    title="${esc(node.label)}${node.sublabel ? ' · ' + esc(node.sublabel) : ''}"
                     style="left:${node.cx - w/2}px;top:${node.top}px;width:${w}px;height:${h}px;--node-color:${esc(node.color)}">
                 <div class="org-card">
                     <div class="org-stripe"></div>
@@ -1257,7 +1381,14 @@ require_once __DIR__ . '/includes/sidebar.php';
                                 ? `
                                 <div class="org-leader">
                                     <div class="org-avatar">${esc(node.initials || '—')}</div>
-                                    <span>${esc(node.sublabel || 'Líder não definido')}</span>
+                                    <div class="org-leader-meta">
+                                        <span class="org-leader-caption">${
+                                            Number(node.leaderCount || 0) > 1
+                                                ? `${Number(node.leaderCount)} lideranças`
+                                                : 'Liderança'
+                                        }</span>
+                                        <span class="org-leader-name">${esc(node.sublabel || 'Líder não definido')}</span>
+                                    </div>
                                 </div>
                                 `
                                 : ''
@@ -1300,7 +1431,15 @@ require_once __DIR__ . '/includes/sidebar.php';
             color:'#0d1b3e'
         }];
 
-        const rootChildren = model.children.get(model.rootCode) || [];
+        if (model.byId.has('CS-DIR')) {
+            items.push({name:'Diretoria',color:'#4f46e5'});
+        }
+
+        if (model.byId.has('CS-GG')) {
+            items.push({name:'Gerência Geral',color:'#7c3aed'});
+        }
+
+        const rootChildren = model.children.get(model.colorRootCode) || [];
 
         rootChildren.forEach((row,index) => {
             items.push({
@@ -1444,8 +1583,8 @@ require_once __DIR__ . '/includes/sidebar.php';
         });
 
         const responsibilities = responsibilitiesForStructure(code);
-        const leadership = (state.data?.liderancas || [])
-            .find(item => String(item.estrutura_codigo || '') === code);
+        const leaderships = (state.data?.liderancas || [])
+            .filter(item => String(item.estrutura_codigo || '') === code);
 
         const childrenCount = (state.model?.children.get(code) || []).length;
 
@@ -1454,7 +1593,7 @@ require_once __DIR__ . '/includes/sidebar.php';
             functions,
             people:[...peopleMap.values()],
             responsibilities,
-            leadership,
+            leaderships,
             childrenCount
         };
     }
@@ -1514,8 +1653,9 @@ require_once __DIR__ . '/includes/sidebar.php';
         el.drawerTitle.textContent =
             detail.structure.NOME || code;
 
-        const leaderName =
-            detail.leadership?.pessoa_nome || 'Líder ainda não definido';
+        const leaderName = detail.leaderships.length
+            ? detail.leaderships.map(item => item.pessoa_nome).join(' · ')
+            : 'Líder ainda não definido';
 
         el.drawerBody.innerHTML = `
             <div class="drawer-card">
