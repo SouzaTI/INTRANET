@@ -1,24 +1,60 @@
 <?php
 require_once 'config.php';
 require_once __DIR__ . '/services/EmailAssinaturaService.php';
+require_once __DIR__ . '/includes/DocumentoCentralAssinatura.php';
 
 $user_id = $_SESSION['user_id'] ?? 0;
 $envelope_id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+if (empty($_SESSION['csrf_detalhe_envelope'])) {
+    $_SESSION['csrf_detalhe_envelope'] = bin2hex(random_bytes(32));
+}
 
 if (!$envelope_id) {
     die("<script>alert('ID inválido!'); window.location.href='minhas_assinaturas.php';</script>");
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $csrfRecebido = (string) ($_POST['csrf_token'] ?? '');
+    if ($csrfRecebido === '' || !hash_equals((string) $_SESSION['csrf_detalhe_envelope'], $csrfRecebido)) {
+        http_response_code(419);
+        exit('Sua sessão expirou. Atualize a página e tente novamente.');
+    }
+}
+
 // ── Lógica de Cancelamento do Envelope ──────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['acao'] === 'cancelar') {
-    // 1. Muda o status do envelope para cancelado
-    $pdo_intra->prepare("UPDATE sistemas_assinaturas SET status = 'cancelado' WHERE id = ? AND criado_por = ?")
-              ->execute([$envelope_id, $user_id]);
-    
-    // 2. Trava quem ainda não assinou
-    $pdo_intra->prepare("UPDATE assinaturas_fluxo SET status = 'recusado', justificativa_recusa = 'Cancelado pelo criador' WHERE fk_assinatura = ? AND status IN ('pendente','aguardando')")
-              ->execute([$envelope_id]);
-              
+    $pdo_intra->beginTransaction();
+    try {
+        $stmtCancelar = $pdo_intra->prepare('SELECT criado_por, status FROM sistemas_assinaturas WHERE id=? FOR UPDATE');
+        $stmtCancelar->execute([$envelope_id]);
+        $envelopeCancelar = $stmtCancelar->fetch(PDO::FETCH_ASSOC);
+        if (!$envelopeCancelar
+            || ((int) $envelopeCancelar['criado_por'] !== (int) $user_id && empty($_SESSION['is_admin']))) {
+            throw new RuntimeException('Você não possui permissão para cancelar este envelope.');
+        }
+        if (!in_array($envelopeCancelar['status'], ['aguardando', 'em_andamento'], true)) {
+            throw new RuntimeException('Este envelope não pode mais ser cancelado.');
+        }
+
+        $pdo_intra->prepare("UPDATE sistemas_assinaturas SET status='cancelado' WHERE id=?")
+            ->execute([$envelope_id]);
+        $pdo_intra->prepare("UPDATE assinaturas_fluxo
+            SET status='recusado', justificativa_recusa='Cancelado pelo criador'
+            WHERE fk_assinatura=? AND status IN ('pendente','aguardando')")
+            ->execute([$envelope_id]);
+        documentoCentralInterromperAssinatura(
+            $pdo_intra,
+            (int) $envelope_id,
+            (int) $user_id,
+            'Envelope cancelado pelo responsável do fluxo de assinatura.'
+        );
+        $pdo_intra->commit();
+    } catch (Throwable $e) {
+        if ($pdo_intra->inTransaction()) $pdo_intra->rollBack();
+        http_response_code(422);
+        exit(htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8'));
+    }
+
     registrarLog($pdo_intra, 'CANCELOU ENVELOPE', "Cancelou o envelope ID: $envelope_id");
     header("Location: detalhe_envelope.php?id=$envelope_id&sucesso=cancelado");
     exit;
@@ -130,6 +166,7 @@ $status_cfg = match($envelope['status']) {
                 <div class="flex flex-col gap-2 shrink-0">
                     <?php if ($pode_gerenciar && $envelope['status'] === 'concluido'): ?>
                         <form method="POST" onsubmit="return confirm('Enviar novamente para todos os participantes, criador e e-mails adicionais?');">
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_detalhe_envelope']) ?>">
                             <input type="hidden" name="acao" value="reenviar_email">
                             <button type="submit" class="w-full bg-navy-900 hover:bg-corporate-blue text-white px-5 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-sm">
                                 ✉ Enviar documentos por e-mail
@@ -143,6 +180,7 @@ $status_cfg = match($envelope['status']) {
                     <?php endif; ?>
                     <?php if ((int)$envelope['criado_por'] === (int)$user_id && ($envelope['status'] === 'aguardando' || $envelope['status'] === 'em_andamento')): ?>
                         <form method="POST" onsubmit="return confirm('ATENÇÃO: Deseja realmente cancelar este envelope? Todas as assinaturas pendentes serão invalidadas e não será possível reverter.');">
+                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_detalhe_envelope']) ?>">
                             <input type="hidden" name="acao" value="cancelar">
                             <button type="submit" class="w-full bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 text-slate-400 hover:text-rose-500 px-5 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-sm">
                                 🛑 Cancelar Envelope

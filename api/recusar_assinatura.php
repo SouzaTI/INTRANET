@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once dirname(__DIR__) . '/config.php';
+require_once dirname(__DIR__) . '/includes/DocumentoCentralAssinatura.php';
 header('Content-Type: application/json; charset=utf-8');
 
 function sair(bool $ok, string $msg, int $http = 200): never {
@@ -34,6 +35,12 @@ try {
         (envelope_id, fluxo_id, glpi_user_id, evento, descricao, ip_origem, user_agent)
         VALUES (?, ?, ?, 'RECUSADO', ?, ?, ?)")
         ->execute([$envelopeId, $fluxoId, $uid, $motivo, $_SERVER['REMOTE_ADDR'] ?? null, $_SERVER['HTTP_USER_AGENT'] ?? null]);
+    documentoCentralInterromperAssinatura(
+        $pdo_intra,
+        $envelopeId,
+        $uid,
+        'Assinatura recusada: ' . $motivo
+    );
     $pdo_intra->commit();
     sair(true, 'Documento recusado e fluxo encerrado.');
 } catch (DomainException $e) {

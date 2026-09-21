@@ -108,18 +108,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
 
     // A. SALVAR CONTRATO (criação/edição)
     if ($acao === 'salvar_contrato') {
+        $arquivos_criados = [];
         try {
             $cid        = $_POST['contrato_id'] ?? '';
             $setor_novo = mb_strtoupper(trim((string) ($_POST['setor'] ?? '')), 'UTF-8');
+            $arquivo_atual_db = null;
 
             if (empty($cid)) {
                 $auth->exigir('criar');
             } else {
                 $auth->exigirNoContrato('editar', (int) $cid);
 
-                $stmt_status_atual = $pdo_intra->prepare("SELECT status FROM contratos WHERE id = ?");
+                $stmt_status_atual = $pdo_intra->prepare("SELECT status, arquivo_path FROM contratos WHERE id = ?");
                 $stmt_status_atual->execute([(int) $cid]);
-                $status_atual = (string) $stmt_status_atual->fetchColumn();
+                $contrato_atual = $stmt_status_atual->fetch(PDO::FETCH_ASSOC);
+                if (!$contrato_atual) {
+                    throw new RuntimeException('Contrato não encontrado.', 404);
+                }
+                $status_atual = (string) $contrato_atual['status'];
+                $arquivo_atual_db = trim((string) ($contrato_atual['arquivo_path'] ?? '')) ?: null;
                 if ($status_atual === 'ENCERRADO') {
                     throw new RuntimeException('Contrato encerrado é somente leitura. Use o histórico para consulta.', 409);
                 }
@@ -177,26 +184,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 // A autorização de edição já foi validada por exigirNoContrato().
             }
 
-            // Salva o anexo no armazenamento local configurado em ContratoStorage.php.
-            $arquivo_path = $_POST['arquivo_atual'] ?? null;
-            if (!empty($_FILES['arquivo_contrato']['name'])) {
-                if ($_FILES['arquivo_contrato']['error'] !== UPLOAD_ERR_OK || $_FILES['arquivo_contrato']['size'] > 10 * 1024 * 1024) {
-                    throw new RuntimeException('O anexo deve ser um PDF válido de até 10 MB.');
-                }
-                $mime = (new finfo(FILEINFO_MIME_TYPE))->file($_FILES['arquivo_contrato']['tmp_name']);
-                if ($mime !== 'application/pdf') {
-                    throw new RuntimeException('Somente arquivos PDF são permitidos.');
-                }
-
-                $pasta_grupo = contratosPastaGrupo($setor_novo);
-                $dir_uploads = contratosDiretorioGrupo($setor_novo);
-                contratosGarantirDiretorio($dir_uploads);
-                $nome_arquivo = 'contrato_' . bin2hex(random_bytes(16)) . '.pdf';
-                $destino = $dir_uploads . DIRECTORY_SEPARATOR . $nome_arquivo;
-                if (!move_uploaded_file($_FILES['arquivo_contrato']['tmp_name'], $destino)) {
-                    throw new RuntimeException('O Apache não conseguiu gravar o anexo na pasta de contratos.');
-                }
-                $arquivo_path = $pasta_grupo . '/' . $nome_arquivo;
+            // O campo legado continua apontando para o primeiro PDF, enquanto
+            // a tabela contratos_anexos mantém todos os documentos do contrato.
+            $arquivo_path = $arquivo_atual_db;
+            $campo_upload = $_FILES['arquivos_contrato'] ?? $_FILES['arquivo_contrato'] ?? null;
+            $uploads = contratosValidarUploads(is_array($campo_upload) ? $campo_upload : null);
+            $novos_anexos = contratosArmazenarUploads($uploads, $setor_novo);
+            $arquivos_criados = array_column($novos_anexos, 'caminho_absoluto');
+            if ($arquivo_path === null && $novos_anexos) {
+                $arquivo_path = $novos_anexos[0]['arquivo_path'];
             }
             $possui_reajuste = ($_POST['possui_reajuste'] ?? '') === '' ? null : (int) $_POST['possui_reajuste'];
             $possui_aviso = in_array(($_POST['possui_aviso_cancelamento'] ?? ''), ['SIM','NAO','NAO_INFORMADO'], true) ? $_POST['possui_aviso_cancelamento'] : null;
@@ -269,6 +265,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 trim($_POST['contato_financeiro_telefone'] ?? ''),
             ];
 
+            $pdo_intra->beginTransaction();
+
             if (empty($cid)) {
                 $sql = "INSERT INTO contratos
                     (fornecedor, nome_fantasia, cnpj, contato_fornecedor_nome, contato_fornecedor_telefone, servico_objeto, numero_contrato, codigo_sistema, clausula_tecnica, multa_carencia,
@@ -302,6 +300,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                 registrarLog($pdo_intra, 'EDITOU CONTRATO', "Editou o contrato ID: $cid", $user_id_sessao, $admin_ip);
             }
 
+            if ($novos_anexos) {
+                $stmt_anexo = $pdo_intra->prepare(
+                    "INSERT INTO contratos_anexos
+                        (contrato_id, nome_original, arquivo_path, mime_type, tamanho_bytes, enviado_por)
+                     VALUES (?, ?, ?, ?, ?, ?)"
+                );
+                foreach ($novos_anexos as $anexo) {
+                    $stmt_anexo->execute([
+                        (int) $cid,
+                        $anexo['name'],
+                        $anexo['arquivo_path'],
+                        $anexo['mime_type'],
+                        $anexo['size'],
+                        $user_id_sessao,
+                    ]);
+                }
+            }
+
             $status_fluxo = $modo_salvamento === 'ENVIAR_FINANCEIRO' ? 'AGUARDANDO_FINANCEIRO' : 'RASCUNHO';
             $pdo_intra->prepare(
                 "UPDATE contratos SET status_fluxo=?, cadastro_atualizado=1, tipo_prazo=?, tipo_pagamento=?,
@@ -330,6 +346,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
                         ->execute([$cid, $user_id_sessao]);
             }
 
+            $pdo_intra->commit();
+
             // Redireciona voltando uma casa para a interface
             $mensagem_sucesso = $modo_salvamento === 'ENVIAR_FINANCEIRO'
                 ? 'Contrato enviado ao Contas a Pagar com sucesso!'
@@ -338,6 +356,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao'])) {
             exit;
 
         } catch (Throwable $e) {
+            if ($pdo_intra->inTransaction()) {
+                $pdo_intra->rollBack();
+            }
+            foreach ($arquivos_criados as $arquivo_criado) {
+                if (is_file($arquivo_criado)) {
+                    @unlink($arquivo_criado);
+                }
+            }
             $mensagem = $e instanceof RuntimeException ? $e->getMessage() : 'Erro no banco de dados ao salvar as informações.';
             header("Location: ../contratos.php?erro=" . urlencode($mensagem));
             exit;

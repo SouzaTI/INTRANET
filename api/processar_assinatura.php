@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once dirname(__DIR__) . '/config.php';
 require_once dirname(__DIR__) . '/services/CarimbadorService.php';
 require_once dirname(__DIR__) . '/services/EmailAssinaturaService.php';
+require_once dirname(__DIR__) . '/includes/DocumentoCentralAssinatura.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -174,6 +175,10 @@ try {
             (envelope_id, glpi_user_id, evento, descricao, ip_origem, user_agent)
             VALUES (?, ?, 'CONCLUIDO', 'Fluxo concluído.', ?, ?)")
             ->execute([$envelopeId, $usuarioId, $ip, $userAgent]);
+
+        // Um documento aprovado tecnicamente só é publicado depois que o
+        // envelope opcional da Central de Documentos estiver concluído.
+        documentoCentralConcluirAssinatura($pdo_intra, $envelopeId, $usuarioId);
     }
 
     $pdo_intra->commit();

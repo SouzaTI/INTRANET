@@ -6,6 +6,48 @@ $ehAdminSidebar = isset($_SESSION['is_admin']) && $_SESSION['is_admin'] === true
 $setorPrincipalSidebar = $_SESSION['setor_principal'] ?? '';
 $podeGerenciarDocsSidebar = !empty($_SESSION['pode_gerenciar_docs']);
 $podeGerenciarAcessosSidebar = !empty($_SESSION['pode_gerenciar_acessos']);
+$pendenciasDocumentosSidebar = 0;
+$ehValidadorDocumentosSidebar = $ehAdminSidebar || $podeGerenciarDocsSidebar;
+
+if (!$ehValidadorDocumentosSidebar && $usuarioIdSidebar > 0) {
+    $stmtValidadorDocsSidebar = $pdo_intra->prepare(
+        "SELECT 1
+           FROM usuarios_grupos ug
+           JOIN grupos_intranet g ON g.id=ug.grupo_id
+          WHERE ug.usuario_id=?
+            AND UPPER(TRIM(g.nome)) IN ('FACILITIES & T.I', 'ANALISE DE DADOS')
+          LIMIT 1"
+    );
+    $stmtValidadorDocsSidebar->execute([$usuarioIdSidebar]);
+    $ehValidadorDocumentosSidebar = (bool) $stmtValidadorDocsSidebar->fetchColumn();
+}
+
+if ($usuarioIdSidebar > 0) {
+    try {
+        $stmtPendenciasDocsSidebar = $pdo_intra->prepare(
+            "SELECT COUNT(DISTINCT d.id)
+               FROM documentos_central d
+               LEFT JOIN documentos_tarefas t
+                 ON t.documento_id=d.id
+                AND t.status='PENDENTE'
+              WHERE t.usuario_responsavel_id=?
+                 OR (?=1 AND (
+                        d.status='EM_VALIDACAO'
+                        OR (d.status='EM_ANALISE' AND (?=1 OR d.responsavel_id=?))
+                    ))"
+        );
+        $stmtPendenciasDocsSidebar->execute([
+            $usuarioIdSidebar,
+            $ehValidadorDocumentosSidebar ? 1 : 0,
+            $ehAdminSidebar ? 1 : 0,
+            $usuarioIdSidebar,
+        ]);
+        $pendenciasDocumentosSidebar = (int) $stmtPendenciasDocsSidebar->fetchColumn();
+    } catch (Throwable $e) {
+        // Mantém a navegação disponível enquanto a migração do módulo ainda não foi aplicada.
+        $pendenciasDocumentosSidebar = 0;
+    }
+}
 
 $contratoAuthSidebar = new ContratoAuth(
     $pdo_intra,
@@ -32,44 +74,6 @@ if (!$podeVisualizarWinthorSidebar && $usuarioIdSidebar > 0) {
 
 // Página atual
 $current_page = basename($_SERVER['PHP_SELF']);
-$is_docs_active = ($current_page === 'view.php' || isset($_GET['path']));
-
-// Documentação: escaneamento dinâmico
-$diretorio_docs = __DIR__ . '/../docs/';
-$setores_disponiveis = [];
-
-if (is_dir($diretorio_docs)) {
-    $pastas = scandir($diretorio_docs);
-    foreach ($pastas as $pasta) {
-        if ($pasta !== '.' && $pasta !== '..' && is_dir($diretorio_docs . $pasta)) {
-            $setores_disponiveis[] = strtoupper($pasta);
-        }
-    }
-}
-sort($setores_disponiveis);
-
-$pasta_url_atual = '';
-if (isset($_GET['path'])) {
-    $partes_path = explode('/', urldecode($_GET['path']));
-    $pasta_url_atual = strtoupper($partes_path[0]);
-}
-
-// Processos homologados
-$stmt_aprovados = $pdo_intra->query("
-    SELECT id, titulo, versao_atual, setor_origem
-    FROM docs_fluxo_simples
-    WHERE status = 'Aprovado'
-    ORDER BY setor_origem ASC, titulo ASC
-");
-
-$aprovados_por_setor = [];
-while ($row = $stmt_aprovados->fetch(PDO::FETCH_ASSOC)) {
-    $s = !empty($row['setor_origem']) ? strtoupper($row['setor_origem']) : 'GERAL';
-    $aprovados_por_setor[$s][] = $row;
-}
-
-$is_proc_active = ($current_page === 'visualizar_processo.php');
-$setor_atual_sidebar = isset($_GET['setor_origem']) ? urldecode($_GET['setor_origem']) : '';
 
 // Permissões já existentes na sidebar original
 $tem_permissao_feed = $ehAdminSidebar
@@ -77,7 +81,7 @@ $tem_permissao_feed = $ehAdminSidebar
     || $setorPrincipalSidebar === 'MARKETING';
 
 $podeVisualizarBaseErrosSidebar = $ehAdminSidebar || $podeGerenciarAcessosSidebar;
-$podeVisualizarAdministracaoSidebar = $ehAdminSidebar || $podeGerenciarDocsSidebar;
+$podeVisualizarAdministracaoSidebar = $ehAdminSidebar;
 
 // Estado dos grupos principais
 $is_sistemas_active = in_array($current_page, [
@@ -105,16 +109,12 @@ $is_comunicacao_active = in_array($current_page, [
 
 $is_documentacao_dados_active = in_array($current_page, [
     'treinamento.php',
-    'meus_documentos.php',
-    'view.php',
-    'visualizar_processo.php'
-], true) || $is_docs_active || $is_proc_active;
+    'documentos.php'
+], true);
 
 $is_administracao_active = in_array($current_page, [
-    'admin_docs.php',
     'admin_gestao.php',
     'admin_logs.php',
-    'gestao_fluxo.php',
     'governanca_acessos.php'
 ], true);
 
@@ -645,124 +645,16 @@ function sidebarGroupState(bool $open): string {
                     <span>Cursos &amp; Treinamentos</span>
                 </a>
 
-                <a href="meus_documentos.php" class="sidebar-sub-link<?= $current_page === 'meus_documentos.php' ? ' is-active' : '' ?>">
-                    <span class="sidebar-sub-icon">📤</span>
-                    <span>Envio de Processos</span>
-                </a>
-
-                <!-- Documentação dinâmica -->
-                <button type="button"
-                        id="docs-button"
-                        class="sidebar-sub-button<?= $is_docs_active ? ' is-active' : '' ?>"
-                        onclick="toggleNestedMenu('docs-menu', 'docs-arrow')">
+                <a href="documentos.php" class="sidebar-sub-link<?= $current_page === 'documentos.php' ? ' is-active' : '' ?>">
                     <span class="sidebar-sub-icon">📂</span>
-                    <span>Documentação</span>
-                    <span id="docs-arrow" class="sidebar-mini-chevron<?= $is_docs_active ? ' is-open' : '' ?>">▶</span>
-                </button>
-
-                <div id="docs-menu" class="sidebar-third-level<?= $is_docs_active ? '' : ' hidden' ?>">
-                    <a href="view.php" class="sidebar-third-link<?= $current_page === 'view.php' && !isset($_GET['path']) ? ' is-active' : '' ?>">
-                        <span>👁️</span>
-                        <span>Visão Geral</span>
-                    </a>
-
-                    <?php foreach ($setores_disponiveis as $setor):
-                        $tem_acesso = $ehAdminSidebar
-                            || $setorPrincipalSidebar === $setor
-                            || (isset($_SESSION['pastas_extras']) && in_array($setor, $_SESSION['pastas_extras']));
-
-                        if ($tem_acesso):
-                            $diretorio_base = $_SERVER['DOCUMENT_ROOT'] . '/intranet/docs/';
-                            $diretorio_setor = $diretorio_base . $setor;
-                            $arquivos_docs = glob($diretorio_setor . '/*.{md,pdf}', GLOB_BRACE);
-                            $id_setor_limpo = preg_replace('/[^a-zA-Z0-9_]/', '_', $setor);
-                            $is_this_open = ($pasta_url_atual === $setor);
-                    ?>
-                        <div>
-                            <div style="display:flex; align-items:center; gap:4px;">
-                                <a href="view.php?path=<?= urlencode($setor) ?>"
-                                   class="sidebar-third-link<?= $is_this_open ? ' is-active' : '' ?>"
-                                   style="flex:1; min-width:0;">
-                                    <span>📁</span>
-                                    <span style="overflow-wrap:anywhere;"><?= htmlspecialchars($setor) ?></span>
-                                </a>
-                                <button type="button"
-                                        onclick="event.preventDefault(); event.stopPropagation(); toggleSetor('sub_<?= $id_setor_limpo ?>', 'arrow_<?= $id_setor_limpo ?>')"
-                                        style="width:28px;height:28px;border-radius:7px;color:#94a3b8;flex:0 0 28px;">
-                                    <span id="arrow_<?= $id_setor_limpo ?>" style="font-size:9px;display:block;transform:<?= $is_this_open ? 'rotate(90deg)' : 'rotate(0deg)' ?>;transition:transform .2s ease;">▶</span>
-                                </button>
-                            </div>
-
-                            <div id="sub_<?= $id_setor_limpo ?>" class="sidebar-third-level<?= $is_this_open ? '' : ' hidden' ?>" style="margin-left:15px;">
-                                <?php if (!$arquivos_docs || empty($arquivos_docs)): ?>
-                                    <div class="sidebar-empty">Nenhum documento</div>
-                                <?php else: ?>
-                                    <?php foreach ($arquivos_docs as $arq):
-                                        $ext = strtolower(pathinfo($arq, PATHINFO_EXTENSION));
-                                        $nome_doc = str_replace(['.md', '.pdf'], '', basename($arq));
-                                        $icone = ($ext === 'pdf') ? '📕' : '📄';
-                                    ?>
-                                        <a href="view.php?path=<?= urlencode($setor . '/' . basename($arq)) ?>" class="sidebar-third-link">
-                                            <span><?= $icone ?></span>
-                                            <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?= htmlspecialchars(str_replace('_', ' ', $nome_doc)) ?></span>
-                                        </a>
-                                    <?php endforeach; ?>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    <?php endif; endforeach; ?>
-                </div>
-
-                <!-- Processos homologados -->
-                <button type="button"
-                        id="processos-button"
-                        class="sidebar-sub-button<?= $is_proc_active ? ' is-active' : '' ?>"
-                        onclick="toggleNestedMenu('processos-menu', 'processos-arrow')">
-                    <span class="sidebar-sub-icon">✅</span>
-                    <span>Processos Homologados</span>
-                    <span id="processos-arrow" class="sidebar-mini-chevron<?= $is_proc_active ? ' is-open' : '' ?>">▶</span>
-                </button>
-
-                <div id="processos-menu" class="sidebar-third-level<?= $is_proc_active ? '' : ' hidden' ?>">
-                    <a href="visualizar_processo.php" class="sidebar-third-link<?= $current_page === 'visualizar_processo.php' && !$setor_atual_sidebar ? ' is-active' : '' ?>">
-                        <span>👁️</span>
-                        <span>Visão Geral</span>
-                    </a>
-
-                    <?php if (empty($aprovados_por_setor)): ?>
-                        <div class="sidebar-empty">Nenhum processo oficial.</div>
-                    <?php else: ?>
-                        <?php foreach ($aprovados_por_setor as $nome_setor => $docs_setor):
-                            $id_setor_clean = preg_replace('/[^a-zA-Z0-9_]/', '_', $nome_setor);
-                            $is_this_proc_open = ($setor_atual_sidebar === $nome_setor);
-                        ?>
-                            <div>
-                                <div style="display:flex;align-items:center;gap:4px;">
-                                    <a href="visualizar_processo.php?setor_origem=<?= urlencode($nome_setor) ?>"
-                                       class="sidebar-third-link<?= $is_this_proc_open ? ' is-active' : '' ?>"
-                                       style="flex:1;min-width:0;">
-                                        <span>📁</span>
-                                        <span style="overflow-wrap:anywhere;"><?= htmlspecialchars($nome_setor) ?></span>
-                                    </a>
-                                    <button type="button"
-                                            onclick="event.preventDefault(); event.stopPropagation(); toggleSetor('proc_sub_<?= $id_setor_clean ?>', 'proc_arr_<?= $id_setor_clean ?>')"
-                                            style="width:28px;height:28px;border-radius:7px;color:#94a3b8;flex:0 0 28px;">
-                                        <span id="proc_arr_<?= $id_setor_clean ?>" style="font-size:9px;display:block;transform:<?= $is_this_proc_open ? 'rotate(90deg)' : 'rotate(0deg)' ?>;transition:transform .2s ease;">▶</span>
-                                    </button>
-                                </div>
-
-                                <div id="proc_sub_<?= $id_setor_clean ?>" class="sidebar-third-level<?= $is_this_proc_open ? '' : ' hidden' ?>" style="margin-left:15px;">
-                                    <?php foreach ($docs_setor as $doc_ap): ?>
-                                        <a href="visualizar_processo.php?setor_origem=<?= urlencode($nome_setor) ?>&open_doc=<?= (int) $doc_ap['id'] ?>&title=<?= urlencode($doc_ap['titulo']) ?>" class="sidebar-third-link">
-                                            <span>📋</span>
-                                            <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?= htmlspecialchars($doc_ap['titulo']) ?></span>
-                                        </a>
-                                    <?php endforeach; ?>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
+                    <span>Central de Documentos</span>
+                    <?php if ($pendenciasDocumentosSidebar > 0): ?>
+                        <span class="ml-auto min-w-5 rounded-full bg-orange-500 px-1.5 py-0.5 text-center text-[9px] font-black text-white"
+                              title="<?= $pendenciasDocumentosSidebar ?> pendência(s) aguardando sua ação">
+                            <?= $pendenciasDocumentosSidebar > 99 ? '99+' : $pendenciasDocumentosSidebar ?>
+                        </span>
                     <?php endif; ?>
-                </div>
+                </a>
             </div>
 
             <!-- ADMINISTRAÇÃO -->
@@ -778,13 +670,6 @@ function sidebarGroupState(bool $open): string {
                 </button>
 
                 <div id="sidebar-group-administracao" class="sidebar-submenu<?= $is_administracao_active ? '' : ' hidden' ?>" data-level="root">
-                    <?php if ($podeGerenciarDocsSidebar): ?>
-                        <a href="admin_docs.php" class="sidebar-sub-link<?= $current_page === 'admin_docs.php' ? ' is-active' : '' ?>">
-                            <span class="sidebar-sub-icon">📝</span>
-                            <span>Gestão de Manuais</span>
-                        </a>
-                    <?php endif; ?>
-
                     <?php if ($ehAdminSidebar): ?>
                         <a href="admin_gestao.php" class="sidebar-sub-link<?= $current_page === 'admin_gestao.php' ? ' is-active' : '' ?>">
                             <span class="sidebar-sub-icon">🛡️</span>
@@ -794,11 +679,6 @@ function sidebarGroupState(bool $open): string {
                         <a href="admin_logs.php" class="sidebar-sub-link<?= $current_page === 'admin_logs.php' ? ' is-active' : '' ?>">
                             <span class="sidebar-sub-icon">📋</span>
                             <span>Logs de Auditoria</span>
-                        </a>
-
-                        <a href="gestao_fluxo.php" class="sidebar-sub-link<?= $current_page === 'gestao_fluxo.php' ? ' is-active' : '' ?>">
-                            <span class="sidebar-sub-icon">🛠️</span>
-                            <span>Aprovações de Processos</span>
                         </a>
 
                         <a href="governanca_acessos.php" class="sidebar-sub-link<?= $current_page === 'governanca_acessos.php' ? ' is-active' : '' ?>">

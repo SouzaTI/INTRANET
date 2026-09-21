@@ -98,6 +98,22 @@ $stmt = $pdo_intra->prepare("
 $stmt->execute($paramsContratos);
 $contratos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+$anexos_por_contrato = [];
+if ($contratos) {
+    $ids_anexos = array_map('intval', array_column($contratos, 'id'));
+    $marcadores_anexos = implode(',', array_fill(0, count($ids_anexos), '?'));
+    $stmt_anexos = $pdo_intra->prepare(
+        "SELECT id, contrato_id, nome_original, arquivo_path, tamanho_bytes, criado_em
+           FROM contratos_anexos
+          WHERE contrato_id IN ($marcadores_anexos)
+          ORDER BY criado_em, id"
+    );
+    $stmt_anexos->execute($ids_anexos);
+    foreach ($stmt_anexos->fetchAll(PDO::FETCH_ASSOC) as $anexo) {
+        $anexos_por_contrato[(int) $anexo['contrato_id']][] = $anexo;
+    }
+}
+
 // Prioridade gerencial padrão: vencidos -> críticos -> alertas -> regulares -> sem data.
 // A mesma prioridade também é aplicada no JavaScript para permanecer correta após filtros/paginação.
 usort($contratos, static function (array $a, array $b): int {
@@ -657,6 +673,32 @@ $setores_distintos = $stmt_setores->fetchAll(PDO::FETCH_COLUMN);
 
                             $pendentes = camposEssenciaisPendentes($c);
 
+                            $anexos_contrato = $anexos_por_contrato[(int) $c['id']] ?? [];
+                            $arquivo_legado = trim((string) ($c['arquivo_path'] ?? ''));
+                            $legado_ja_listado = false;
+                            foreach ($anexos_contrato as $anexo_contrato) {
+                                if ((string) $anexo_contrato['arquivo_path'] === $arquivo_legado) {
+                                    $legado_ja_listado = true;
+                                    break;
+                                }
+                            }
+                            if ($arquivo_legado !== '' && !$legado_ja_listado) {
+                                array_unshift($anexos_contrato, [
+                                    'id' => null,
+                                    'contrato_id' => (int) $c['id'],
+                                    'nome_original' => 'Contrato principal.pdf',
+                                    'arquivo_path' => $arquivo_legado,
+                                    'tamanho_bytes' => null,
+                                    'criado_em' => null,
+                                ]);
+                            }
+                            $anexos_cliente = array_map(static fn(array $anexo): array => [
+                                'id' => $anexo['id'] !== null ? (int) $anexo['id'] : null,
+                                'nome' => (string) $anexo['nome_original'],
+                                'tamanho' => $anexo['tamanho_bytes'] !== null ? (int) $anexo['tamanho_bytes'] : null,
+                                'criado_em' => $anexo['criado_em'],
+                            ], $anexos_contrato);
+
                             $c_cliente = $c;
                             if (!$pode_financeiro_este && !$eh_dono) {
                                 foreach (['valor','valor_parcela','forma_pagamento','quantidade_parcelas','periodicidade','indices_reajuste','centro_custo','multa_carencia','prazo_comunicacao_cancelamento','renovacao_automatica','aviso_previo','multa_contratual','carencia_contratual','dados_bancarios_fornecedor','retencoes_tributarias','condicoes_pagamento','responsavel_aprovacao_servico','contato_financeiro_nome','contato_financeiro_email','contato_financeiro_telefone'] as $campo) unset($c_cliente[$campo]);
@@ -673,6 +715,9 @@ $setores_distintos = $stmt_setores->fetchAll(PDO::FETCH_COLUMN);
                             $c_cliente['_pode_restritos'] = $pode_restritos_este;
                             $c_cliente['_pode_baixar'] = $pode_baixar_este;
                             $c_cliente['_somente_visualizacao'] = $somente_visualizacao;
+                            $c_cliente['_tem_anexo'] = !empty($anexos_cliente);
+                            $c_cliente['_qtd_anexos'] = count($anexos_cliente);
+                            $c_cliente['anexos'] = $pode_baixar_este ? $anexos_cliente : [];
                             $c_cliente['divergencias'] = $divergencias_por_contrato[(int) $c['id']] ?? [];
                             $c_cliente['renovacoes'] = $renovacoes_por_contrato[(int) $c['id']] ?? [];
                             $c_cliente['campos_pendentes'] = array_keys(array_filter([
@@ -1236,9 +1281,9 @@ $setores_distintos = $stmt_setores->fetchAll(PDO::FETCH_COLUMN);
                         <textarea required name="clausula_tecnica" rows="2" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-corporate-blue"></textarea>
                     </div>
                     <div class="col-span-2">
-                        <label class="text-xs font-bold text-slate-500 uppercase">Anexo do Contrato (PDF) <span class="text-red-500">*</span></label>
-                        <input type="file" id="w-arquivo-contrato" name="arquivo_contrato" accept=".pdf" class="mt-1 w-full text-sm">
-                        <p id="w-arquivo-ajuda" class="text-xs text-slate-400 mt-1">Pode ficar pendente no rascunho; obrigatório antes do envio.</p>
+                        <label class="text-xs font-bold text-slate-500 uppercase">Anexos do Contrato (PDF) <span class="text-red-500">*</span></label>
+                        <input type="file" id="w-arquivo-contrato" name="arquivos_contrato[]" accept="application/pdf,.pdf" multiple class="mt-1 w-full text-sm">
+                        <p id="w-arquivo-ajuda" class="text-xs text-slate-400 mt-1">Selecione até 10 PDFs por envio, com 10 MB por arquivo e 50 MB no total.</p>
                     </div>
                 </div>
             </div>
@@ -1328,7 +1373,7 @@ function abrirWizard() {
     document.getElementById('w-arquivo-atual').value = '';
     document.getElementById('w-titulo').innerText = 'Novo Contrato';
     document.getElementById('w-arquivo-contrato').required = true;
-    document.getElementById('w-arquivo-ajuda').textContent = 'Pode ficar pendente no rascunho; obrigatório antes do envio.';
+    document.getElementById('w-arquivo-ajuda').textContent = 'Selecione até 10 PDFs por envio, com 10 MB por arquivo e 50 MB no total.';
     atualizarVencimento();
     atualizarParcelas();
     limparDestaquesPendencia();
@@ -1343,10 +1388,10 @@ function editarContrato(c) {
     document.getElementById('w-contrato-id').value = c.id;
     document.getElementById('w-arquivo-atual').value = c.arquivo_path || '';
     document.getElementById('w-titulo').innerText = 'Editar Contrato';
-    document.getElementById('w-arquivo-contrato').required = !c.arquivo_path;
-    document.getElementById('w-arquivo-ajuda').textContent = c.arquivo_path
-        ? 'Já existe um PDF anexado. Selecione outro somente para substituí-lo.'
-        : 'Este contrato ainda não possui PDF; anexe-o para concluir o cadastro.';
+    document.getElementById('w-arquivo-contrato').required = !c._tem_anexo;
+    document.getElementById('w-arquivo-ajuda').textContent = c._tem_anexo
+        ? `${Number(c._qtd_anexos || 1)} anexo(s) existente(s). Os novos PDFs serão adicionados sem substituir os atuais.`
+        : 'Este contrato ainda não possui PDF; anexe ao menos um para concluir o cadastro.';
 
     const form = document.getElementById('form-contrato');
     for (const campo in c) {
@@ -1584,9 +1629,7 @@ function abrirDetalhes(c, ehDono) {
         } else {
             html += `<div class="mt-4 bg-blue-50 text-blue-800 border border-blue-200 font-medium text-sm p-3 rounded-xl">O Contas a Pagar confere as informações. Se algo estiver incorreto, registre uma divergência para o responsável corrigir.</div>`;
         }
-        if (podeBaixarContrato) {
-            html += `<a href="api/ContratoDownload.php?id=${Number(c.id)}" class="block text-center bg-navy-900 text-white font-bold text-sm py-2.5 rounded-xl mt-4 hover:bg-navy-800 transition-colors">📎 Baixar contrato anexado</a>`;
-        }
+        if (podeBaixarContrato) html += renderizarAnexosContrato(c);
     } else {
 
     // BLOCO 1: DADOS BÁSICOS (Visível ao Financeiro e Dono)
@@ -1613,9 +1656,7 @@ function abrirDetalhes(c, ehDono) {
               
     }
 
-    if (podeBaixarContrato) {
-        html += `<a href="api/ContratoDownload.php?id=${Number(c.id)}" class="block text-center bg-navy-900 text-white font-bold text-sm py-2.5 rounded-xl mt-3 mb-4 hover:bg-navy-800 transition-colors">📎 Baixar contrato anexado</a>`;
-    }
+    if (podeBaixarContrato) html += renderizarAnexosContrato(c);
 
     // BLOCO 3: RESUMO FINANCEIRO (Financeiro e Dono)
     if (podeVerFinanceiro) {
@@ -1697,6 +1738,30 @@ function formatarMoedaDetalhe(valor) {
 function escaparHtml(texto) {
     return String(texto ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
         .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
+}
+
+function renderizarAnexosContrato(contrato) {
+    const anexos = Array.isArray(contrato.anexos) ? contrato.anexos : [];
+    if (!anexos.length) return '';
+
+    const itens = anexos.map((anexo, indice) => {
+        const parametro = anexo.id ? `&anexo_id=${Number(anexo.id)}` : '';
+        const nome = escaparHtml(anexo.nome || `Anexo ${indice + 1}`);
+        const tamanho = Number(anexo.tamanho || 0);
+        const tamanhoTexto = tamanho > 0
+            ? ` · ${(tamanho / 1024 / 1024).toLocaleString('pt-BR', {maximumFractionDigits: 1})} MB`
+            : '';
+        return `<a href="api/ContratoDownload.php?id=${Number(contrato.id)}${parametro}"
+                   class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-navy-900 hover:border-blue-300 hover:bg-blue-50 transition-colors">
+                    <span class="min-w-0 truncate">📎 ${nome}</span>
+                    <span class="shrink-0 text-[10px] font-black uppercase text-slate-400">Baixar${tamanhoTexto}</span>
+                </a>`;
+    }).join('');
+
+    return `<div class="mt-4 rounded-xl bg-slate-50 border border-slate-200 p-3">
+        <p class="mb-2 text-xs font-black uppercase tracking-wider text-slate-500">Anexos (${anexos.length})</p>
+        <div class="space-y-2">${itens}</div>
+    </div>`;
 }
 
 function campoDetalhe(label, valor, mostrarPendente = false) {

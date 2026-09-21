@@ -2,6 +2,9 @@
 declare(strict_types=1);
 
 const CONTRATOS_STORAGE_BASE = 'C:\\xampp\\htdocs\\intranet\\contratos';
+const CONTRATOS_MAX_ANEXOS_POR_ENVIO = 10;
+const CONTRATOS_MAX_BYTES_POR_ANEXO = 10 * 1024 * 1024;
+const CONTRATOS_MAX_BYTES_POR_ENVIO = 50 * 1024 * 1024;
 
 function contratosNomeBaseGrupo(string $nomeGrupo): string
 {
@@ -78,4 +81,107 @@ function contratosResolverArquivo(string $arquivoRelativo): string
     }
 
     return $arquivoReal;
+}
+
+/**
+ * Normaliza o formato de $_FILES para um ou vários anexos e valida o lote
+ * antes que qualquer arquivo seja movido para o armazenamento definitivo.
+ */
+function contratosValidarUploads(?array $campoArquivos): array
+{
+    if (!$campoArquivos || !isset($campoArquivos['name'])) {
+        return [];
+    }
+
+    $nomes = is_array($campoArquivos['name'])
+        ? $campoArquivos['name']
+        : [$campoArquivos['name']];
+    $temporarios = is_array($campoArquivos['tmp_name'] ?? null)
+        ? $campoArquivos['tmp_name']
+        : [$campoArquivos['tmp_name'] ?? ''];
+    $erros = is_array($campoArquivos['error'] ?? null)
+        ? $campoArquivos['error']
+        : [$campoArquivos['error'] ?? UPLOAD_ERR_NO_FILE];
+    $tamanhos = is_array($campoArquivos['size'] ?? null)
+        ? $campoArquivos['size']
+        : [$campoArquivos['size'] ?? 0];
+
+    $arquivos = [];
+    $totalBytes = 0;
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+
+    foreach ($nomes as $indice => $nomeInformado) {
+        $erro = (int) ($erros[$indice] ?? UPLOAD_ERR_NO_FILE);
+        if ($erro === UPLOAD_ERR_NO_FILE) {
+            continue;
+        }
+        if ($erro !== UPLOAD_ERR_OK) {
+            throw new RuntimeException('Um dos anexos não pôde ser recebido pelo servidor.');
+        }
+
+        $tmp = (string) ($temporarios[$indice] ?? '');
+        $tamanho = (int) ($tamanhos[$indice] ?? 0);
+        if ($tmp === '' || !is_uploaded_file($tmp) || $tamanho <= 0) {
+            throw new RuntimeException('Um dos anexos enviados é inválido.');
+        }
+        if ($tamanho > CONTRATOS_MAX_BYTES_POR_ANEXO) {
+            throw new RuntimeException('Cada anexo deve ter no máximo 10 MB.');
+        }
+        if ($finfo->file($tmp) !== 'application/pdf' || file_get_contents($tmp, false, null, 0, 5) !== '%PDF-') {
+            throw new RuntimeException('Somente arquivos PDF válidos são permitidos.');
+        }
+
+        $totalBytes += $tamanho;
+        $nomeOriginal = trim(basename(str_replace('\\', '/', (string) $nomeInformado)));
+        $arquivos[] = [
+            'tmp_name' => $tmp,
+            'size' => $tamanho,
+            'name' => $nomeOriginal !== '' ? mb_substr($nomeOriginal, 0, 255) : 'documento.pdf',
+            'mime_type' => 'application/pdf',
+        ];
+    }
+
+    if (count($arquivos) > CONTRATOS_MAX_ANEXOS_POR_ENVIO) {
+        throw new RuntimeException('Envie no máximo 10 anexos por vez.');
+    }
+    if ($totalBytes > CONTRATOS_MAX_BYTES_POR_ENVIO) {
+        throw new RuntimeException('O conjunto de anexos deve ter no máximo 50 MB.');
+    }
+
+    return $arquivos;
+}
+
+function contratosArmazenarUploads(array $arquivos, string $setor): array
+{
+    if (!$arquivos) {
+        return [];
+    }
+
+    $pastaGrupo = contratosPastaGrupo($setor);
+    $diretorio = contratosDiretorioGrupo($setor);
+    contratosGarantirDiretorio($diretorio);
+
+    $armazenados = [];
+    try {
+        foreach ($arquivos as $arquivo) {
+            $nomeDisco = 'contrato_' . bin2hex(random_bytes(16)) . '.pdf';
+            $destino = $diretorio . DIRECTORY_SEPARATOR . $nomeDisco;
+            if (!move_uploaded_file($arquivo['tmp_name'], $destino)) {
+                throw new RuntimeException('O Apache não conseguiu gravar um dos anexos na pasta de contratos.');
+            }
+            $armazenados[] = $arquivo + [
+                'arquivo_path' => $pastaGrupo . '/' . $nomeDisco,
+                'caminho_absoluto' => $destino,
+            ];
+        }
+    } catch (Throwable $e) {
+        foreach ($armazenados as $armazenado) {
+            if (is_file($armazenado['caminho_absoluto'])) {
+                @unlink($armazenado['caminho_absoluto']);
+            }
+        }
+        throw $e;
+    }
+
+    return $armazenados;
 }

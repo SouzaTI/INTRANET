@@ -20,6 +20,14 @@ templates/
 # Bloquear a pasta inteira onde os uploads e docs da intranet ficam
 docs/
 uploads/
+!docs/
+docs/*
+!docs/.htaccess
+!uploads/
+uploads/*
+!uploads/documentos/
+uploads/documentos/*
+!uploads/documentos/.htaccess
 
 # Bloquear qualquer arquivo de imagem PNG em qualquer lugar do projeto
 .png
