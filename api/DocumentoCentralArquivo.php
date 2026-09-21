@@ -72,30 +72,27 @@ try {
     if ($modo === 'inline'
         && !empty($_GET['render_markdown'])
         && strtolower(pathinfo((string) $versao['nome_original'], PATHINFO_EXTENSION)) === 'md') {
-        require_once dirname(__DIR__) . '/Parsedown.php';
-        $parsedown = new Parsedown();
-        $parsedown->setSafeMode(true);
+        require_once dirname(__DIR__) . '/includes/DocumentoMarkdownRenderer.php';
         $conteudo = file_get_contents($arquivo);
         if ($conteudo === false) {
             throw new RuntimeException('Não foi possível ler o documento.', 404);
         }
-        $titulo = htmlspecialchars(pathinfo((string) $versao['nome_original'], PATHINFO_FILENAME), ENT_QUOTES, 'UTF-8');
-        $html = $parsedown->text($conteudo);
+        $titulo = htmlspecialchars((string) $documento['titulo'], ENT_QUOTES, 'UTF-8');
+        $setor = htmlspecialchars((string) $documento['setor'], ENT_QUOTES, 'UTF-8');
+        $numeroVersao = (int) ($versao['numero'] ?? 1);
+        $dataReferencia = (string) ($documento['publicado_em'] ?: ($versao['criado_em'] ?? ''));
+        $dataVisual = $dataReferencia !== '' ? date('d/m/Y', strtotime($dataReferencia)) : 'Não informada';
+        $html = documentoMarkdownRenderizar($conteudo, (int) $documentoId);
         header('Content-Type: text/html; charset=utf-8');
         header('X-Content-Type-Options: nosniff');
         header('Cache-Control: private, no-store, max-age=0');
-        header("Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; img-src data:");
+        header("Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'self'; base-uri 'none'; form-action 'none'");
         echo '<!doctype html><html lang="pt-br"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
-            . '<title>' . $titulo . '</title><style>'
-            . 'body{margin:0;background:#f8fafc;color:#1e293b;font:15px/1.7 Inter,Arial,sans-serif}'
-            . 'article{max-width:980px;margin:0 auto;padding:36px 42px 70px;background:#fff;min-height:100vh;box-sizing:border-box}'
-            . 'h1,h2,h3,h4{color:#0f172a;line-height:1.25;margin:1.5em 0 .6em}h1{font-size:2em;border-bottom:2px solid #e2e8f0;padding-bottom:.35em}'
-            . 'h2{font-size:1.5em;border-bottom:1px solid #e2e8f0;padding-bottom:.3em}a{color:#2563eb}p,ul,ol,blockquote,pre,table{margin:1em 0}'
-            . 'blockquote{border-left:4px solid #93c5fd;margin-left:0;padding:.5em 1em;background:#eff6ff;color:#475569}'
-            . 'code{background:#f1f5f9;border-radius:5px;padding:.15em .35em;font-family:Consolas,monospace}pre{overflow:auto;background:#0f172a;color:#e2e8f0;padding:16px;border-radius:10px}pre code{background:transparent;padding:0}'
-            . 'table{width:100%;border-collapse:collapse}th,td{border:1px solid #cbd5e1;padding:8px 10px;text-align:left}th{background:#f1f5f9}hr{border:0;border-top:1px solid #cbd5e1}'
-            . '@media(max-width:640px){article{padding:24px 20px}}'
-            . '</style></head><body><article>' . $html . '</article></body></html>';
+            . '<title>' . $titulo . '</title><style>' . documentoMarkdownCss() . '</style></head><body>'
+            . '<main class="document-shell"><header class="document-header"><p class="document-eyebrow">Manual interno</p>'
+            . '<h1>' . $titulo . '</h1><div class="document-meta"><span>Setor: ' . $setor . '</span>'
+            . '<span>Versão ' . $numeroVersao . '</span><span>Publicado em ' . htmlspecialchars($dataVisual) . '</span>'
+            . '</div></header><article class="markdown-body">' . $html . '</article></main></body></html>';
         exit;
     }
 

@@ -181,7 +181,8 @@ function docTipoArquivo(string $nomeOriginal, string $mimeType): array
         'xls', 'xlsx' => ['EXCEL', 'bg-emerald-50 border-emerald-200 text-emerald-700'],
         'jpg', 'jpeg', 'png', 'gif', 'webp' => ['IMG', 'bg-violet-50 border-violet-200 text-violet-700'],
         'mp4', 'webm', 'mov' => ['VÍDEO', 'bg-fuchsia-50 border-fuchsia-200 text-fuchsia-700'],
-        'md', 'txt' => ['TEXTO', 'bg-slate-100 border-slate-200 text-slate-700'],
+        'md' => ['MD', 'bg-indigo-50 border-indigo-200 text-indigo-700'],
+        'txt' => ['TXT', 'bg-slate-100 border-slate-200 text-slate-700'],
         default => str_starts_with($mimeType, 'image/')
             ? ['IMG', 'bg-violet-50 border-violet-200 text-violet-700']
             : ['ARQ', 'bg-slate-100 border-slate-200 text-slate-700'],
@@ -355,7 +356,7 @@ include 'includes/sidebar.php';
                         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>"><input type="hidden" name="acao" value="reenviar"><input type="hidden" name="documento_id" value="<?= $docId ?>">
                         <p class="text-xs font-black uppercase text-orange-800">Enviar versão corrigida</p>
                         <textarea name="mensagem" rows="2" required placeholder="Resuma as correções realizadas" class="w-full rounded-xl border border-orange-200 bg-white p-3 text-sm"></textarea>
-                        <input type="file" name="documento" required class="w-full text-xs" accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png,.mp4">
+                        <input type="file" name="documento" required class="w-full text-xs" accept=".pdf,.docx,.xlsx,.md,.txt,.jpg,.jpeg,.png,.mp4">
                         <button class="w-full rounded-xl bg-orange-600 py-2.5 text-xs font-black text-white">Reenviar ao T.I.</button>
                     </form>
                 <?php endif; ?>
@@ -453,7 +454,7 @@ include 'includes/sidebar.php';
                 <div><label class="text-xs font-black uppercase text-slate-500">Tipo</label><select name="tipo" class="mt-1 w-full rounded-xl border border-slate-200 p-3"><option value="PROCESSO">Processo / procedimento</option><option value="DOCUMENTO">Documento / manual</option></select></div>
             </div>
             <div><label class="text-xs font-black uppercase text-slate-500">Descrição</label><textarea name="descricao" rows="3" class="mt-1 w-full rounded-xl border border-slate-200 p-3" placeholder="Objetivo, contexto e observações para o T.I."></textarea></div>
-            <div><label class="text-xs font-black uppercase text-slate-500">Arquivo</label><input type="file" name="documento" required accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png,.mp4" class="mt-1 w-full rounded-xl border border-dashed border-slate-300 p-4 text-sm"><p class="mt-1 text-[10px] text-slate-400">PDF, DOCX, XLSX, JPG, PNG ou MP4 · até 50 MB.</p></div>
+            <div><label class="text-xs font-black uppercase text-slate-500">Arquivo</label><input type="file" name="documento" required accept=".pdf,.docx,.xlsx,.md,.txt,.jpg,.jpeg,.png,.mp4" class="mt-1 w-full rounded-xl border border-dashed border-slate-300 p-4 text-sm"><p class="mt-1 text-[10px] text-slate-400">PDF, DOCX, XLSX, Markdown, TXT, JPG, PNG ou MP4 · até 50 MB.</p></div>
             <button class="w-full rounded-xl bg-navy-900 py-3.5 text-xs font-black uppercase tracking-wider text-white">Enviar ao T.I.</button>
         </form>
     </div>

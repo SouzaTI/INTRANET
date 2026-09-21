@@ -22,6 +22,8 @@ function documentoCentralValidarUpload(?array $arquivo): array
         throw new RuntimeException('O arquivo deve ter no máximo 50 MB.');
     }
 
+    $nomeOriginal = trim(basename(str_replace('\\', '/', (string) ($arquivo['name'] ?? ''))));
+    $extensaoOriginal = mb_strtolower(pathinfo($nomeOriginal, PATHINFO_EXTENSION), 'UTF-8');
     $permitidos = [
         'application/pdf' => 'pdf',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
@@ -31,17 +33,21 @@ function documentoCentralValidarUpload(?array $arquivo): array
         'video/mp4' => 'mp4',
     ];
     $mime = (string) (new finfo(FILEINFO_MIME_TYPE))->file($tmp);
-    if (!isset($permitidos[$mime])) {
-        throw new RuntimeException('Formato não permitido. Use PDF, DOCX, XLSX, JPG, PNG ou MP4.');
+    $extensao = $permitidos[$mime] ?? null;
+    if (in_array($mime, ['text/plain', 'text/markdown'], true)
+        && in_array($extensaoOriginal, ['md', 'txt'], true)) {
+        $extensao = $extensaoOriginal;
+    }
+    if ($extensao === null) {
+        throw new RuntimeException('Formato não permitido. Use PDF, DOCX, XLSX, Markdown, TXT, JPG, PNG ou MP4.');
     }
 
-    $nomeOriginal = trim(basename(str_replace('\\', '/', (string) ($arquivo['name'] ?? ''))));
     return [
         'tmp_name' => $tmp,
         'tamanho_bytes' => $tamanho,
         'mime_type' => $mime,
-        'extensao' => $permitidos[$mime],
-        'nome_original' => $nomeOriginal !== '' ? mb_substr($nomeOriginal, 0, 255) : 'documento.' . $permitidos[$mime],
+        'extensao' => $extensao,
+        'nome_original' => $nomeOriginal !== '' ? mb_substr($nomeOriginal, 0, 255) : 'documento.' . $extensao,
     ];
 }
 
