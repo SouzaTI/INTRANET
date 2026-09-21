@@ -6,13 +6,11 @@ include 'includes/sidebar.php';
 // ── Pendentes do usuário logado ──────────────────────────────────────────────
 $user_id = $_SESSION['user_id'] ?? 0;
 
-// ── ADICIONE APENAS ESTE TRECHO AQUI EMBAIXO ──────────────────────────
-$stmt_check_pin = $pdo_intra->prepare("SELECT assinatura_pin, is_admin FROM usuarios_permissoes WHERE usuario_id = ?");
-$stmt_check_pin->execute([$user_id]);
-$dados_permissoes = $stmt_check_pin->fetch(PDO::FETCH_ASSOC);
-$usuario_possui_pin = !empty($dados_permissoes['assinatura_pin']);
+// Permissão administrativa usada apenas para exibir as configurações do módulo.
+$stmt_permissoes = $pdo_intra->prepare("SELECT is_admin FROM usuarios_permissoes WHERE usuario_id = ?");
+$stmt_permissoes->execute([$user_id]);
+$dados_permissoes = $stmt_permissoes->fetch(PDO::FETCH_ASSOC);
 $usuario_admin = !empty($_SESSION['is_admin']) || (int)($dados_permissoes['is_admin'] ?? 0) === 1;
-// ─────────────────────────────────────────────────────────────────────
 
 $stmt_pendentes = $pdo_intra->prepare("
     SELECT
@@ -77,13 +75,6 @@ $enviados = $stmt_enviados->fetchAll(PDO::FETCH_ASSOC);
 
 <main class="flex-1 overflow-y-auto bg-slate-50 p-6 md:p-10">
 <div class="max-w-6xl mx-auto space-y-10">
-
-    <?php if (!$usuario_possui_pin): ?>
-        <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div><p class="font-black text-amber-800">Configure seu PIN de assinatura</p><p class="text-xs text-amber-700">Você precisa de um PIN pessoal antes de assinar documentos.</p></div>
-            <a href="configurar_pin_assinatura.php" class="px-5 py-3 rounded-xl bg-amber-600 text-white font-black text-xs uppercase tracking-widest">Configurar PIN</a>
-        </div>
-    <?php endif; ?>
 
     <!-- ── Cabeçalho da página ───────────────────────────────────────────── -->
     <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
@@ -347,7 +338,7 @@ $enviados = $stmt_enviados->fetchAll(PDO::FETCH_ASSOC);
             </button>
         </div>
 
-        <!-- Corpo: preview + PIN lado a lado em telas grandes -->
+        <!-- Corpo: preview + confirmação de senha lado a lado em telas grandes -->
         <div class="flex flex-col lg:flex-row flex-1 overflow-hidden">
 
             <!-- Preview do PDF -->
@@ -375,31 +366,29 @@ $enviados = $stmt_enviados->fetchAll(PDO::FETCH_ASSOC);
                     </p>
                 </div>
 
-                <!-- Input PIN -->
+                <!-- Confirmação com a senha da intranet -->
                 <div>
-                    <label class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-3 block">
-                        PIN de 4 dígitos
+                    <label for="senhaIntranet" class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-3 block">
+                        Senha da intranet
                     </label>
-
-                    <!-- 4 boxes individuais de dígito -->
-                    <div class="flex gap-3 justify-center mb-2" id="pinBoxes">
-                        <?php for ($i = 0; $i < 4; $i++): ?>
+                    <div class="relative" id="senhaContainer">
                         <input type="password"
-                               inputmode="numeric"
-                               maxlength="1"
-                               pattern="\d"
-                               autocomplete="off"
-                               data-pin-index="<?= $i ?>"
-                               class="pin-digit w-14 h-14 text-center text-2xl font-black text-navy-900
-                                      border-2 border-slate-200 rounded-2xl bg-slate-50
-                                      focus:border-corporate-blue focus:bg-white focus:outline-none
-                                      transition-all caret-transparent"
-                               aria-label="Dígito <?= $i + 1 ?> do PIN"/>
-                        <?php endfor; ?>
+                               id="senhaIntranet"
+                               name="senha_intranet"
+                               autocomplete="current-password"
+                               maxlength="4096"
+                               class="w-full px-4 py-3.5 pr-12 bg-slate-50 border-2 border-slate-200 rounded-2xl
+                                      text-navy-900 font-bold focus:border-corporate-blue focus:bg-white
+                                      focus:outline-none transition-all"
+                               placeholder="Digite sua senha atual" />
+                        <button type="button" id="btnMostrarSenha"
+                                class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-navy-900 p-1"
+                                aria-label="Mostrar ou ocultar senha" title="Mostrar ou ocultar senha">👁</button>
                     </div>
-
-                    <!-- Mensagem de erro do PIN -->
-                    <p id="pinErro" class="hidden text-rose-600 text-[11px] font-bold text-center mt-2"></p>
+                    <p class="text-[10px] text-slate-400 font-medium mt-2 leading-relaxed">
+                        Use a mesma senha utilizada para entrar na intranet. Ela será apenas validada e não será armazenada.
+                    </p>
+                    <p id="senhaErro" class="hidden text-rose-600 text-[11px] font-bold text-center mt-2"></p>
                 </div>
 
                 <!-- CTA de confirmação -->
@@ -454,8 +443,8 @@ function abrirModal(envelopeId, titulo, arquivoPath) {
     _envelopeId = envelopeId;
 
     document.getElementById('modalTitulo').textContent = titulo;
-    document.getElementById('pinErro').classList.add('hidden');
-    document.getElementById('pinErro').textContent = '';
+    document.getElementById('senhaErro').classList.add('hidden');
+    document.getElementById('senhaErro').textContent = '';
 
     // Carrega PDF no iframe
     const iframe = document.getElementById('iframePDF');
@@ -465,8 +454,9 @@ function abrirModal(envelopeId, titulo, arquivoPath) {
     iframe.onload = () => loading.classList.add('hidden');
     iframe.src = 'serve_documento.php?path=' + encodeURIComponent(arquivoPath) + '&modo=visualizar';
 
-    // Limpa PIN
-    document.querySelectorAll('.pin-digit').forEach(i => i.value = '');
+    // Limpa a senha sempre que o modal for aberto.
+    document.getElementById('senhaIntranet').value = '';
+    document.getElementById('senhaIntranet').type = 'password';
     atualizarBotaoConfirmar();
 
     // Abre modal
@@ -478,8 +468,7 @@ function abrirModal(envelopeId, titulo, arquivoPath) {
         inner.classList.add('scale-100', 'opacity-100');
     });
 
-    // Foca no primeiro dígito
-    document.querySelector('[data-pin-index="0"]').focus();
+    document.getElementById('senhaIntranet').focus();
 }
 
 // ── Fechamento do modal ───────────────────────────────────────────────────
@@ -491,43 +480,24 @@ function fecharModal() {
     setTimeout(() => {
         modal.classList.add('hidden');
         document.getElementById('iframePDF').src = '';
-        document.querySelectorAll('.pin-digit').forEach(i => i.value = '');
+        document.getElementById('senhaIntranet').value = '';
+        document.getElementById('senhaIntranet').type = 'password';
         atualizarBotaoConfirmar();
         _envelopeId = null;
     }, 180);
 }
 
-// ── PIN: navega entre os boxes e habilita botão ───────────────────────────
+// ── Senha: habilita o botão e permite visualizar temporariamente ─────────
 document.addEventListener('DOMContentLoaded', () => {
-    const digits = document.querySelectorAll('.pin-digit');
+    const senha = document.getElementById('senhaIntranet');
+    senha.addEventListener('input', atualizarBotaoConfirmar);
+    senha.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && senha.value.length > 0) confirmarAssinatura();
+    });
 
-    digits.forEach((input, idx) => {
-        input.addEventListener('input', e => {
-            // Aceita apenas dígito
-            const val = e.target.value.replace(/\D/g, '').slice(-1);
-            e.target.value = val;
-            if (val && idx < digits.length - 1) digits[idx + 1].focus();
-            atualizarBotaoConfirmar();
-        });
-
-        input.addEventListener('keydown', e => {
-            if (e.key === 'Backspace' && !e.target.value && idx > 0) {
-                digits[idx - 1].value = '';
-                digits[idx - 1].focus();
-                atualizarBotaoConfirmar();
-            }
-            if (e.key === 'Enter') confirmarAssinatura();
-        });
-
-        // Permite colar PIN completo de 4 dígitos no primeiro box
-        input.addEventListener('paste', e => {
-            if (idx !== 0) return;
-            e.preventDefault();
-            const pasta = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '').slice(0, 4);
-            pasta.split('').forEach((ch, i) => { if (digits[i]) digits[i].value = ch; });
-            (digits[Math.min(pasta.length, digits.length - 1)] || digits[digits.length - 1]).focus();
-            atualizarBotaoConfirmar();
-        });
+    document.getElementById('btnMostrarSenha').addEventListener('click', () => {
+        senha.type = senha.type === 'password' ? 'text' : 'password';
+        senha.focus();
     });
 
     // Fecha ao clicar no backdrop
@@ -544,19 +514,19 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function atualizarBotaoConfirmar() {
-    const completo = [...document.querySelectorAll('.pin-digit')].every(i => /^\d$/.test(i.value));
-    document.getElementById('btnConfirmar').disabled = !completo;
+    const senhaPreenchida = document.getElementById('senhaIntranet').value.length > 0;
+    document.getElementById('btnConfirmar').disabled = !senhaPreenchida;
 }
 
 // ── Submissão via fetch ───────────────────────────────────────────────────
 function confirmarAssinatura() {
-    const pin = [...document.querySelectorAll('.pin-digit')].map(i => i.value).join('');
-    if (pin.length !== 4 || !_envelopeId) return;
+    const senha = document.getElementById('senhaIntranet').value;
+    if (!senha || !_envelopeId) return;
 
     const btn      = document.getElementById('btnConfirmar');
     const txt      = document.getElementById('btnConfirmarTexto');
     const spinner  = document.getElementById('btnSpinner');
-    const erroEl   = document.getElementById('pinErro');
+    const erroEl   = document.getElementById('senhaErro');
 
     btn.disabled = true;
     txt.textContent = 'Processando…';
@@ -565,7 +535,7 @@ function confirmarAssinatura() {
 
     const body = new FormData();
     body.append('envelope_id',  _envelopeId);
-    body.append('pin_digitado', pin);
+    body.append('senha_intranet', senha);
 
     fetch('api/processar_assinatura.php', { method: 'POST', body })
         .then(r => r.json())
@@ -577,13 +547,11 @@ function confirmarAssinatura() {
             } else {
                 erroEl.textContent = data.msg || 'Erro ao processar assinatura.';
                 erroEl.classList.remove('hidden');
-                // Shake no container de PIN
-                const boxes = document.getElementById('pinBoxes');
-                boxes.classList.add('animate-[shake_0.35s_ease-in-out]');
-                setTimeout(() => boxes.classList.remove('animate-[shake_0.35s_ease-in-out]'), 400);
-                // Limpa PIN para nova tentativa
-                document.querySelectorAll('.pin-digit').forEach(i => i.value = '');
-                document.querySelector('[data-pin-index="0"]').focus();
+                const campoSenha = document.getElementById('senhaContainer');
+                campoSenha.classList.add('animate-[shake_0.35s_ease-in-out]');
+                setTimeout(() => campoSenha.classList.remove('animate-[shake_0.35s_ease-in-out]'), 400);
+                document.getElementById('senhaIntranet').value = '';
+                document.getElementById('senhaIntranet').focus();
                 atualizarBotaoConfirmar();
             }
         })
@@ -592,9 +560,9 @@ function confirmarAssinatura() {
             erroEl.classList.remove('hidden');
         })
         .finally(() => {
-            btn.disabled = false;
             txt.textContent = '✍ Confirmar Assinatura Digital';
             spinner.classList.add('hidden');
+            atualizarBotaoConfirmar();
         });
 }
 
@@ -603,8 +571,8 @@ function recusarAssinatura() {
     const justificativa = prompt('Informe o motivo da recusa (mínimo de 5 caracteres):');
     if (justificativa === null) return;
     if (justificativa.trim().length < 5) {
-        document.getElementById('pinErro').textContent = 'Informe uma justificativa válida.';
-        document.getElementById('pinErro').classList.remove('hidden');
+        document.getElementById('senhaErro').textContent = 'Informe uma justificativa válida.';
+        document.getElementById('senhaErro').classList.remove('hidden');
         return;
     }
     const body = new FormData();
@@ -619,8 +587,8 @@ function recusarAssinatura() {
             setTimeout(() => location.reload(), 1200);
         })
         .catch(erro => {
-            document.getElementById('pinErro').textContent = erro.message;
-            document.getElementById('pinErro').classList.remove('hidden');
+            document.getElementById('senhaErro').textContent = erro.message;
+            document.getElementById('senhaErro').classList.remove('hidden');
         });
 }
 
@@ -637,7 +605,7 @@ function mostrarToast(msg, cor = 'bg-navy-900') {
 </script>
 
 <style>
-/* Animação de shake para PIN incorreto */
+/* Animação de shake para senha incorreta */
 @keyframes shake {
     0%,100% { transform: translateX(0);   }
     20%      { transform: translateX(-6px); }

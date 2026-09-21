@@ -525,8 +525,12 @@ function govBuildFunctionsPayload(
     foreach ($occupations as $row) {
         $occupantsByFunction[(int) $row['funcao_id']][] = [
             'id' => (int) $row['pessoa_id'],
+            'vinculo_id' => (int) $row['vinculo_id'],
             'codigo' => (string) $row['pessoa_codigo'],
             'nome' => (string) $row['pessoa_nome'],
+            'tipo_vinculo' => (string) ($row['tipo_vinculo'] ?? ''),
+            'observacoes' => (string) ($row['pessoa_observacoes'] ?? ''),
+            'data_inicio' => (string) ($row['data_inicio'] ?? ''),
             'glpi_user_id' => $row['glpi_user_id'] !== null
                 ? (int) $row['glpi_user_id']
                 : null,
@@ -639,7 +643,7 @@ try {
 
     $accessScope = 'FULL_ADMIN';
     $allowedRoots = [];
-    $nivelAcesso = $isAdmin ? 'GERENCIAR' : 'VISUALIZAR';
+    $nivelAcesso = 'GERENCIAR';
     $grants = [];
 
     $idsPermitidos = [];

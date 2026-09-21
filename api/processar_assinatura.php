@@ -7,6 +7,9 @@ require_once dirname(__DIR__) . '/services/EmailAssinaturaService.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
+const MAX_TENTATIVAS_SENHA = 3;
+const BLOQUEIO_SENHA_SEGUNDOS = 300;
+
 function resposta(bool $ok, string $msg, int $http = 200, array $extra = []): never
 {
     http_response_code($http);
@@ -19,13 +22,15 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_SESSION['user_id'])) {
 }
 
 $envelopeId = (int) ($_POST['envelope_id'] ?? 0);
-$pin = trim((string) ($_POST['pin_digitado'] ?? ''));
+$senhaIntranet = (string) ($_POST['senha_intranet'] ?? '');
 $usuarioId = (int) $_SESSION['user_id'];
 $ip = trim(explode(',', $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1')[0]);
 $userAgent = (string) ($_SERVER['HTTP_USER_AGENT'] ?? '');
 
 if ($envelopeId <= 0) resposta(false, 'Envelope inválido.', 422);
-if (!preg_match('/^\d{4,6}$/', $pin)) resposta(false, 'Informe seu PIN de assinatura.', 422);
+if ($senhaIntranet === '' || strlen($senhaIntranet) > 4096) {
+    resposta(false, 'Informe sua senha atual da intranet.', 422);
+}
 
 $arquivosCriados = [];
 $concluido = false;
@@ -46,23 +51,44 @@ try {
     $fluxo = $stmtFluxo->fetch(PDO::FETCH_ASSOC);
     if (!$fluxo) throw new DomainException('O documento não está pendente para você neste momento.');
 
-    if (!empty($fluxo['bloqueado_ate']) && strtotime($fluxo['bloqueado_ate']) > time()) {
-        throw new DomainException('PIN temporariamente bloqueado. Aguarde 15 minutos.');
+    $bloqueadoAte = !empty($fluxo['bloqueado_ate'])
+        ? strtotime((string) $fluxo['bloqueado_ate'])
+        : false;
+
+    if ($bloqueadoAte !== false && $bloqueadoAte > time()) {
+        throw new DomainException('Confirmação de senha temporariamente bloqueada. Aguarde 5 minutos.');
     }
 
-    $stmtPin = $pdo_intra->prepare('SELECT assinatura_pin FROM usuarios_permissoes WHERE usuario_id = ?');
-    $stmtPin->execute([$usuarioId]);
-    $pinHash = $stmtPin->fetchColumn();
-    if (!$pinHash) throw new DomainException('Cadastre seu PIN antes de assinar.');
+    // Ao terminar o bloqueio, inicia um novo ciclo completo de tentativas.
+    // O nome da coluna é legado do fluxo antigo por PIN e foi mantido por compatibilidade.
+    if ($bloqueadoAte !== false) {
+        $pdo_intra->prepare('UPDATE assinaturas_fluxo SET tentativas_pin = 0, bloqueado_ate = NULL WHERE id = ?')
+            ->execute([$fluxo['id']]);
+        $fluxo['tentativas_pin'] = 0;
+        $fluxo['bloqueado_ate'] = null;
+    }
 
-    if (!password_verify($pin, (string) $pinHash)) {
+    // Reutiliza exatamente a credencial do login da intranet/GLPI.
+    // A senha recebida é apenas verificada contra o hash e nunca é armazenada.
+    $stmtSenha = $pdo_glpi->prepare('SELECT password FROM glpi_users WHERE id = ? AND is_active = 1 AND is_deleted = 0');
+    $stmtSenha->execute([$usuarioId]);
+    $senhaHash = $stmtSenha->fetchColumn();
+    if (!$senhaHash) throw new DomainException('Não foi possível validar sua conta da intranet.');
+
+    if (!password_verify($senhaIntranet, (string) $senhaHash)) {
         $tentativas = (int) $fluxo['tentativas_pin'] + 1;
-        $bloqueio = $tentativas >= 3 ? date('Y-m-d H:i:s', time() + 900) : null;
+        $bloqueio = $tentativas >= MAX_TENTATIVAS_SENHA
+            ? date('Y-m-d H:i:s', time() + BLOQUEIO_SENHA_SEGUNDOS)
+            : null;
         $pdo_intra->prepare('UPDATE assinaturas_fluxo SET tentativas_pin = ?, bloqueado_ate = ? WHERE id = ?')
             ->execute([$tentativas, $bloqueio, $fluxo['id']]);
         $pdo_intra->commit();
-        resposta(false, $bloqueio ? 'PIN bloqueado por 15 minutos.' : 'PIN incorreto.', 422);
+        $senhaIntranet = '';
+        resposta(false, $bloqueio ? 'Confirmação bloqueada por 5 minutos após 3 tentativas incorretas.' : 'Senha da intranet incorreta.', 422);
     }
+
+    // Remove a senha da variável assim que a autenticação termina.
+    $senhaIntranet = '';
 
     $stmtNome = $pdo_glpi->prepare("SELECT
         TRIM(CONCAT(COALESCE(u.firstname,''), ' ', COALESCE(u.realname,''))) AS nome,

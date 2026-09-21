@@ -94,7 +94,6 @@ $is_assinaturas_active = in_array($current_page, [
     'minhas_assinaturas.php',
     'criar_envelope.php',
     'detalhe_envelope.php',
-    'configurar_pin_assinatura.php',
     'configuracoes_assinaturas.php'
 ], true);
 
