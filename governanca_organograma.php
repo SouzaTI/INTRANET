@@ -436,7 +436,7 @@ require_once __DIR__ . '/includes/sidebar.php';
 }
 
 #gov-org .org-company-title{
-    font-size:13px;
+    font-size:14px;
     line-height:1.2;
     font-weight:800;
 }
@@ -444,7 +444,7 @@ require_once __DIR__ . '/includes/sidebar.php';
 #gov-org .org-company-sub{
     margin-top:3px;
     color:#93c5fd;
-    font-size:10px;
+    font-size:11px;
 }
 
 #gov-org .org-stripe{
@@ -464,7 +464,7 @@ require_once __DIR__ . '/includes/sidebar.php';
     align-items:center;
     gap:7px;
     min-width:0;
-    font-size:12px;
+    font-size:13px;
     line-height:1.25;
     font-weight:900;
     color:#0f172a;
@@ -501,7 +501,7 @@ require_once __DIR__ . '/includes/sidebar.php';
 
 #gov-org .org-leader-caption{
     color:#94a3b8;
-    font-size:7px;
+    font-size:8px;
     line-height:1;
     font-weight:900;
     letter-spacing:.08em;
@@ -509,16 +509,15 @@ require_once __DIR__ . '/includes/sidebar.php';
 }
 
 #gov-org .org-leader-name{
-    display:-webkit-box;
+    display:block;
     color:#475569;
-    font-size:9px;
-    line-height:1.25;
+    font-size:10px;
+    line-height:1.3;
     font-weight:750;
     overflow:hidden;
-    -webkit-box-orient:vertical;
-    -webkit-line-clamp:2;
-    line-clamp:2;
 }
+
+#gov-org .org-leader-person{display:block}
 
 #gov-org .org-avatar{
     width:23px;
@@ -529,7 +528,7 @@ require_once __DIR__ . '/includes/sidebar.php';
     flex:0 0 auto;
     background:color-mix(in srgb,var(--node-color,#3b82f6) 13%,white);
     color:var(--node-color,#3b82f6);
-    font-size:8px;
+    font-size:9px;
     font-weight:900;
 }
 
@@ -557,7 +556,7 @@ require_once __DIR__ . '/includes/sidebar.php';
 
 #gov-org .org-person-name{
     color:#1e293b;
-    font-size:10px;
+    font-size:11px;
     line-height:1.15;
     font-weight:800;
     white-space:nowrap;
@@ -568,7 +567,7 @@ require_once __DIR__ . '/includes/sidebar.php';
 #gov-org .org-person-role{
     margin-top:3px;
     color:#94a3b8;
-    font-size:8px;
+    font-size:9px;
     line-height:1.15;
     white-space:nowrap;
     overflow:hidden;
@@ -1231,6 +1230,10 @@ require_once __DIR__ . '/includes/sidebar.php';
     }
 
     function cardHeight(type){
+        if (state.level !== 'areas' && (type === 'area' || type === 'subarea')) {
+            return 118;
+        }
+
         return CARD_H[type] || CARD_H.person;
     }
 
@@ -1322,6 +1325,9 @@ require_once __DIR__ . '/includes/sidebar.php';
     function nodeCard(node){
         const w = cardWidth(node.type);
         const h = cardHeight(node.type);
+        const leaderNames = Array.isArray(node.leaderNames) && node.leaderNames.length
+            ? node.leaderNames
+            : ['Líder não definido'];
 
         if (node.type === 'company'){
             return `
@@ -1387,7 +1393,9 @@ require_once __DIR__ . '/includes/sidebar.php';
                                                 ? `${Number(node.leaderCount)} lideranças`
                                                 : 'Liderança'
                                         }</span>
-                                        <span class="org-leader-name">${esc(node.sublabel || 'Líder não definido')}</span>
+                                        <span class="org-leader-name">${leaderNames
+                                            .map(name => `<span class="org-leader-person">${esc(name)}</span>`)
+                                            .join('')}</span>
                                     </div>
                                 </div>
                                 `
