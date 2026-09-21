@@ -295,6 +295,7 @@ include 'includes/sidebar.php';
                                     data-url="<?= htmlspecialchars($urlVisualizar, ENT_QUOTES) ?>"
                                     data-download="<?= htmlspecialchars($urlBaixar, ENT_QUOTES) ?>"
                                     data-title="<?= htmlspecialchars((string) $doc['titulo'], ENT_QUOTES) ?>"
+                                    data-name="<?= htmlspecialchars((string) $doc['nome_original'], ENT_QUOTES) ?>"
                                     data-mime="<?= htmlspecialchars((string) $doc['mime_type'], ENT_QUOTES) ?>">Visualizar</button>
                             <a href="<?= htmlspecialchars($urlBaixar) ?>" class="rounded-xl border border-slate-200 px-4 py-2 text-xs font-black text-slate-600 hover:bg-white">Baixar</a>
                         </div>
@@ -327,6 +328,7 @@ include 'includes/sidebar.php';
                             data-url="api/DocumentoCentralArquivo.php?id=<?= $docId ?>&modo=visualizar"
                             data-download="api/DocumentoCentralArquivo.php?id=<?= $docId ?>&modo=baixar"
                             data-title="<?= htmlspecialchars((string) $doc['titulo'], ENT_QUOTES) ?>"
+                            data-name="<?= htmlspecialchars((string) $doc['nome_original'], ENT_QUOTES) ?>"
                             data-mime="<?= htmlspecialchars((string) $doc['mime_type'], ENT_QUOTES) ?>">Visualizar</button>
                 </div>
 
@@ -472,12 +474,23 @@ include 'includes/sidebar.php';
     function abrirPreview(botao) {
         const url = botao.dataset.url || '';
         const mime = (botao.dataset.mime || '').toLowerCase();
+        const nomeArquivo = (botao.dataset.name || '').toLowerCase();
         titulo.textContent = botao.dataset.title || 'Documento';
         baixar.href = botao.dataset.download || url;
         conteudo.replaceChildren();
 
         let elemento;
-        if (mime === 'application/pdf') {
+        if (nomeArquivo.endsWith('.md')) {
+            elemento = document.createElement('iframe');
+            elemento.title = titulo.textContent;
+            elemento.className = 'h-full w-full border-0';
+            elemento.src = url + '&render_markdown=1';
+        } else if (mime.startsWith('text/')) {
+            elemento = document.createElement('iframe');
+            elemento.title = titulo.textContent;
+            elemento.className = 'h-full w-full border-0 bg-white';
+            elemento.src = url;
+        } else if (mime === 'application/pdf') {
             elemento = document.createElement('iframe');
             elemento.title = titulo.textContent;
             elemento.className = 'h-full w-full border-0';
