@@ -13,22 +13,33 @@ require __DIR__ . '/../config.php';
 $apply = in_array('--apply', $argv, true);
 
 $structures = [
-    ['CS-DIR', 'Diretoria', 'CS', 10],
-    ['CS-GG', 'Gerência Geral', 'CS-DIR', 10],
-    ['CS-FAC', 'Facilities', 'CS-GG', 10],
-    ['CS-TI', 'T.I', 'CS-GG', 20],
-    ['CS-FISC', 'Fiscal', 'CS-GG', 30],
-    ['CS-TES', 'Tesouraria', 'CS-GG', 40],
-    ['CS-CAR', 'Contas a Receber', 'CS-GG', 50],
-    ['CS-CAP', 'Contas a Pagar', 'CS-GG', 60],
-    ['CS-RH', 'Recursos Humanos', 'CS-GG', 70],
-    ['CS-COM', 'Comercial', 'CS-GG', 80],
+    ['CS-DIR', 'Diretoria', 'CS', 10, 'AREA'],
+    ['CS-GG', 'Gerência Geral', 'CS-DIR', 10, 'AREA'],
+    ['CS-GG-ADELSON', 'Gerência Geral — Adelson Silva', 'CS-GG', 10, 'GESTOR'],
+    ['CS-GG-WILSON', 'Gerência Geral — Wilson Soares', 'CS-GG', 20, 'GESTOR'],
+    ['CS-TES', 'Tesouraria', 'CS-GG-ADELSON', 10, 'AREA'],
+    ['CS-LOG', 'Logística', 'CS-GG-ADELSON', 20, 'AREA'],
+    ['CS-FAC', 'Facilities', 'CS-GG-ADELSON', 30, 'AREA'],
+    ['CS-TI', 'T.I', 'CS-GG-ADELSON', 40, 'AREA'],
+    ['CS-RH', 'Recursos Humanos', 'CS-GG-ADELSON', 50, 'AREA'],
+    ['CS-FISC', 'Fiscal', 'CS-GG-ADELSON', 60, 'AREA'],
+    ['CS-MKT', 'Marketing', 'CS-GG-WILSON', 10, 'AREA'],
+    ['CS-CAP', 'Contas a Pagar', 'CS-GG-WILSON', 20, 'AREA'],
+    ['CS-CAR', 'Contas a Receber', 'CS-GG-WILSON', 30, 'AREA'],
+    ['CS-TLV', 'Televendas', 'CS-GG-WILSON', 40, 'AREA'],
+    ['CS-COM', 'Comercial', 'CS-GG-WILSON', 50, 'AREA'],
 ];
 
 $retiredStructures = ['CS-FIN'];
 
+$thirdPartyStructures = [
+    ['SCG', 'SCG', 'CS-TI', 10],
+    ['TR', 'TIResolve', 'CS-TI', 20],
+    ['G4', 'G4', 'CS-TI', 30],
+];
+
 $leaders = [
-    ['Adelson Silva', null, 'CS-GG', 'LIDER'],
+    ['Adelson Silva', null, 'CS-GG-ADELSON', 'Gerente Geral'],
     ['Alex Cunha', 40, 'CS-FAC', 'LIDER'],
     ['Alex Cunha', 40, 'CS-TI', 'LIDER'],
     ['Anderson Souza', 19, 'CS-DIR', 'DIRETOR'],
@@ -38,7 +49,7 @@ $leaders = [
     ['Fabio Souza', 23, 'CS-DIR', 'DIRETOR'],
     ['Leila Moreira', 28, 'CS-TES', 'LIDER'],
     ['Milton Michels', null, 'CS-CAP', 'LIDER'],
-    ['Wilson Soares', 100, 'CS-COM', 'LIDER'],
+    ['Wilson Soares', 100, 'CS-GG-WILSON', 'Gerente Geral'],
 ];
 
 function nextPersonCode(PDO $pdo): string {
@@ -69,7 +80,7 @@ try {
         throw new RuntimeException('Estrutura raiz CS não encontrada.');
     }
 
-    foreach ($structures as [$code, $name, $parentCode, $order]) {
+    foreach ($structures as [$code, $name, $parentCode, $order, $nodeType]) {
         $parentStmt = $pdo_intra->prepare("
             SELECT id FROM governanca_estruturas WHERE codigo = ? AND ativo = 1 LIMIT 1
         ");
@@ -86,10 +97,10 @@ try {
         if ($id > 0) {
             $updateStructure = $pdo_intra->prepare("
                 UPDATE governanca_estruturas
-                SET pai_id = ?, nome = ?, ordem = ?, ativo = 1
+                SET pai_id = ?, nome = ?, tipo_no = ?, ordem = ?, ativo = 1
                 WHERE id = ?
             ");
-            $updateStructure->execute([$parentId, $name, $order, $id]);
+            $updateStructure->execute([$parentId, $name, $nodeType, $order, $id]);
             echo "estrutura ajustada: {$code} | {$parentCode} > {$name}\n";
             continue;
         }
@@ -98,10 +109,49 @@ try {
             INSERT INTO governanca_estruturas
                 (codigo, pai_id, nome, tipo_no, vinculo, responsavel_empresa,
                  ordem, ativo, descricao, criado_por, atualizado_por)
-            VALUES (?, ?, ?, 'AREA', NULL, 'Comercial Souza', ?, 1, NULL, NULL, NULL)
+            VALUES (?, ?, ?, ?, NULL, 'Comercial Souza', ?, 1, NULL, NULL, NULL)
         ");
-        $insert->execute([$code, $parentId, $name, $order]);
+        $insert->execute([$code, $parentId, $name, $nodeType, $order]);
         echo "estrutura criada: {$code} | {$parentCode} > {$name}\n";
+    }
+
+    foreach ($thirdPartyStructures as [$code, $name, $parentCode, $order]) {
+        $parentStmt = $pdo_intra->prepare("
+            SELECT id FROM governanca_estruturas WHERE codigo = ? AND ativo = 1 LIMIT 1
+        ");
+        $parentStmt->execute([$parentCode]);
+        $parentId = (int) ($parentStmt->fetchColumn() ?: 0);
+        if ($parentId <= 0) {
+            throw new RuntimeException("Estrutura pai {$parentCode} não encontrada para {$code}.");
+        }
+
+        $find = $pdo_intra->prepare("SELECT id FROM governanca_estruturas WHERE codigo = ? LIMIT 1");
+        $find->execute([$code]);
+        $id = (int) ($find->fetchColumn() ?: 0);
+
+        if ($id > 0) {
+            $updateThirdParty = $pdo_intra->prepare("
+                UPDATE governanca_estruturas
+                SET pai_id = ?, nome = ?, tipo_no = 'Empresa',
+                    vinculo = 'Principal - Terceiro', responsavel_empresa = ?,
+                    ordem = ?, ativo = 1,
+                    descricao = COALESCE(descricao, 'Prestador terceiro principal')
+                WHERE id = ?
+            ");
+            $updateThirdParty->execute([$parentId, $name, $name, $order, $id]);
+            echo "terceiro ajustado: {$code} | {$parentCode} > {$name}\n";
+            continue;
+        }
+
+        $insertThirdParty = $pdo_intra->prepare("
+            INSERT INTO governanca_estruturas
+                (codigo, pai_id, nome, tipo_no, vinculo, responsavel_empresa,
+                 ordem, ativo, descricao, criado_por, atualizado_por)
+            VALUES (?, ?, ?, 'Empresa', 'Principal - Terceiro', ?, ?, 1,
+                    'Prestador terceiro principal', NULL, NULL)
+        ");
+        $insertThirdParty->execute([$code, $parentId, $name, $name, $order]);
+        echo "terceiro criado: {$code} | {$parentCode} > {$name}\n";
     }
 
     foreach ($leaders as [$name, $glpiUserId, $structureCode, $type]) {

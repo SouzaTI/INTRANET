@@ -87,12 +87,12 @@ require_once __DIR__ . '/includes/sidebar.php';
 #gov-org{
     --gov-navy:#0d1b3e;
     --gov-navy-2:#173260;
-    --gov-blue:#2563eb;
-    --gov-blue-soft:#eff6ff;
-    --gov-border:#dbe4ee;
-    --gov-text:#0f172a;
-    --gov-muted:#64748b;
-    --gov-canvas:#f4f7fb;
+    --gov-blue:#60a5fa;
+    --gov-blue-soft:#172554;
+    --gov-border:#29364b;
+    --gov-text:#e5edf8;
+    --gov-muted:#94a3b8;
+    --gov-canvas:#0b1220;
     --gov-green:#10b981;
     --gov-purple:#8b5cf6;
     --gov-amber:#f59e0b;
@@ -110,8 +110,8 @@ require_once __DIR__ . '/includes/sidebar.php';
     align-items:center;
     gap:18px;
     border-bottom:1px solid var(--gov-border);
-    background:#fff;
-    box-shadow:0 1px 2px rgba(15,23,42,.03);
+    background:#111827;
+    box-shadow:0 1px 0 rgba(148,163,184,.08),0 8px 26px rgba(2,6,23,.18);
     z-index:10;
 }
 
@@ -135,7 +135,7 @@ require_once __DIR__ . '/includes/sidebar.php';
     font-size:17px;
     line-height:1.15;
     font-weight:800;
-    color:#0f172a;
+    color:#f8fafc;
 }
 
 #gov-org .gov-orgtitle span{
@@ -158,7 +158,8 @@ require_once __DIR__ . '/includes/sidebar.php';
     gap:2px;
     padding:4px;
     border-radius:11px;
-    background:#f1f5f9;
+    background:#1e293b;
+    border:1px solid #334155;
 }
 
 #gov-org button{
@@ -170,8 +171,8 @@ require_once __DIR__ . '/includes/sidebar.php';
     border-radius:8px;
     padding:7px 11px;
     background:transparent;
-    color:#64748b;
-    font-size:11px;
+    color:#a8b5c7;
+    font-size:12px;
     font-weight:700;
     white-space:nowrap;
     cursor:pointer;
@@ -179,13 +180,13 @@ require_once __DIR__ . '/includes/sidebar.php';
 }
 
 #gov-org .gov-segmented button:hover{
-    color:#1e293b;
+    color:#f8fafc;
 }
 
 #gov-org .gov-segmented button.active{
-    background:#fff;
-    color:#0f172a;
-    box-shadow:0 1px 5px rgba(15,23,42,.12);
+    background:#334155;
+    color:#fff;
+    box-shadow:0 1px 6px rgba(2,6,23,.32),inset 0 0 0 1px rgba(148,163,184,.12);
 }
 
 #gov-org .gov-zoom{
@@ -197,18 +198,18 @@ require_once __DIR__ . '/includes/sidebar.php';
 #gov-org .gov-zoom button{
     height:30px;
     min-width:30px;
-    border:1px solid #e2e8f0;
+    border:1px solid #334155;
     border-radius:8px;
-    background:#fff;
-    color:#475569;
+    background:#182235;
+    color:#dbeafe;
     font-size:13px;
     font-weight:800;
     cursor:pointer;
 }
 
 #gov-org .gov-zoom button:hover{
-    background:#f8fafc;
-    border-color:#cbd5e1;
+    background:#25334a;
+    border-color:#4b6382;
 }
 
 #gov-org .gov-zoom #govFit{
@@ -223,7 +224,7 @@ require_once __DIR__ . '/includes/sidebar.php';
     width:40px;
     text-align:center;
     font-size:10px;
-    color:#64748b;
+    color:#a8b5c7;
     font-variant-numeric:tabular-nums;
 }
 
@@ -235,11 +236,11 @@ require_once __DIR__ . '/includes/sidebar.php';
     align-items:center;
     justify-content:center;
     gap:6px;
-    border:1px solid #dbe4ee;
+    border:1px solid #334155;
     border-radius:10px;
-    background:#fff;
-    color:#64748b;
-    box-shadow:0 1px 3px rgba(15,23,42,.04);
+    background:#182235;
+    color:#cbd5e1;
+    box-shadow:0 1px 4px rgba(2,6,23,.24);
 }
 
 #gov-org .gov-access span{
@@ -265,7 +266,9 @@ require_once __DIR__ . '/includes/sidebar.php';
     min-height:0;
     overflow:auto;
     background-color:var(--gov-canvas);
-    background-image:radial-gradient(#cbd5e1 1px, transparent 1px);
+    background-image:
+        radial-gradient(rgba(148,163,184,.26) 1px, transparent 1px),
+        linear-gradient(145deg,#0b1220 0%,#101a2d 58%,#0c1525 100%);
     background-size:26px 26px;
     overscroll-behavior:contain;
     scrollbar-gutter:stable;
@@ -297,7 +300,7 @@ require_once __DIR__ . '/includes/sidebar.php';
     justify-content:center;
     flex-direction:column;
     gap:8px;
-    color:#64748b;
+    color:#8fa0b8;
     z-index:2;
 }
 
@@ -307,12 +310,12 @@ require_once __DIR__ . '/includes/sidebar.php';
 }
 
 #gov-org .gov-loading strong{
-    color:#334155;
-    font-size:13px;
+    color:#e2e8f0;
+    font-size:14px;
 }
 
 #gov-org .gov-loading span{
-    font-size:11px;
+    font-size:12px;
 }
 
 #gov-org .gov-spinner{
@@ -338,34 +341,35 @@ require_once __DIR__ . '/includes/sidebar.php';
 }
 
 #gov-org .org-card{
+    position:relative;
     width:100%;
     height:100%;
     overflow:hidden;
     background:#fff;
     background:linear-gradient(
         145deg,
-        color-mix(in srgb,var(--node-color,#3b82f6) 10%,white),
-        white 72%
+        color-mix(in srgb,var(--node-color,#3b82f6) 11%,white),
+        #fff 76%
     );
-    border:1px solid #dbe4ee;
-    border:1px solid color-mix(in srgb,var(--node-color,#3b82f6) 28%,#dbe4ee);
+    border:1px solid #d8e2ef;
+    border:1px solid color-mix(in srgb,var(--node-color,#3b82f6) 38%,#d8e2ef);
     border-radius:14px;
     box-shadow:
-        0 5px 18px rgba(15,23,42,.09),
-        inset 0 1px 0 rgba(255,255,255,.82);
+        0 9px 24px rgba(2,6,23,.26),
+        inset 0 1px 0 rgba(255,255,255,.9);
     transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;
 }
 
 #gov-org .org-node:hover .org-card{
-    border-color:color-mix(in srgb,var(--node-color,#3b82f6) 55%,#cbd5e1);
-    box-shadow:0 9px 24px rgba(15,23,42,.13),inset 0 1px 0 rgba(255,255,255,.9);
+    border-color:color-mix(in srgb,var(--node-color,#3b82f6) 68%,#94a3b8);
+    box-shadow:0 14px 34px rgba(2,6,23,.38),inset 0 1px 0 rgba(255,255,255,.95);
 }
 
 #gov-org .org-node.company .org-card{
     border:none;
     border-radius:16px;
-    background:linear-gradient(135deg,var(--gov-navy),var(--gov-navy-2));
-    box-shadow:0 10px 34px rgba(13,27,62,.30),0 2px 8px rgba(15,23,42,.13);
+    background:linear-gradient(135deg,#2563eb,#1d4ed8);
+    box-shadow:0 12px 34px rgba(29,78,216,.32),0 3px 10px rgba(2,6,23,.2);
     color:#fff;
 }
 
@@ -378,8 +382,8 @@ require_once __DIR__ . '/includes/sidebar.php';
     background:#4338ca;
     background:linear-gradient(
         135deg,
-        color-mix(in srgb,var(--node-color,#4f46e5) 82%,#111827),
-        var(--node-color,#4f46e5)
+        color-mix(in srgb,var(--node-color,#4f46e5) 84%,white),
+        color-mix(in srgb,var(--node-color,#4f46e5) 94%,#312e81)
     );
     box-shadow:0 9px 26px color-mix(in srgb,var(--node-color,#4f46e5) 28%,transparent);
 }
@@ -405,14 +409,26 @@ require_once __DIR__ . '/includes/sidebar.php';
 
 #gov-org .org-node.depth-2 .org-card{
     border-width:1.5px;
-    border-color:#c4b5fd;
+    border-color:#a78bfa;
     background:#f5f3ff;
     background:linear-gradient(
         145deg,
-        color-mix(in srgb,var(--node-color,#7c3aed) 20%,white),
+        color-mix(in srgb,var(--node-color,#7c3aed) 18%,white),
         color-mix(in srgb,var(--node-color,#7c3aed) 7%,white)
     );
-    box-shadow:0 7px 22px color-mix(in srgb,var(--node-color,#7c3aed) 18%,transparent);
+    box-shadow:0 9px 26px rgba(2,6,23,.24),0 0 22px color-mix(in srgb,var(--node-color,#7c3aed) 13%,transparent);
+}
+
+#gov-org .org-node.depth-2 .org-area-title{
+    color:#3b1d72;
+}
+
+#gov-org .org-node.depth-2 .org-leader-name{
+    color:#4c1d95;
+}
+
+#gov-org .org-node.depth-2 .org-leader-caption{
+    color:#7c3aed;
 }
 
 #gov-org .org-company-body{
@@ -436,7 +452,7 @@ require_once __DIR__ . '/includes/sidebar.php';
 }
 
 #gov-org .org-company-title{
-    font-size:14px;
+    font-size:17px;
     line-height:1.2;
     font-weight:800;
 }
@@ -444,7 +460,7 @@ require_once __DIR__ . '/includes/sidebar.php';
 #gov-org .org-company-sub{
     margin-top:3px;
     color:#93c5fd;
-    font-size:11px;
+    font-size:12px;
 }
 
 #gov-org .org-stripe{
@@ -454,7 +470,7 @@ require_once __DIR__ . '/includes/sidebar.php';
 
 #gov-org .org-area-body{
     height:calc(100% - 5px);
-    padding:10px 13px 11px;
+    padding:11px 13px 12px;
     display:flex;
     flex-direction:column;
 }
@@ -464,10 +480,10 @@ require_once __DIR__ . '/includes/sidebar.php';
     align-items:center;
     gap:7px;
     min-width:0;
-    font-size:13px;
+    font-size:16px;
     line-height:1.25;
     font-weight:900;
-    color:#0f172a;
+    color:#172033;
 }
 
 #gov-org .org-area-title .dot{
@@ -488,20 +504,20 @@ require_once __DIR__ . '/includes/sidebar.php';
 }
 
 #gov-org .org-leader{
-    margin-top:8px;
+    margin-top:9px;
     padding-top:0;
     display:flex;
     align-items:center;
     gap:7px;
     color:#475569;
-    font-size:10px;
+    font-size:12px;
 }
 
 #gov-org .org-leader-meta{min-width:0;display:flex;flex-direction:column;gap:1px}
 
 #gov-org .org-leader-caption{
-    color:#94a3b8;
-    font-size:8px;
+    color:#64748b;
+    font-size:9px;
     line-height:1;
     font-weight:900;
     letter-spacing:.08em;
@@ -510,25 +526,25 @@ require_once __DIR__ . '/includes/sidebar.php';
 
 #gov-org .org-leader-name{
     display:block;
-    color:#475569;
-    font-size:10px;
-    line-height:1.3;
-    font-weight:750;
+    color:#334155;
+    font-size:13px;
+    line-height:1.25;
+    font-weight:800;
     overflow:hidden;
 }
 
 #gov-org .org-leader-person{display:block}
 
 #gov-org .org-avatar{
-    width:23px;
-    height:23px;
+    width:27px;
+    height:27px;
     border-radius:50%;
     display:grid;
     place-items:center;
     flex:0 0 auto;
-    background:color-mix(in srgb,var(--node-color,#3b82f6) 13%,white);
-    color:var(--node-color,#3b82f6);
-    font-size:9px;
+    background:color-mix(in srgb,var(--node-color,#3b82f6) 15%,white);
+    color:color-mix(in srgb,var(--node-color,#3b82f6) 82%,#0f172a);
+    font-size:10px;
     font-weight:900;
 }
 
@@ -536,18 +552,28 @@ require_once __DIR__ . '/includes/sidebar.php';
     border-radius:10px;
 }
 
+#gov-org .org-node.manager .org-card{
+    border-width:2px;
+    background:linear-gradient(
+        135deg,
+        color-mix(in srgb,var(--node-color,#3b82f6) 17%,white),
+        #fff 76%
+    );
+    box-shadow:0 11px 28px rgba(2,6,23,.3),0 0 20px color-mix(in srgb,var(--node-color,#3b82f6) 10%,transparent);
+}
+
 #gov-org .org-person-body{
     height:100%;
     display:flex;
     align-items:center;
-    gap:8px;
-    padding:8px 9px;
+    gap:10px;
+    padding:9px 11px;
 }
 
 #gov-org .org-person-body .org-avatar{
-    width:28px;
-    height:28px;
-    font-size:9px;
+    width:34px;
+    height:34px;
+    font-size:11px;
 }
 
 #gov-org .org-person-info{
@@ -555,8 +581,8 @@ require_once __DIR__ . '/includes/sidebar.php';
 }
 
 #gov-org .org-person-name{
-    color:#1e293b;
-    font-size:11px;
+    color:#172033;
+    font-size:15px;
     line-height:1.15;
     font-weight:800;
     white-space:nowrap;
@@ -566,12 +592,111 @@ require_once __DIR__ . '/includes/sidebar.php';
 
 #gov-org .org-person-role{
     margin-top:3px;
-    color:#94a3b8;
-    font-size:9px;
+    color:#64748b;
+    font-size:12px;
     line-height:1.15;
     white-space:nowrap;
     overflow:hidden;
     text-overflow:ellipsis;
+}
+
+#gov-org .org-node.external .org-card{
+    border-color:#fbbf24;
+    background:linear-gradient(145deg,#fffbeb,#fff 78%);
+    box-shadow:0 9px 24px rgba(2,6,23,.25),0 0 0 1px rgba(251,191,36,.12);
+}
+
+#gov-org .org-node.external .org-stripe{
+    background:#f59e0b;
+}
+
+#gov-org .org-node.external .org-area-title{
+    color:#78350f;
+}
+
+#gov-org .org-external-badge{
+    width:max-content;
+    margin-top:10px;
+    padding:4px 8px;
+    border-radius:999px;
+    background:#fef3c7;
+    color:#92400e;
+    font-size:10px;
+    line-height:1;
+    font-weight:900;
+    letter-spacing:.05em;
+    text-transform:uppercase;
+}
+
+/* Leitura rápida para painéis e TVs no modo Somente Áreas */
+#gov-org[data-level="areas"] .org-area-body{
+    justify-content:center;
+    padding:10px 12px 13px;
+}
+
+#gov-org[data-level="areas"] .org-area-title{
+    gap:8px;
+    font-size:24px;
+    line-height:1.08;
+    letter-spacing:-.025em;
+}
+
+#gov-org[data-level="areas"] .org-area-title .dot{
+    width:11px;
+    height:11px;
+}
+
+#gov-org[data-level="areas"] .org-company-title{
+    font-size:24px;
+    letter-spacing:-.025em;
+}
+
+#gov-org[data-level="areas"] .org-company-sub{
+    font-size:15px;
+}
+
+#gov-org[data-level="areas"] .org-external-badge{
+    display:none;
+}
+
+#gov-org .org-expand-indicator{
+    position:absolute;
+    right:6px;
+    bottom:6px;
+    width:24px;
+    height:24px;
+    display:grid;
+    place-items:center;
+    border:1px solid color-mix(in srgb,var(--node-color,#3b82f6) 38%,#cbd5e1);
+    border-radius:7px;
+    background:color-mix(in srgb,var(--node-color,#3b82f6) 14%,white);
+    color:color-mix(in srgb,var(--node-color,#3b82f6) 78%,#0f172a);
+    font-size:18px;
+    line-height:1;
+    font-weight:900;
+    box-shadow:0 2px 7px rgba(15,23,42,.12);
+}
+
+#gov-org[data-level="areas"] .org-expand-indicator{
+    right:8px;
+    bottom:8px;
+    width:30px;
+    height:30px;
+    border-radius:9px;
+    font-size:22px;
+}
+
+#gov-org:not([data-level="areas"]) .org-node.has-children .org-area-body,
+#gov-org:not([data-level="areas"]) .org-node.has-children .org-person-body,
+#gov-org:not([data-level="areas"]) .org-node.has-children .org-company-body{
+    padding-right:38px;
+}
+
+#gov-org .org-node.company .org-expand-indicator,
+#gov-org .org-node.depth-1 .org-expand-indicator{
+    border-color:rgba(255,255,255,.24);
+    background:rgba(255,255,255,.16);
+    color:#fff;
 }
 
 /* Rodapé */
@@ -584,9 +709,9 @@ require_once __DIR__ . '/includes/sidebar.php';
     justify-content:space-between;
     gap:12px;
     border-top:1px solid var(--gov-border);
-    background:#fff;
-    color:#94a3b8;
-    font-size:9px;
+    background:#111827;
+    color:#a8b5c7;
+    font-size:10px;
 }
 
 #gov-org .gov-legend{
@@ -605,8 +730,8 @@ require_once __DIR__ . '/includes/sidebar.php';
 }
 
 #gov-org .gov-legend-dot{
-    width:7px;
-    height:7px;
+    width:8px;
+    height:8px;
     border-radius:50%;
 }
 
@@ -621,7 +746,7 @@ require_once __DIR__ . '/includes/sidebar.php';
 #gov-org .gov-drawer-backdrop{
     position:fixed;
     inset:0;
-    background:rgba(15,23,42,.18);
+    background:rgba(2,6,23,.62);
     opacity:0;
     pointer-events:none;
     transition:.2s ease;
@@ -641,9 +766,9 @@ require_once __DIR__ . '/includes/sidebar.php';
     width:min(410px,92vw);
     display:flex;
     flex-direction:column;
-    background:#fff;
-    border-left:1px solid #dbe4ee;
-    box-shadow:-14px 0 40px rgba(15,23,42,.16);
+    background:#111827;
+    border-left:1px solid #334155;
+    box-shadow:-14px 0 40px rgba(2,6,23,.48);
     transform:translateX(102%);
     transition:transform .23s ease;
     z-index:80;
@@ -660,7 +785,7 @@ require_once __DIR__ . '/includes/sidebar.php';
     align-items:flex-start;
     justify-content:space-between;
     gap:14px;
-    border-bottom:1px solid #e2e8f0;
+    border-bottom:1px solid #334155;
 }
 
 #gov-org .gov-drawer-head p{
@@ -674,7 +799,7 @@ require_once __DIR__ . '/includes/sidebar.php';
 
 #gov-org .gov-drawer-head h2{
     margin:0;
-    color:#0f172a;
+    color:#f8fafc;
     font-size:19px;
     line-height:1.2;
     font-weight:850;
@@ -683,10 +808,10 @@ require_once __DIR__ . '/includes/sidebar.php';
 #gov-org .gov-drawer-head button{
     width:32px;
     height:32px;
-    border:1px solid #e2e8f0;
+    border:1px solid #334155;
     border-radius:9px;
-    background:#fff;
-    color:#64748b;
+    background:#182235;
+    color:#cbd5e1;
     font-size:22px;
     line-height:1;
     cursor:pointer;
@@ -696,15 +821,15 @@ require_once __DIR__ . '/includes/sidebar.php';
     flex:1 1 auto;
     overflow:auto;
     padding:17px;
-    background:#f8fafc;
+    background:#0b1220;
 }
 
 #gov-org .drawer-card{
     margin-bottom:12px;
     padding:14px;
-    border:1px solid #e2e8f0;
+    border:1px solid #334155;
     border-radius:13px;
-    background:#fff;
+    background:#172033;
 }
 
 #gov-org .drawer-label{
@@ -717,8 +842,8 @@ require_once __DIR__ . '/includes/sidebar.php';
 }
 
 #gov-org .drawer-value{
-    color:#1e293b;
-    font-size:13px;
+    color:#e2e8f0;
+    font-size:14px;
     font-weight:750;
 }
 
@@ -731,13 +856,13 @@ require_once __DIR__ . '/includes/sidebar.php';
 #gov-org .drawer-stat{
     padding:10px 7px;
     border-radius:10px;
-    background:#f8fafc;
+    background:#111827;
     text-align:center;
 }
 
 #gov-org .drawer-stat strong{
     display:block;
-    color:#0f172a;
+    color:#f8fafc;
     font-size:17px;
 }
 
@@ -762,14 +887,14 @@ require_once __DIR__ . '/includes/sidebar.php';
     align-items:center;
     justify-content:space-between;
     gap:10px;
-    border:1px solid #e2e8f0;
+    border:1px solid #334155;
     border-radius:10px;
-    background:#fff;
+    background:#172033;
 }
 
 #gov-org .drawer-row strong{
-    color:#334155;
-    font-size:11px;
+    color:#e2e8f0;
+    font-size:12px;
 }
 
 #gov-org .drawer-row small{
@@ -783,8 +908,8 @@ require_once __DIR__ . '/includes/sidebar.php';
     flex:0 0 auto;
     padding:4px 6px;
     border-radius:999px;
-    background:#eff6ff;
-    color:#2563eb;
+    background:#172554;
+    color:#93c5fd;
     font-size:8px;
     font-weight:900;
 }
@@ -798,7 +923,7 @@ require_once __DIR__ . '/includes/sidebar.php';
 
 #gov-org .gov-canvas::-webkit-scrollbar-thumb,
 #gov-org .gov-drawer-body::-webkit-scrollbar-thumb{
-    background:#cbd5e1;
+    background:#475569;
     border:2px solid transparent;
     background-clip:padding-box;
     border-radius:999px;
@@ -881,18 +1006,36 @@ require_once __DIR__ . '/includes/sidebar.php';
     const CARD_W = {
         company: 228,
         area: 204,
-        subarea: 190,
+        subarea: 184,
+        external: 184,
+        manager: 220,
         person: 166
     };
 
     const CARD_H = {
-        company: 80,
-        area: 88,
-        subarea: 92,
-        person: 56
+        company: 88,
+        area: 124,
+        subarea: 124,
+        external: 96,
+        manager: 72,
+        person: 64
     };
 
-    const H_GAP = 24;
+    const AREA_CARD_W = {
+        company: 240,
+        area: 210,
+        subarea: 200,
+        external: 180
+    };
+
+    const AREA_CARD_H = {
+        company: 96,
+        area: 110,
+        subarea: 110,
+        external: 100
+    };
+
+    const H_GAP = 20;
     const V_GAP = 50;
     const PAD = 54;
 
@@ -913,10 +1056,21 @@ require_once __DIR__ . '/includes/sidebar.php';
         zoom: 0.90,
         nodes: [],
         edges: [],
-        selected: null
+        selected: null,
+        collapsedByLevel: {
+            areas: new Set(),
+            leaders: new Set(),
+            team: new Set()
+        },
+        collapseReady: {
+            areas: false,
+            leaders: false,
+            team: false
+        }
     };
 
     const el = {
+        root: document.getElementById('gov-org'),
         canvas: document.getElementById('govCanvas'),
         shell: document.getElementById('govScrollShell'),
         stage: document.getElementById('govStage'),
@@ -1007,7 +1161,8 @@ require_once __DIR__ . '/includes/sidebar.php';
 
             grouped.get(code).push({
                 name: item.pessoa_nome || 'Líder não definido',
-                initials: initials(item.pessoa_nome || '')
+                initials: initials(item.pessoa_nome || ''),
+                role: item.tipo || 'Liderança'
             });
         });
 
@@ -1017,7 +1172,8 @@ require_once __DIR__ . '/includes/sidebar.php';
                 name:items.map(item => item.name).join(' · '),
                 initials:items[0]?.initials || '—',
                 count:items.length,
-                names:items.map(item => item.name)
+                names:items.map(item => item.name),
+                roles:items.map(item => item.role)
             });
         });
 
@@ -1142,23 +1298,39 @@ require_once __DIR__ . '/includes/sidebar.php';
 
         function buildStructure(row,depth){
             const code = String(row.ID || '');
-            const color = hierarchyColor(
-                code,
-                String(root.ID),
-                colorRootCode,
-                byId,
-                colorByTop
-            );
+            const isManager = normalize(row['TIPO_NÓ']) === 'gestor';
+            const isExternal = normalize(row['VÍNCULO']).includes('terceiro');
+            const color = isExternal
+                ? '#f59e0b'
+                : hierarchyColor(
+                    code,
+                    String(root.ID),
+                    colorRootCode,
+                    byId,
+                    colorByTop
+                );
 
             const leader = leaders.get(code) || {
                 name:'Líder não definido',
                 initials:'—',
                 count:0,
-                names:[]
+                names:[],
+                roles:[]
             };
 
             const childrenNodes = (children.get(code) || [])
-                .map(child => buildStructure(child,depth + 1));
+                .flatMap(child => {
+                    const childCode = String(child.ID || '');
+                    const childIsManager =
+                        normalize(child['TIPO_NÓ']) === 'gestor';
+
+                    if (state.level === 'areas' && childIsManager) {
+                        return (children.get(childCode) || [])
+                            .map(grandchild => buildStructure(grandchild,depth + 1));
+                    }
+
+                    return [buildStructure(child,depth + 1)];
+                });
 
             if (state.level === 'team'){
                 peopleForStructure(code,fnMap).forEach(person => {
@@ -1178,39 +1350,69 @@ require_once __DIR__ . '/includes/sidebar.php';
                 });
             }
 
+            const hasChildren = childrenNodes.length > 0;
+            const collapsedNodes = state.collapsedByLevel[state.level];
+
+            if (
+                !state.collapseReady[state.level]
+                && depth >= 3
+                && hasChildren
+            ) {
+                collapsedNodes.add(code);
+            }
+
+            const isCollapsed =
+                hasChildren
+                && collapsedNodes.has(code);
+
             return {
                 id:`struct-${code}`,
                 refCode:code,
-                type: depth === 0
-                    ? 'company'
-                    : depth === 1
-                        ? 'area'
-                        : 'subarea',
-                label:String(row.NOME || code),
-                sublabel: depth === 0
-                    ? 'Estrutura principal'
-                    : state.level === 'areas'
-                        ? ''
-                        : leader.name,
+                type: isManager
+                    ? 'manager'
+                    : isExternal
+                        ? 'external'
+                    : depth === 0
+                        ? 'company'
+                        : depth === 1
+                            ? 'area'
+                            : 'subarea',
+                label:isManager && leader.names.length
+                    ? leader.names[0]
+                    : String(row.NOME || code),
+                sublabel:isManager
+                    ? (leader.roles[0] || 'Gerente Geral')
+                    : isExternal
+                        ? 'Empresa terceira'
+                    : depth === 0
+                        ? 'Estrutura principal'
+                        : state.level === 'areas'
+                            ? ''
+                            : leader.name,
                 initials: depth === 0
                     ? initials(row.NOME || 'CS')
-                    : leader.initials,
+                    : isExternal
+                        ? initials(row.NOME || '')
+                        : leader.initials,
                 leaderCount:depth === 0 ? 0 : leader.count,
                 leaderNames:depth === 0 ? [] : leader.names,
                 color,
                 depth,
-                children: state.level === 'areas'
-                    ? (
-                        depth === 0
-                            ? childrenNodes.map(n => ({...n,children:[]}))
-                            : []
-                    )
-                    : childrenNodes
+                hasChildren,
+                isCollapsed,
+                childCount:childrenNodes.length,
+                children:isCollapsed ? [] : childrenNodes
             };
         }
 
+        const rootNode = buildStructure(root,0);
+
+        if (!state.collapseReady[state.level]) {
+            state.collapseReady[state.level] = true;
+        }
+
         return {
-            root:buildStructure(root,0),
+            root:rootNode,
             rootCode:String(root.ID),
             byId,
             children,
@@ -1226,6 +1428,10 @@ require_once __DIR__ . '/includes/sidebar.php';
     }
 
     function cardWidth(type){
+        if (state.level === 'areas' && AREA_CARD_W[type]) {
+            return AREA_CARD_W[type];
+        }
+
         return CARD_W[type] || CARD_W.person;
     }
 
@@ -1236,9 +1442,13 @@ require_once __DIR__ . '/includes/sidebar.php';
         const type = node?.type || 'person';
         const baseHeight = CARD_H[type] || CARD_H.person;
 
+        if (state.level === 'areas' && AREA_CARD_H[type]) {
+            return AREA_CARD_H[type];
+        }
+
         if (state.level !== 'areas' && (type === 'area' || type === 'subarea')) {
             const leaderCount = Math.max(1,Number(node?.leaderCount || 0));
-            return baseHeight + Math.max(0,leaderCount - 1) * 13;
+            return baseHeight + Math.max(0,leaderCount - 1) * 16;
         }
 
         return baseHeight;
@@ -1247,6 +1457,7 @@ require_once __DIR__ . '/includes/sidebar.php';
     function computeLayout(node){
         const cw = cardWidth(node.type);
         const ch = cardHeight(node);
+        const horizontalGap = state.level === 'areas' ? 10 : H_GAP;
 
         if (!node.children.length){
             return {
@@ -1261,7 +1472,7 @@ require_once __DIR__ . '/includes/sidebar.php';
         const childLayouts = node.children.map(computeLayout);
         const childrenW =
             childLayouts.reduce((sum,child) => sum + child.w,0)
-            + H_GAP * Math.max(0,childLayouts.length - 1);
+            + horizontalGap * Math.max(0,childLayouts.length - 1);
 
         const subtreeW = Math.max(cw,childrenW);
         const startX = (subtreeW - childrenW) / 2;
@@ -1269,7 +1480,7 @@ require_once __DIR__ . '/includes/sidebar.php';
 
         const positioned = childLayouts.map(layout => {
             const leftOffset = cursor;
-            cursor += layout.w + H_GAP;
+            cursor += layout.w + horizontalGap;
             return {layout,leftOffset};
         });
 
@@ -1303,7 +1514,8 @@ require_once __DIR__ . '/includes/sidebar.php';
             });
         }
 
-        const childTop = absBY + V_GAP;
+        const verticalGap = state.level === 'areas' ? 38 : V_GAP;
+        const childTop = absBY + verticalGap;
 
         layout.layoutChildren.forEach(({layout:child,leftOffset}) => {
             const result = flattenLayout(
@@ -1324,7 +1536,9 @@ require_once __DIR__ . '/includes/sidebar.php';
     function chartHeight(layout){
         if (!layout.layoutChildren.length) return layout.h;
 
-        return layout.h + V_GAP + Math.max(
+        const verticalGap = state.level === 'areas' ? 38 : V_GAP;
+
+        return layout.h + verticalGap + Math.max(
             ...layout.layoutChildren.map(item => chartHeight(item.layout))
         );
     }
@@ -1335,15 +1549,20 @@ require_once __DIR__ . '/includes/sidebar.php';
         const leaderNames = Array.isArray(node.leaderNames) && node.leaderNames.length
             ? node.leaderNames
             : ['Líder não definido'];
+        const childClass = node.hasChildren ? ' has-children' : '';
+        const expandIndicator = node.hasChildren
+            ? `<span class="org-expand-indicator" aria-hidden="true">${node.isCollapsed ? '+' : '−'}</span>`
+            : '';
 
         if (node.type === 'company'){
             return `
                 <button type="button"
-                        class="org-node company depth-0"
+                        class="org-node company depth-0${childClass}"
                         data-id="${esc(node.id)}"
                         title="${esc(node.label)}"
                         style="left:${node.cx - w/2}px;top:${node.top}px;width:${w}px;height:${h}px;--node-color:${esc(node.color)}">
                     <div class="org-card">
+                        ${expandIndicator}
                         <div class="org-company-body">
                             <div class="org-company-icon">⌂</div>
                             <div>
@@ -1356,14 +1575,15 @@ require_once __DIR__ . '/includes/sidebar.php';
             `;
         }
 
-        if (node.type === 'person'){
+        if (node.type === 'person' || node.type === 'manager'){
             return `
                 <button type="button"
-                        class="org-node person depth-${Number(node.depth || 0)}"
+                        class="org-node person ${esc(node.type)} depth-${Number(node.depth || 0)}${childClass}"
                         data-id="${esc(node.id)}"
                         title="${esc(node.label)} · ${esc(node.sublabel || '')}"
                         style="left:${node.cx - w/2}px;top:${node.top}px;width:${w}px;height:${h}px;--node-color:${esc(node.color)}">
                     <div class="org-card">
+                        ${expandIndicator}
                         <div class="org-person-body">
                             <div class="org-avatar">${esc(node.initials)}</div>
                             <div class="org-person-info">
@@ -1376,13 +1596,36 @@ require_once __DIR__ . '/includes/sidebar.php';
             `;
         }
 
+        if (node.type === 'external'){
+            return `
+                <button type="button"
+                        class="org-node external depth-${Number(node.depth || 0)}${childClass}"
+                        data-id="${esc(node.id)}"
+                        title="${esc(node.label)} · Empresa terceira"
+                        style="left:${node.cx - w/2}px;top:${node.top}px;width:${w}px;height:${h}px;--node-color:${esc(node.color)}">
+                    <div class="org-card">
+                        ${expandIndicator}
+                        <div class="org-stripe"></div>
+                        <div class="org-area-body">
+                            <div class="org-area-title">
+                                <span class="dot"></span>
+                                <span>${esc(node.label)}</span>
+                            </div>
+                            <div class="org-external-badge">Empresa terceira</div>
+                        </div>
+                    </div>
+                </button>
+            `;
+        }
+
         return `
             <button type="button"
-                    class="org-node ${esc(node.type)} depth-${Number(node.depth || 0)}"
+                    class="org-node ${esc(node.type)} depth-${Number(node.depth || 0)}${childClass}"
                     data-id="${esc(node.id)}"
                     title="${esc(node.label)}${node.sublabel ? ' · ' + esc(node.sublabel) : ''}"
                     style="left:${node.cx - w/2}px;top:${node.top}px;width:${w}px;height:${h}px;--node-color:${esc(node.color)}">
                 <div class="org-card">
+                    ${expandIndicator}
                     <div class="org-stripe"></div>
                     <div class="org-area-body">
                         <div class="org-area-title">
@@ -1430,12 +1673,12 @@ require_once __DIR__ . '/includes/sidebar.php';
                 <path
                     d="M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}"
                     fill="none"
-                    stroke="#94a3b8"
-                    stroke-width="1.35"
+                    stroke="#64748b"
+                    stroke-width="1.8"
                     stroke-linecap="round"
-                    opacity=".72"
+                    opacity=".9"
                 />
-                <circle cx="${x1}" cy="${y1}" r="2.2" fill="#cbd5e1"/>
+                <circle cx="${x1}" cy="${y1}" r="2.6" fill="#94a3b8"/>
             `;
         }).join('');
     }
@@ -1452,6 +1695,14 @@ require_once __DIR__ . '/includes/sidebar.php';
 
         if (model.byId.has('CS-GG')) {
             items.push({name:'Gerência Geral',color:'#7c3aed'});
+        }
+
+        const hasThirdParties = [...model.byId.values()].some(
+            row => normalize(row['VÍNCULO']).includes('terceiro')
+        );
+
+        if (hasThirdParties) {
+            items.push({name:'Empresa terceira',color:'#f59e0b'});
         }
 
         const rootChildren = model.children.get(model.colorRootCode) || [];
@@ -1527,6 +1778,8 @@ require_once __DIR__ . '/includes/sidebar.php';
     }
 
     function renderChart(autoFit=false){
+        el.root.dataset.level = state.level;
+
         const model = buildOrgTree();
         const layout = computeLayout(model.root);
         const flat = flattenLayout(layout);
@@ -1561,6 +1814,22 @@ require_once __DIR__ . '/includes/sidebar.php';
 
         el.nodes.querySelectorAll('.org-node').forEach(button => {
             button.addEventListener('click',() => {
+                const node = findStructureNode(button.dataset.id);
+
+                if (node?.hasChildren) {
+                    const code = String(node.refCode || '');
+                    const collapsedNodes = state.collapsedByLevel[state.level];
+
+                    if (collapsedNodes.has(code)) {
+                        collapsedNodes.delete(code);
+                    } else {
+                        collapsedNodes.add(code);
+                    }
+
+                    renderChart(true);
+                    return;
+                }
+
                 openNodeDetails(button.dataset.id);
             });
         });
@@ -1789,6 +2058,14 @@ require_once __DIR__ . '/includes/sidebar.php';
 
             state.payload = payload;
             state.data = payload.data || {};
+
+            Object.values(state.collapsedByLevel)
+                .forEach(collapsedNodes => collapsedNodes.clear());
+
+            Object.keys(state.collapseReady)
+                .forEach(level => {
+                    state.collapseReady[level] = false;
+                });
 
             renderAccess();
 
