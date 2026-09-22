@@ -20,12 +20,12 @@ if (empty($_SESSION['governanca_csrf'])) {
 $csrf = $_SESSION['governanca_csrf'];
 ?>
 
-<main class="flex-1 min-w-0 min-h-0 overflow-hidden bg-slate-100 flex flex-col">
+<main class="gov-dark-page flex-1 min-w-0 min-h-0 overflow-hidden flex flex-col">
     <?php require __DIR__ . '/includes/governanca_nav.php'; ?>
 
     <section id="gov-my-area" class="flex-1 min-h-0 overflow-y-auto">
-        <div class="max-w-7xl mx-auto px-4 sm:px-5 lg:px-6 py-5">
-            <div class="flex items-start justify-between gap-4 flex-wrap mb-5">
+        <div class="max-w-[1500px] mx-auto px-4 sm:px-5 lg:px-6 py-4">
+            <div class="flex items-start justify-between gap-4 flex-wrap mb-4">
                 <div>
                     <p class="text-[10px] font-black uppercase tracking-[.18em] text-blue-600">Governança</p>
                     <h1 class="text-2xl font-black text-slate-900">Minha Área</h1>
@@ -42,10 +42,33 @@ $csrf = $_SESSION['governanca_csrf'];
             </div>
 
             <div id="govAlert" class="hidden mb-4 rounded-xl border px-4 py-3 text-sm font-semibold"></div>
-            <div id="myAreaStatus" class="mb-4"></div>
+            <div id="myAreaStatus" class="mb-3"></div>
 
-            <div id="myAreaGrid" class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-                <div class="col-span-full rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+            <div class="gov-area-toolbar" aria-label="Filtros das áreas">
+                <label class="gov-area-search">
+                    <span aria-hidden="true">⌕</span>
+                    <input id="areaSearch" type="search" placeholder="Buscar área ou código" autocomplete="off">
+                </label>
+
+                <select id="areaStatusFilter" class="gov-area-filter" aria-label="Filtrar situação">
+                    <option value="all">Todas as áreas</option>
+                    <option value="populated">Com cadastros</option>
+                    <option value="empty">Sem cadastros</option>
+                    <option value="responsibilities">Com responsabilidades</option>
+                </select>
+
+                <select id="areaSort" class="gov-area-filter" aria-label="Ordenar áreas">
+                    <option value="name">Ordem alfabética</option>
+                    <option value="activity_desc">Mais preenchidas</option>
+                    <option value="activity_asc">Menos preenchidas</option>
+                    <option value="code">Ordenar por código</option>
+                </select>
+
+                <span id="areaVisibleCount" class="gov-area-visible-count">0 áreas</span>
+            </div>
+
+            <div id="myAreaGrid" class="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-3 items-start">
+                <div class="gov-filter-empty col-span-full">
                     Carregando seu escopo...
                 </div>
             </div>
@@ -571,6 +594,155 @@ $csrf = $_SESSION['governanca_csrf'];
         width:100%;margin-left:0
     }
 }
+
+/* Tema escuro e visão compacta */
+.gov-dark-page{
+    background-color:#081426;
+    background-image:radial-gradient(circle at 1px 1px,rgba(96,165,250,.13) 1px,transparent 0);
+    background-size:28px 28px
+}
+#gov-my-area{color:#cbd5e1}
+#gov-my-area h1{color:#f8fafc!important}
+#gov-my-area .text-slate-500{color:#93a4bb!important}
+#gov-my-area .text-blue-600{color:#60a5fa!important}
+#btnRefresh{border-color:#334a68!important;background:#12223a!important;color:#dbeafe!important}
+#btnRefresh:hover{border-color:#60a5fa!important;background:#172b49!important}
+#myAreaStatus>div{
+    border-color:#285f55!important;background:rgba(6,78,59,.34)!important;
+    padding:11px 14px!important;border-radius:13px!important
+}
+#myAreaStatus strong{color:#a7f3d0!important}
+#myAreaStatus p{color:#6ee7b7!important}
+#myAreaStatus span{background:#173548!important;color:#d1fae5!important}
+#myAreaStatus>div.border-blue-200{border-color:#315a86!important;background:rgba(23,59,104,.45)!important}
+#myAreaStatus>div.border-blue-200 strong{color:#dbeafe!important}
+#myAreaStatus>div.border-blue-200 p{color:#93c5fd!important}
+#govAlert.border-emerald-200{border-color:#285f55!important;background:#123c35!important;color:#a7f3d0!important}
+#govAlert.border-red-200{border-color:#7f3341!important;background:#3b1722!important;color:#fecdd3!important}
+.gov-area-toolbar{
+    margin-bottom:12px;padding:9px;display:flex;align-items:center;gap:8px;
+    border:1px solid #233650;border-radius:13px;background:rgba(14,29,49,.92);
+    box-shadow:0 10px 30px rgba(2,8,23,.14)
+}
+.gov-area-search{
+    height:36px;min-width:230px;flex:1;display:flex;align-items:center;gap:8px;
+    padding:0 11px;border:1px solid #314763;border-radius:9px;background:#09172a;color:#60a5fa
+}
+.gov-area-search input{
+    min-width:0;width:100%;border:0;outline:0;background:transparent;
+    color:#f8fafc;font-size:11px;font-weight:700
+}
+.gov-area-search input::placeholder{color:#71839b}
+.gov-area-filter{
+    height:36px;min-width:165px;padding:0 30px 0 10px;border:1px solid #314763;
+    border-radius:9px;outline:0;background:#09172a;color:#dbeafe;
+    font-size:10px;font-weight:800;color-scheme:dark
+}
+.gov-area-search:focus-within,.gov-area-filter:focus{
+    border-color:#60a5fa;box-shadow:0 0 0 3px rgba(59,130,246,.14)
+}
+.gov-area-visible-count{
+    flex:0 0 auto;padding:6px 9px;border-radius:999px;background:#1d3554;
+    color:#bfdbfe;font-size:9px;font-weight:900;text-transform:uppercase
+}
+.gov-filter-empty{
+    padding:34px;border:1px dashed #3a4e68;border-radius:14px;
+    background:rgba(14,29,49,.82);color:#8fa2ba;text-align:center;font-size:12px
+}
+#gov-my-area .gov-area-card{
+    padding:13px;border-color:#273b55;background:rgba(17,31,52,.97);
+    box-shadow:0 12px 30px rgba(2,8,23,.22)
+}
+#gov-my-area .gov-area-code{color:#7090b7}
+#gov-my-area .gov-area-title{margin-top:2px;color:#f8fafc;font-size:15px}
+#gov-my-area .gov-area-badge{padding:4px 7px;background:#123c35;color:#6ee7b7}
+#gov-my-area .gov-area-stats{margin-top:9px;gap:6px}
+#gov-my-area .gov-area-stat{padding:7px;background:#0a1729;border:1px solid #1c304a}
+#gov-my-area .gov-area-stat strong{color:#f8fafc;font-size:15px}
+#gov-my-area .gov-area-stat span{margin-top:1px;color:#71839b}
+#gov-my-area .gov-area-details{margin-top:9px;border-color:#294564;background:#0b192c}
+#gov-my-area .gov-area-details summary{min-height:38px;padding:7px 9px}
+#gov-my-area .gov-area-details summary:hover{background:#102641}
+#gov-my-area .gov-area-detail-copy strong{color:#60a5fa;font-size:9px}
+#gov-my-area .gov-area-detail-copy small{color:#8ba0ba;font-size:8px}
+#gov-my-area .gov-area-detail-toggle{
+    width:23px;height:23px;border-color:#315a86;background:#102641;color:#93c5fd
+}
+#gov-my-area .gov-area-details[open] .gov-area-detail-toggle{background:#174271}
+#gov-my-area .gov-area-details[open] summary{border-color:#294564;background:#102641}
+#gov-my-area .gov-area-detail-body{padding:0 9px 9px}
+#gov-my-area .gov-area-actions{margin-top:10px}
+#gov-my-area .gov-card-btn{padding:7px 9px}
+#gov-my-area .gov-card-btn.secondary,#gov-my-area .gov-mini-btn{
+    border-color:#334a68;background:#13233a;color:#b8c7db
+}
+#gov-my-area .gov-card-btn.secondary:hover,#gov-my-area .gov-mini-btn:hover{
+    border-color:#60a5fa;background:#183456;color:#dbeafe
+}
+#gov-my-area .gov-area-note{color:#71839b}
+#gov-my-area .gov-current-section{
+    margin-top:10px;padding:9px;border-color:#294564;background:#0a1729
+}
+#gov-my-area .gov-current-title{margin-bottom:6px}
+#gov-my-area .gov-current-title strong{color:#60a5fa;font-size:9px}
+#gov-my-area .gov-current-title span{color:#71839b}
+#gov-my-area .gov-current-scroll{max-height:350px}
+#gov-my-area .gov-current-scroll::-webkit-scrollbar-thumb{background:#344b68}
+#gov-my-area .gov-existing-list{gap:6px}
+#gov-my-area .gov-existing-function{padding:9px 10px;border-color:#283c56;background:#111f34}
+#gov-my-area .gov-existing-function-title strong{color:#f1f5f9}
+#gov-my-area .gov-existing-function-title small{color:#8396af}
+#gov-my-area .gov-existing-resp{background:#16365d;color:#93c5fd}
+#gov-my-area .gov-person-row{border-color:#243750;background:#0c1a2d}
+#gov-my-area .gov-person-chip{color:#cbd5e1}
+#gov-my-area .gov-person-chip .mini-avatar{background:#173b68;color:#bfdbfe}
+#gov-my-area .gov-responsibility-list{border-color:#283c56}
+#gov-my-area .gov-responsibility-head strong{color:#a9bad0}
+#gov-my-area .gov-responsibility-row{border-color:#294564;background:#0c1c31}
+#gov-my-area .gov-responsibility-row strong{color:#bfdbfe}
+#gov-my-area .gov-responsibility-row small{color:#91a4bb}
+#gov-my-area .gov-responsibility-role{background:#163b68;color:#bfdbfe}
+#gov-my-area .gov-empty-existing{
+    border-color:#3b4f68;background:#0b1829;color:#71839b
+}
+#gov-my-area .gov-inactive-section{border-color:#754c22;background:#2b1b11}
+#gov-my-area .gov-inactive-row{border-color:#52351e}
+#gov-my-area .gov-inactive-copy strong{color:#fdba74}
+#gov-my-area .gov-inactive-copy small{color:#d69a62}
+#gov-my-area .gov-reactivate-btn{
+    border-color:#9a5a24;background:#362216;color:#fdba74
+}
+#gov-my-area .gov-reactivate-btn:hover{background:#4a2a16}
+.gov-dark-page .gov-modal-backdrop{background:rgba(2,6,23,.72)}
+.gov-dark-page .gov-modal-card,.gov-dark-page .gov-confirm-card{
+    border-color:#31455f;background:#101e32;color:#cbd5e1;
+    box-shadow:0 28px 80px rgba(0,0,0,.5)
+}
+.gov-dark-page .gov-modal-head{border-color:#2b3d55}
+.gov-dark-page .gov-modal-head h2,.gov-dark-page .gov-confirm-card h2{color:#f8fafc}
+.gov-dark-page .gov-modal-head button{
+    border-color:#3a4e68;background:#17273e;color:#cbd5e1
+}
+.gov-dark-page .gov-label{color:#b8c7d9}
+.gov-dark-page .gov-field{
+    border-color:#3a4e68;background:#09172a;color:#f8fafc;color-scheme:dark
+}
+.gov-dark-page .gov-field:disabled{background:#142238;color:#71839b}
+.gov-dark-page .gov-help,.gov-dark-page .gov-confirm-card p{color:#8fa2ba}
+.gov-dark-page .gov-btn.secondary{
+    border-color:#3a4e68;background:#17273e;color:#cbd5e1
+}
+.gov-dark-page .gov-modal-card .bg-blue-50{
+    border-color:#315a86!important;background:#102641!important
+}
+.gov-dark-page .gov-modal-card .text-blue-950{color:#dbeafe!important}
+.gov-dark-page .gov-modal-card .text-blue-700{color:#93c5fd!important}
+@media(max-width:760px){
+    .gov-area-toolbar{align-items:stretch;flex-wrap:wrap}
+    .gov-area-search{min-width:100%}
+    .gov-area-filter{min-width:calc(50% - 4px);flex:1}
+    .gov-area-visible-count{width:100%;text-align:center}
+}
 </style>
 
 <script>
@@ -586,6 +758,10 @@ $csrf = $_SESSION['governanca_csrf'];
     const grid = document.getElementById('myAreaGrid');
     const alertBox = document.getElementById('govAlert');
     const refresh = document.getElementById('btnRefresh');
+    const areaSearch = document.getElementById('areaSearch');
+    const areaStatusFilter = document.getElementById('areaStatusFilter');
+    const areaSort = document.getElementById('areaSort');
+    const areaVisibleCount = document.getElementById('areaVisibleCount');
 
     const modal = document.getElementById('govModal');
     const modalBackdrop = document.getElementById('govModalBackdrop');
@@ -660,6 +836,12 @@ $csrf = $_SESSION['governanca_csrf'];
         if (p.length === 1) return p[0].slice(0,2).toUpperCase();
         return (p[0][0] + p[p.length-1][0]).toUpperCase();
     };
+
+    const normalizeText = value => String(value ?? '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g,'')
+        .toLowerCase()
+        .trim();
 
     function showAlert(message,type='success'){
         alertBox.className =
@@ -1390,18 +1572,71 @@ $csrf = $_SESSION['governanca_csrf'];
             }
         }
 
-        if (!structures.length){
+        const totalStructures = structures.length;
+        const query = normalizeText(areaSearch.value);
+        const statusFilter = areaStatusFilter.value;
+        const sortMode = areaSort.value;
+
+        let items = structures.map(structure => ({
+            structure,
+            stats:statsForStructure(String(structure.ID || ''))
+        }));
+
+        if (query) {
+            items = items.filter(item => normalizeText(
+                `${item.structure.NOME || ''} ${item.structure.ID || ''}`
+            ).includes(query));
+        }
+
+        items = items.filter(item => {
+            const total = item.stats.functions
+                + item.stats.people
+                + item.stats.responsibilities;
+
+            if (statusFilter === 'populated') return total > 0;
+            if (statusFilter === 'empty') return total === 0;
+            if (statusFilter === 'responsibilities') {
+                return item.stats.responsibilities > 0;
+            }
+            return true;
+        });
+
+        const activityTotal = item => item.stats.functions
+            + item.stats.people
+            + item.stats.responsibilities;
+
+        items.sort((a,b) => {
+            if (sortMode === 'activity_desc') {
+                return activityTotal(b) - activityTotal(a)
+                    || String(a.structure.NOME || '').localeCompare(String(b.structure.NOME || ''),'pt-BR');
+            }
+            if (sortMode === 'activity_asc') {
+                return activityTotal(a) - activityTotal(b)
+                    || String(a.structure.NOME || '').localeCompare(String(b.structure.NOME || ''),'pt-BR');
+            }
+            if (sortMode === 'code') {
+                return String(a.structure.ID || '').localeCompare(String(b.structure.ID || ''),'pt-BR');
+            }
+            return String(a.structure.NOME || '').localeCompare(String(b.structure.NOME || ''),'pt-BR');
+        });
+
+        areaVisibleCount.textContent = `${items.length} de ${totalStructures} área${totalStructures === 1 ? '' : 's'}`;
+
+        if (!items.length){
             grid.innerHTML = `
-                <div class="col-span-full rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-                    Nenhuma estrutura disponível neste escopo.
+                <div class="gov-filter-empty col-span-full">
+                    ${totalStructures
+                        ? 'Nenhuma área corresponde aos filtros selecionados.'
+                        : 'Nenhuma estrutura disponível neste escopo.'}
                 </div>
             `;
             return;
         }
 
-        grid.innerHTML = structures.map(s => {
+        grid.innerHTML = items.map(item => {
+            const s = item.structure;
             const code = String(s.ID || '');
-            const st = statsForStructure(code);
+            const st = item.stats;
             const canManageThis = manageable.has(code);
 
             return `
@@ -1706,7 +1941,7 @@ $csrf = $_SESSION['governanca_csrf'];
             console.error(error);
 
             grid.innerHTML = `
-                <div class="col-span-full rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
+                <div class="gov-filter-empty col-span-full" style="border-color:#7f3341;color:#fecdd3">
                     ${esc(error.message || 'Falha ao carregar sua área.')}
                 </div>
             `;
@@ -1926,6 +2161,9 @@ $csrf = $_SESSION['governanca_csrf'];
         }
     });
 
+    areaSearch.addEventListener('input',renderCards);
+    areaStatusFilter.addEventListener('change',renderCards);
+    areaSort.addEventListener('change',renderCards);
     refresh.addEventListener('click',load);
     modalClose.addEventListener('click',closeModal);
     modalBackdrop.addEventListener('click',closeModal);

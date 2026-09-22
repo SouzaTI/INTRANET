@@ -35,12 +35,12 @@ if (empty($_SESSION['governanca_csrf'])) {
 $csrf = (string) $_SESSION['governanca_csrf'];
 ?>
 
-<main class="flex-1 min-w-0 min-h-0 overflow-hidden bg-slate-100 flex flex-col">
+<main class="gov-leadership-dark flex-1 min-w-0 min-h-0 overflow-hidden flex flex-col">
     <?php require __DIR__ . '/includes/governanca_nav.php'; ?>
 
     <section id="gov-leadership" class="flex-1 min-h-0 overflow-y-auto">
-        <div class="max-w-7xl mx-auto px-4 sm:px-5 lg:px-6 py-5">
-            <div class="flex items-start justify-between gap-4 flex-wrap mb-5">
+        <div class="max-w-[1500px] mx-auto px-4 sm:px-5 lg:px-6 py-4">
+            <div class="flex items-start justify-between gap-4 flex-wrap mb-4">
                 <div>
                     <p class="text-[10px] font-black uppercase tracking-[.18em] text-blue-600">Governança</p>
                     <h1 class="text-2xl font-black text-slate-900">Gestores por área</h1>
@@ -56,8 +56,8 @@ $csrf = (string) $_SESSION['governanca_csrf'];
 
             <div id="leadershipAlert" class="hidden mb-4 rounded-xl border px-4 py-3 text-sm font-semibold"></div>
 
-            <div class="grid grid-cols-1 xl:grid-cols-[390px_minmax(0,1fr)] gap-5 items-start">
-                <form id="leadershipForm" class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 space-y-4">
+            <div class="grid grid-cols-1 xl:grid-cols-[330px_minmax(0,1fr)] gap-3 items-start">
+                <form id="leadershipForm" class="rounded-2xl p-4 space-y-3">
                     <div>
                         <p class="text-[10px] font-black uppercase tracking-wider text-blue-600">Novo vínculo</p>
                         <h2 class="mt-1 text-lg font-black text-slate-900">Definir gestor ou líder</h2>
@@ -94,15 +94,15 @@ $csrf = (string) $_SESSION['governanca_csrf'];
                     </button>
                 </form>
 
-                <section class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden min-w-0">
-                    <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between gap-3 flex-wrap">
+                <section class="leadership-panel rounded-2xl overflow-hidden min-w-0">
+                    <div class="leadership-panel-head px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
                         <div>
                             <p class="text-[10px] font-black uppercase tracking-wider text-slate-400">Cadastros atuais</p>
                             <h2 class="mt-1 text-base font-black text-slate-900">Gestores, líderes e escopos</h2>
                         </div>
                         <span id="leadershipCount" class="px-3 py-1.5 rounded-full bg-slate-100 text-[10px] font-black text-slate-600">0 ativos</span>
                     </div>
-                    <div id="leadershipList" class="divide-y divide-slate-100">
+                    <div id="leadershipList" class="leader-list">
                         <div class="p-8 text-center text-sm text-slate-500">Carregando lideranças...</div>
                     </div>
                 </section>
@@ -112,22 +112,87 @@ $csrf = (string) $_SESSION['governanca_csrf'];
 </main>
 
 <style>
-#gov-leadership .gov-l-label{display:block;margin-bottom:6px;color:#64748b;font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
-#gov-leadership .gov-l-field{width:100%;border:1px solid #dbe4ee;border-radius:12px;background:#fff;padding:11px 12px;color:#0f172a;font-size:13px;outline:none}
-#gov-leadership .gov-l-field:focus{border-color:#60a5fa;box-shadow:0 0 0 3px rgba(59,130,246,.12)}
-#gov-leadership .leader-row{padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px}
-#gov-leadership .leader-row:hover{background:#f8fafc}
-#gov-leadership .leader-person{display:flex;align-items:center;gap:11px;min-width:0}
-#gov-leadership .leader-avatar{width:38px;height:38px;flex:0 0 auto;border-radius:12px;display:grid;place-items:center;background:#eff6ff;color:#1d4ed8;font-size:11px;font-weight:900}
-#gov-leadership .leader-person strong{display:block;color:#0f172a;font-size:13px;font-weight:900}
-#gov-leadership .leader-person span{display:block;margin-top:3px;color:#64748b;font-size:11px}
+.gov-leadership-dark{
+    background-color:#081426;
+    background-image:radial-gradient(circle at 1px 1px,rgba(96,165,250,.13) 1px,transparent 0);
+    background-size:28px 28px
+}
+#gov-leadership{color:#cbd5e1}
+#gov-leadership h1,#gov-leadership h2{color:#f8fafc!important}
+#gov-leadership .text-slate-500{color:#93a4bb!important}
+#gov-leadership .text-slate-400{color:#71839b!important}
+#gov-leadership .text-blue-600{color:#60a5fa!important}
+#btnRefreshLeadership{
+    border-color:#334a68!important;background:#12223a!important;color:#dbeafe!important
+}
+#btnRefreshLeadership:hover{border-color:#60a5fa!important;background:#172b49!important}
+#leadershipForm,.leadership-panel{
+    border:1px solid #273b55;background:rgba(15,29,49,.97);
+    box-shadow:0 14px 36px rgba(2,8,23,.24)
+}
+#leadershipForm{position:sticky;top:16px}
+#gov-leadership .gov-l-label{
+    display:block;margin-bottom:4px;color:#93a4bb;font-size:9px;
+    font-weight:900;letter-spacing:.08em;text-transform:uppercase
+}
+#gov-leadership .gov-l-field{
+    width:100%;height:38px;border:1px solid #334a68;border-radius:9px;
+    background:#09172a;padding:8px 10px;color:#f8fafc;font-size:11px;
+    outline:none;color-scheme:dark
+}
+#gov-leadership .gov-l-field:focus{
+    border-color:#60a5fa;box-shadow:0 0 0 3px rgba(59,130,246,.14)
+}
+#leaderUserHint{font-size:9px!important;line-height:1.35!important}
+#saveLeadership{padding:9px 12px!important;border-radius:9px!important;font-size:11px!important}
+.leadership-panel-head{border-bottom:1px solid #273b55;background:#102038}
+#leadershipCount{background:#193354!important;color:#bfdbfe!important}
+#gov-leadership .leader-list{
+    padding:9px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px
+}
+#gov-leadership .leader-list>.p-8{grid-column:1/-1}
+#gov-leadership .leader-row{
+    min-width:0;padding:9px 10px;display:flex;align-items:center;
+    justify-content:space-between;gap:9px;border:1px solid #263a54;
+    border-radius:11px;background:#0b192c;transition:.15s ease
+}
+#gov-leadership .leader-row:hover{border-color:#3e5c7d;background:#10223a}
+#gov-leadership .leader-person{display:flex;align-items:center;gap:8px;min-width:0}
+#gov-leadership .leader-avatar{
+    width:30px;height:30px;flex:0 0 auto;border-radius:9px;display:grid;
+    place-items:center;background:#173b68;color:#bfdbfe;font-size:9px;font-weight:900
+}
+#gov-leadership .leader-person strong{
+    display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    color:#f8fafc;font-size:11px;font-weight:900
+}
+#gov-leadership .leader-person span{
+    display:block;margin-top:2px;overflow:hidden;text-overflow:ellipsis;
+    white-space:nowrap;color:#8ea2ba;font-size:8px
+}
 #gov-leadership .leader-meta{text-align:right;flex:0 0 auto}
-#gov-leadership .leader-meta strong{display:block;color:#334155;font-size:11px;font-weight:900;text-transform:uppercase}
-#gov-leadership .leader-meta span{display:inline-block;margin-top:5px;padding:4px 7px;border-radius:999px;font-size:8px;font-weight:900;text-transform:uppercase}
-#gov-leadership .leader-linked{background:#ecfdf5;color:#047857}
-#gov-leadership .leader-pending{background:#fff7ed;color:#c2410c}
-#gov-leadership .leader-remove{margin-top:7px;color:#dc2626;font-size:10px;font-weight:800}
-@media(max-width:640px){#gov-leadership .leader-row{align-items:flex-start;flex-direction:column}#gov-leadership .leader-meta{text-align:left}}
+#gov-leadership .leader-meta strong{
+    display:block;color:#bfdbfe;font-size:8px;font-weight:900;text-transform:uppercase
+}
+#gov-leadership .leader-meta span{
+    display:inline-block;margin-top:3px;padding:3px 5px;border-radius:999px;
+    font-size:6px;font-weight:900;text-transform:uppercase
+}
+#gov-leadership .leader-linked{background:#123c35;color:#6ee7b7}
+#gov-leadership .leader-pending{background:#3c2916;color:#fdba74}
+#gov-leadership .leader-remove{
+    margin:3px 0 0 5px;color:#fb7185;font-size:8px;font-weight:900
+}
+#leadershipAlert.border-emerald-200{border-color:#285f55!important;background:#123c35!important;color:#a7f3d0!important}
+#leadershipAlert.border-red-200{border-color:#7f3341!important;background:#3b1722!important;color:#fecdd3!important}
+@media(max-width:1150px){
+    #gov-leadership .leader-list{grid-template-columns:1fr}
+    #leadershipForm{position:static}
+}
+@media(max-width:640px){
+    #gov-leadership .leader-row{align-items:flex-start;flex-direction:column}
+    #gov-leadership .leader-meta{text-align:left}
+}
 </style>
 
 <script>
