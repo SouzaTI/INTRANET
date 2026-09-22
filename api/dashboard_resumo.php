@@ -47,6 +47,7 @@ $fila = [];
 $publicados = [];
 $assinaturasRecentes = [];
 $agenda = [];
+$aniversariantes = [];
 $comunicados = [];
 $banners = [];
 $indisponiveis = [];
@@ -271,6 +272,44 @@ try {
 }
 
 try {
+    $arquivoAniversariantes = __DIR__ . '/../img/comunicacao/aniversariantes_lista.txt';
+    if (is_file($arquivoAniversariantes)) {
+        $linhas = file($arquivoAniversariantes, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if ($linhas === false) {
+            throw new RuntimeException('Não foi possível ler a lista de aniversariantes.');
+        }
+
+        $mesAtual = (int) date('m');
+        foreach ($linhas as $linha) {
+            $partes = array_map('trim', explode(';', $linha, 2));
+            if (count($partes) !== 2 || $partes[0] === '') {
+                continue;
+            }
+            if (!preg_match('/^(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?$/', $partes[1], $dataPartes)) {
+                continue;
+            }
+            $dia = (int) $dataPartes[1];
+            $mes = (int) $dataPartes[2];
+            $anoValidacao = isset($dataPartes[3]) ? (int) $dataPartes[3] : (int) date('Y');
+            if ($mes !== $mesAtual || !checkdate($mes, $dia, $anoValidacao)) {
+                continue;
+            }
+            $aniversariantes[] = [
+                'nome' => mb_convert_case($partes[0], MB_CASE_TITLE, 'UTF-8'),
+                'data' => sprintf('%02d/%02d', $dia, $mes),
+                'dia' => $dia,
+            ];
+        }
+
+        usort($aniversariantes, static function (array $a, array $b): int {
+            return [$a['dia'], $a['nome']] <=> [$b['dia'], $b['nome']];
+        });
+    }
+} catch (Throwable $erro) {
+    dashboardFalha('aniversariantes', $erro, $indisponiveis);
+}
+
+try {
     $stmtComunicados = $pdo_intra->query(
         "SELECT id, titulo, categoria, COALESCE(resumo,'') AS resumo, data_postagem
            FROM comunicados
@@ -352,6 +391,7 @@ dashboardJson([
     'publicados' => $publicados,
     'assinaturas_recentes' => $assinaturasRecentes,
     'agenda' => $agenda,
+    'aniversariantes' => $aniversariantes,
     'comunicados' => $comunicados,
     'banners' => $banners,
     'permissoes' => [

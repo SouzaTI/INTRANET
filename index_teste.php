@@ -125,6 +125,18 @@ $primeiroNome = mb_convert_case((string) $partesNome[0], MB_CASE_TITLE, 'UTF-8')
                 <div id="dashboardAgenda" class="dashboard-upcoming">
                     <div class="dashboard-loading small"><span></span></div>
                 </div>
+                <div id="dashboardBirthdays" class="dashboard-birthdays" aria-label="Aniversariantes do mês">
+                    <button type="button" id="birthdayPrevious" aria-label="Aniversariante anterior">‹</button>
+                    <div class="dashboard-birthday-content">
+                        <span class="dashboard-birthday-icon" aria-hidden="true">🎉</span>
+                        <div>
+                            <small>Aniversariante do mês</small>
+                            <strong id="birthdayName">Carregando...</strong>
+                        </div>
+                        <b id="birthdayDate">--/--</b>
+                    </div>
+                    <button type="button" id="birthdayNext" aria-label="Próximo aniversariante">›</button>
+                </div>
             </article>
         </section>
 
@@ -287,6 +299,7 @@ $primeiroNome = mb_convert_case((string) $partesNome[0], MB_CASE_TITLE, 'UTF-8')
 .dashboard-feature-grid{display:grid;grid-template-columns:minmax(0,1.72fr) minmax(320px,.72fr);gap:14px;margin-bottom:14px;align-items:stretch}.dashboard-panel{min-width:0;border:1px solid var(--dash-line);border-radius:18px;background:linear-gradient(150deg,rgba(14,32,55,.98),rgba(9,25,45,.98));box-shadow:0 13px 35px rgba(0,0,0,.11);overflow:hidden}.dashboard-panel-head{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:16px 18px;border-bottom:1px solid rgba(49,73,101,.62)}.dashboard-panel-head.compact{padding:12px 15px}.dashboard-panel-head h2{margin:3px 0 0;font-size:14px;line-height:1.2;letter-spacing:-.01em;text-transform:capitalize}.dashboard-panel-head a,.dashboard-head-action{border:0;background:transparent;color:#7eb0ff;font:inherit;font-size:9px;font-weight:900;text-decoration:none;text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;cursor:pointer}.dashboard-panel-head a:hover,.dashboard-head-action:hover{color:#fff}
 .dashboard-banner-panel{position:relative;display:grid;grid-template-rows:minmax(0,1fr) auto;min-height:260px}.dashboard-banner{position:relative;height:clamp(210px,21vw,300px);background:#091a2f;overflow:hidden}.dashboard-banner-slide{position:absolute;inset:0;opacity:0;transition:opacity .5s ease}.dashboard-banner-slide.active{opacity:1}.dashboard-banner-slide img{display:block;width:100%;height:100%;object-fit:contain;background:#091a2f}.dashboard-banner-slide:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(5,15,29,.12),transparent 45%,rgba(5,15,29,.05))}.dashboard-banner-empty{display:grid;place-items:center;height:100%;min-height:210px;color:#6f89a8;font-size:11px;font-weight:800}.dashboard-banner-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 14px;border-top:1px solid var(--dash-line);background:#0b1c31}.dashboard-banner-bar strong{display:block;margin-top:2px;overflow:hidden;max-width:720px;color:#edf5ff;font-size:10.5px;text-overflow:ellipsis;white-space:nowrap}.dashboard-banner-controls{display:flex;align-items:center;gap:7px}.dashboard-banner-controls button{display:grid;place-items:center;width:27px;height:27px;border:1px solid #294969;border-radius:8px;background:#102640;color:#bcd3ef;font-size:18px;cursor:pointer}.dashboard-banner-controls button:hover{border-color:#3b82f6;color:#fff}.dashboard-banner-controls button:disabled{cursor:default;opacity:.35}.dashboard-banner-controls span{min-width:34px;color:#7f98b7;font-size:8px;font-weight:850;text-align:center}
 .dashboard-calendar-panel{min-height:248px}.dashboard-calendar-weekdays,.dashboard-calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:0 12px}.dashboard-calendar-weekdays{padding-top:9px;color:#66809f;font-size:7px;font-weight:900;text-align:center}.dashboard-calendar-grid{padding-top:5px}.dashboard-calendar-day{position:relative;display:grid;place-items:center;height:23px;padding:0;border:0;border-radius:7px;background:transparent;color:#aebed2;font:inherit;font-size:8.5px;font-weight:750}.dashboard-calendar-day:not(.muted):not(:disabled){cursor:pointer}.dashboard-calendar-day:not(.muted):not(:disabled):hover{outline:1px solid #4d83c4;background:#18385d;color:#fff}.dashboard-calendar-day.muted,.dashboard-calendar-day:disabled{color:#344d6a;cursor:default}.dashboard-calendar-day.today{background:#2563eb;color:#fff;box-shadow:0 5px 14px rgba(37,99,235,.32)}.dashboard-calendar-day.has-event:not(.today){color:#fff;background:#153254}.dashboard-calendar-day.has-event:after{content:"";position:absolute;bottom:2px;width:3px;height:3px;border-radius:50%;background:#f59e0b}.dashboard-upcoming{margin:8px 12px 10px;padding-top:7px;border-top:1px solid rgba(35,59,89,.62)}.dashboard-upcoming-item{display:flex;align-items:center;gap:8px;min-width:0;padding:4px 0}.dashboard-upcoming-item+.dashboard-upcoming-item{border-top:1px solid rgba(35,59,89,.42)}.dashboard-upcoming-date{min-width:34px;color:#60a5fa;font-size:8px;font-weight:900;text-transform:uppercase}.dashboard-upcoming-copy{min-width:0}.dashboard-upcoming-copy strong{display:block;overflow:hidden;font-size:8.5px;text-overflow:ellipsis;white-space:nowrap}.dashboard-upcoming-copy small{display:block;margin-top:2px;color:#7690af;font-size:7.5px}.dashboard-upcoming-empty{padding:7px 0;color:#718aa8;font-size:8px;text-align:center}
+.dashboard-birthdays{display:grid;grid-template-columns:28px minmax(0,1fr) 28px;align-items:center;gap:5px;margin:0 10px 10px;padding:5px;border:1px solid rgba(251,146,60,.58);border-radius:11px;background:linear-gradient(105deg,#b9470a,#f97316 55%,#d9530c);box-shadow:0 7px 20px rgba(249,115,22,.14);overflow:hidden}.dashboard-birthdays>button{display:grid;place-items:center;width:27px;height:27px;padding:0;border:1px solid rgba(255,255,255,.28);border-radius:8px;background:rgba(92,35,5,.2);color:#fff;font-size:18px;cursor:pointer}.dashboard-birthdays>button:hover{background:rgba(255,255,255,.16)}.dashboard-birthdays>button:disabled{cursor:default;opacity:.35}.dashboard-birthday-content{display:grid;grid-template-columns:29px minmax(0,1fr) auto;align-items:center;gap:8px;min-width:0;color:#fff;transition:opacity .2s ease,transform .2s ease}.dashboard-birthday-content.changing{opacity:0;transform:translateY(-5px)}.dashboard-birthday-icon{display:grid;place-items:center;width:29px;height:29px;border-radius:9px;background:rgba(255,255,255,.16);font-size:14px}.dashboard-birthday-content div{min-width:0}.dashboard-birthday-content small{display:block;color:#ffedd5;font-size:6.5px;font-weight:900;text-transform:uppercase;letter-spacing:.11em}.dashboard-birthday-content strong{display:block;overflow:hidden;margin-top:2px;font-size:9px;text-overflow:ellipsis;white-space:nowrap}.dashboard-birthday-content b{padding-left:8px;border-left:1px solid rgba(255,255,255,.3);font-size:11px;white-space:nowrap}.dashboard-birthdays.empty{grid-template-columns:1fr}.dashboard-birthdays.empty>button{display:none}.dashboard-birthdays.empty .dashboard-birthday-content{grid-template-columns:29px 1fr}.dashboard-birthdays.empty .dashboard-birthday-content b{display:none}
 .dashboard-empty{display:grid;place-items:center;min-height:180px;padding:25px;text-align:center}.dashboard-empty i{display:grid;place-items:center;width:48px;height:48px;margin-bottom:10px;border-radius:15px;background:rgba(34,197,94,.1);color:#4ade80;font-size:22px;font-style:normal}.dashboard-empty strong{font-size:13px}.dashboard-empty p{margin:5px 0 0;color:var(--dash-muted);font-size:10px}
 .dashboard-shortcuts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;padding:12px}.dashboard-shortcuts-wide .dashboard-shortcuts{grid-template-columns:repeat(6,minmax(0,1fr))}.dashboard-shortcuts a{position:relative;display:flex;min-width:0;align-items:center;gap:7px;padding:9px 8px;border:1px solid #223d5c;border-radius:10px;background:#0b1b30;color:#bfd0e4;font-size:8.5px;font-weight:850;text-decoration:none;white-space:nowrap}.dashboard-shortcuts a:hover{border-color:#3b82f6;color:#fff;background:#102746}.dashboard-shortcuts span{color:#60a5fa;font-size:12px}.dashboard-shortcuts b{position:absolute;right:4px;top:4px;min-width:16px;padding:2px 4px;border-radius:99px;background:#ef4444;color:#fff;font-size:7px;text-align:center}
 .dashboard-bottom-grid{display:grid;grid-template-columns:1fr 1fr 1.05fr;gap:14px;margin-top:14px}.dashboard-doc-list,.dashboard-news{padding:7px 12px 11px;min-height:210px}.dashboard-doc-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 5px;color:inherit;text-decoration:none}.dashboard-doc-item+.dashboard-doc-item{border-top:1px solid rgba(35,59,89,.55)}.dashboard-doc-item:hover strong{color:#7eb0ff}.dashboard-doc-item strong{display:block;overflow:hidden;font-size:10.5px;text-overflow:ellipsis;white-space:nowrap}.dashboard-doc-item p{margin:4px 0 0;color:var(--dash-muted);font-size:8.5px}.dashboard-doc-status{padding:5px 7px;border-radius:7px;background:rgba(34,197,94,.1);color:#4ade80;font-size:7.5px;font-weight:900;text-transform:uppercase}.dashboard-doc-status.refused{background:rgba(244,63,94,.1);color:#fb7185}.dashboard-news-item{display:block;padding:10px 5px}.dashboard-news-item+.dashboard-news-item{border-top:1px solid rgba(35,59,89,.55)}.dashboard-news-item div{display:flex;align-items:center;gap:7px}.dashboard-news-item span{padding:3px 6px;border-radius:6px;background:rgba(59,130,246,.12);color:#79adff;font-size:7px;font-weight:900;text-transform:uppercase}.dashboard-news-item time{margin-left:auto;color:#647f9f;font-size:8px}.dashboard-news-item strong{display:block;margin-top:5px;font-size:10.5px}.dashboard-news-item p{display:-webkit-box;overflow:hidden;margin:4px 0 0;color:var(--dash-muted);font-size:9px;line-height:1.45;-webkit-box-orient:vertical;-webkit-line-clamp:2}
@@ -302,11 +315,14 @@ $primeiroNome = mb_convert_case((string) $partesNome[0], MB_CASE_TITLE, 'UTF-8')
 (() => {
     const $ = (id) => document.getElementById(id);
     const shortDateFormatter = new Intl.DateTimeFormat('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric'});
-    const weekdayFormatter = new Intl.DateTimeFormat('pt-BR', {weekday: 'short'});
+    const monthFormatter = new Intl.DateTimeFormat('pt-BR', {month: 'short'});
     let bannerItems = [];
     let bannerIndex = 0;
     let bannerTimer = null;
     let agendaItems = [];
+    let birthdayItems = [];
+    let birthdayIndex = 0;
+    let birthdayTimer = null;
     let toastTimer = null;
 
     function parseDate(value) {
@@ -388,7 +404,9 @@ $primeiroNome = mb_convert_case((string) $partesNome[0], MB_CASE_TITLE, 'UTF-8')
         items.slice(0, 2).forEach((item) => {
             const date = parseDate(item.data);
             const row = element('div', 'dashboard-upcoming-item');
-            const dateLabel = date ? String(date.getDate()).padStart(2, '0') + ' ' + weekdayFormatter.format(date).replace('.', '') : '--';
+            const dateLabel = date
+                ? String(date.getDate()).padStart(2, '0') + ' ' + monthFormatter.format(date).replace('.', '').toUpperCase()
+                : '--';
             const copy = element('div', 'dashboard-upcoming-copy');
             const interval = item.hora_inicio ? item.hora_inicio + (item.hora_fim ? '–' + item.hora_fim : '') : 'Dia inteiro';
             copy.append(element('strong', '', item.titulo), element('small', '', interval + ' · ' + item.local));
@@ -425,7 +443,7 @@ $primeiroNome = mb_convert_case((string) $partesNome[0], MB_CASE_TITLE, 'UTF-8')
             const badge = element('div', 'dashboard-full-agenda-date');
             badge.append(
                 element('b', '', date ? String(date.getDate()).padStart(2, '0') : '--'),
-                element('small', '', date ? weekdayFormatter.format(date).replace('.', '') : '')
+                element('small', '', date ? monthFormatter.format(date).replace('.', '').toUpperCase() : '')
             );
             const copy = element('div', 'dashboard-full-agenda-copy');
             const interval = item.hora_inicio ? item.hora_inicio + (item.hora_fim ? '–' + item.hora_fim : '') : 'Dia inteiro';
@@ -434,6 +452,48 @@ $primeiroNome = mb_convert_case((string) $partesNome[0], MB_CASE_TITLE, 'UTF-8')
             row.append(badge, copy);
             list.append(row);
         });
+    }
+
+    function showBirthday(index, animate = true) {
+        if (!birthdayItems.length) return;
+        birthdayIndex = (index + birthdayItems.length) % birthdayItems.length;
+        const content = $('dashboardBirthdays').querySelector('.dashboard-birthday-content');
+        const update = () => {
+            $('birthdayName').textContent = birthdayItems[birthdayIndex].nome;
+            $('birthdayDate').textContent = birthdayItems[birthdayIndex].data;
+            content.classList.remove('changing');
+        };
+        if (!animate) {
+            update();
+            return;
+        }
+        content.classList.add('changing');
+        window.setTimeout(update, 180);
+    }
+
+    function scheduleBirthdays() {
+        if (birthdayTimer) window.clearInterval(birthdayTimer);
+        if (birthdayItems.length > 1) {
+            birthdayTimer = window.setInterval(() => showBirthday(birthdayIndex + 1), 5000);
+        }
+    }
+
+    function renderBirthdays(items) {
+        birthdayItems = items;
+        birthdayIndex = 0;
+        const root = $('dashboardBirthdays');
+        const previous = $('birthdayPrevious');
+        const next = $('birthdayNext');
+        root.classList.toggle('empty', !items.length);
+        previous.disabled = items.length < 2;
+        next.disabled = items.length < 2;
+        if (!items.length) {
+            $('birthdayName').textContent = 'Nenhum aniversariante neste mês';
+            $('birthdayDate').textContent = '--/--';
+        } else {
+            showBirthday(0, false);
+        }
+        scheduleBirthdays();
     }
 
     function syncModalLock() {
@@ -608,6 +668,7 @@ $primeiroNome = mb_convert_case((string) $partesNome[0], MB_CASE_TITLE, 'UTF-8')
         $('kpiEnvios').textContent = data.resumo.envios_em_andamento;
         agendaItems = data.agenda || [];
         renderBanners(data.banners || []);
+        renderBirthdays(data.aniversariantes || []);
         renderCalendar(agendaItems);
         renderFullAgenda(agendaItems);
         renderDocuments('dashboardPublished', data.publicados || []);
@@ -651,6 +712,8 @@ $primeiroNome = mb_convert_case((string) $partesNome[0], MB_CASE_TITLE, 'UTF-8')
 
     $('bannerPrevious').addEventListener('click', () => { showBanner(bannerIndex - 1); scheduleBanner(); });
     $('bannerNext').addEventListener('click', () => { showBanner(bannerIndex + 1); scheduleBanner(); });
+    $('birthdayPrevious').addEventListener('click', () => { showBirthday(birthdayIndex - 1); scheduleBirthdays(); });
+    $('birthdayNext').addEventListener('click', () => { showBirthday(birthdayIndex + 1); scheduleBirthdays(); });
     $('openFullAgenda').addEventListener('click', () => {
         renderFullAgenda(agendaItems);
         $('dashboardAgendaModal').hidden = false;
