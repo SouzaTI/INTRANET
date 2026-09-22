@@ -152,36 +152,38 @@ $csrf = (string) $_SESSION['governanca_csrf'];
 }
 #gov-leadership .leader-list>.p-8{grid-column:1/-1}
 #gov-leadership .leader-row{
-    min-width:0;padding:9px 10px;display:flex;align-items:center;
-    justify-content:space-between;gap:9px;border:1px solid #263a54;
+    min-width:0;padding:10px 11px;display:grid;align-items:center;
+    grid-template-columns:minmax(0,1fr) auto;gap:12px;border:1px solid #263a54;
     border-radius:11px;background:#0b192c;transition:.15s ease
 }
 #gov-leadership .leader-row:hover{border-color:#3e5c7d;background:#10223a}
 #gov-leadership .leader-person{display:flex;align-items:center;gap:8px;min-width:0}
 #gov-leadership .leader-avatar{
-    width:30px;height:30px;flex:0 0 auto;border-radius:9px;display:grid;
-    place-items:center;background:#173b68;color:#bfdbfe;font-size:9px;font-weight:900
+    width:34px;height:34px;flex:0 0 auto;border-radius:9px;display:grid;
+    place-items:center;background:#173b68;color:#bfdbfe;font-size:10px;font-weight:900
 }
 #gov-leadership .leader-person strong{
     display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-    color:#f8fafc;font-size:11px;font-weight:900
+    color:#f8fafc;font-size:13px;font-weight:900;line-height:1.2
 }
 #gov-leadership .leader-person span{
     display:block;margin-top:2px;overflow:hidden;text-overflow:ellipsis;
-    white-space:nowrap;color:#8ea2ba;font-size:8px
+    white-space:nowrap;color:#a8b8cc;font-size:10px;line-height:1.25
 }
-#gov-leadership .leader-meta{text-align:right;flex:0 0 auto}
+#gov-leadership .leader-meta{min-width:132px;text-align:right;flex:0 0 auto}
 #gov-leadership .leader-meta strong{
-    display:block;color:#bfdbfe;font-size:8px;font-weight:900;text-transform:uppercase
+    display:block;color:#bfdbfe;font-size:10px;font-weight:900;
+    line-height:1.2;text-transform:uppercase
 }
 #gov-leadership .leader-meta span{
-    display:inline-block;margin-top:3px;padding:3px 5px;border-radius:999px;
-    font-size:6px;font-weight:900;text-transform:uppercase
+    display:inline-block;margin-top:5px;padding:4px 6px;border-radius:999px;
+    font-size:8px;font-weight:900;line-height:1;text-transform:uppercase
 }
 #gov-leadership .leader-linked{background:#123c35;color:#6ee7b7}
 #gov-leadership .leader-pending{background:#3c2916;color:#fdba74}
 #gov-leadership .leader-remove{
-    margin:3px 0 0 5px;color:#fb7185;font-size:8px;font-weight:900
+    margin:4px 0 0 7px;color:#fb7185;font-size:10px;font-weight:900;
+    line-height:1.1
 }
 #leadershipAlert.border-emerald-200{border-color:#285f55!important;background:#123c35!important;color:#a7f3d0!important}
 #leadershipAlert.border-red-200{border-color:#7f3341!important;background:#3b1722!important;color:#fecdd3!important}
@@ -190,8 +192,8 @@ $csrf = (string) $_SESSION['governanca_csrf'];
     #leadershipForm{position:static}
 }
 @media(max-width:640px){
-    #gov-leadership .leader-row{align-items:flex-start;flex-direction:column}
-    #gov-leadership .leader-meta{text-align:left}
+    #gov-leadership .leader-row{grid-template-columns:1fr;align-items:flex-start}
+    #gov-leadership .leader-meta{min-width:0;text-align:left}
 }
 </style>
 
