@@ -189,14 +189,14 @@ try {
         $structureCode = trim((string) ($body['estrutura_codigo'] ?? ''));
         $glpiUserId = (int) ($body['glpi_user_id'] ?? 0);
         $personName = trim((string) ($body['pessoa_nome'] ?? ''));
-        $type = mb_strtoupper(trim((string) ($body['tipo'] ?? 'LIDER')), 'UTF-8');
+        $type = mb_strtoupper(trim((string) ($body['tipo'] ?? 'GESTOR')), 'UTF-8');
 
         if ($structureCode === '' || $personName === '') {
-            govLError('Área e nome do líder são obrigatórios.');
+            govLError('Área e nome do responsável são obrigatórios.');
         }
 
         if (mb_strlen($personName) > 180 || mb_strlen($type) > 40) {
-            govLError('Nome ou tipo de liderança ultrapassa o tamanho permitido.');
+            govLError('Nome ou tipo do vínculo ultrapassa o tamanho permitido.');
         }
 
         $structureStmt = $pdo_intra->prepare("
@@ -248,7 +248,7 @@ try {
                 $person = $pendingStmt->fetch(PDO::FETCH_ASSOC);
 
                 if (!$person) {
-                    govLError('A liderança que seria vinculada não foi encontrada.', 404);
+                    govLError('O vínculo que seria atualizado não foi encontrado.', 404);
                 }
             }
 
@@ -313,7 +313,7 @@ try {
                     INSERT INTO governanca_pessoas
                         (codigo, glpi_user_id, nome, tipo_vinculo, ativo,
                          observacoes, criado_por, atualizado_por)
-                    VALUES (?, ?, ?, 'Interno', 1, 'Liderança cadastrada na Governança', ?, ?)
+                    VALUES (?, ?, ?, 'Interno', 1, 'Responsável cadastrado na Governança', ?, ?)
                 ");
                 $insertPerson->execute([
                     govLNextPersonCode($pdo_intra),
@@ -343,7 +343,7 @@ try {
                         data_fim = NULL, ativo = 1, atualizado_por = ?
                     WHERE id = ?
                 ");
-                $update->execute([$type !== '' ? $type : 'LIDER', $userId, $leadershipId]);
+                $update->execute([$type !== '' ? $type : 'GESTOR', $userId, $leadershipId]);
                 $logAction = empty($existing['ativo']) ? 'REATIVAR' : 'EDITAR';
             } else {
                 $insert = $pdo_intra->prepare("
@@ -355,7 +355,7 @@ try {
                 $insert->execute([
                     (int) $structure['id'],
                     $personId,
-                    $type !== '' ? $type : 'LIDER',
+                    $type !== '' ? $type : 'GESTOR',
                     $userId,
                     $userId,
                 ]);
@@ -385,8 +385,8 @@ try {
             govLJson([
                 'ok' => true,
                 'message' => $glpiUserId > 0
-                    ? 'Liderança cadastrada e vinculada ao usuário da intranet.'
-                    : 'Liderança cadastrada. O usuário da intranet ainda precisa ser vinculado.',
+                    ? 'Responsável cadastrado e vinculado ao usuário da intranet.'
+                    : 'Responsável cadastrado. O usuário da intranet ainda precisa ser vinculado.',
             ]);
         } catch (Throwable $e) {
             if ($pdo_intra->inTransaction()) {
@@ -399,7 +399,7 @@ try {
     if ($action === 'deactivate') {
         $leadershipId = (int) ($body['lideranca_id'] ?? 0);
         if ($leadershipId <= 0) {
-            govLError('Liderança inválida.');
+            govLError('Vínculo inválido.');
         }
 
         $stmt = $pdo_intra->prepare("
@@ -408,7 +408,7 @@ try {
         $stmt->execute([$leadershipId]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$row) {
-            govLError('Liderança não encontrada.', 404);
+            govLError('Vínculo não encontrado.', 404);
         }
 
         $update = $pdo_intra->prepare("
@@ -428,11 +428,11 @@ try {
             ['ativo' => 0, 'data_fim' => date('Y-m-d')]
         );
 
-        govLJson(['ok' => true, 'message' => 'Liderança inativada com sucesso.']);
+        govLJson(['ok' => true, 'message' => 'Vínculo inativado com sucesso.']);
     }
 
     govLError('Ação não reconhecida.', 404);
 } catch (Throwable $e) {
     error_log('Governança Lideranças: ' . $e->getMessage());
-    govLError('Falha ao processar a liderança.', 500);
+    govLError('Falha ao processar o vínculo.', 500);
 }

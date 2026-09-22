@@ -18,7 +18,7 @@ if (!$ehAdmin) {
         <div class="max-w-3xl mx-auto px-5 py-10">
             <div class="bg-white border border-red-200 rounded-2xl p-6 shadow-sm">
                 <p class="text-[10px] font-black uppercase tracking-[.18em] text-red-500">Acesso restrito</p>
-                <h1 class="mt-1 text-xl font-black text-slate-900">Gestão de lideranças</h1>
+                <h1 class="mt-1 text-xl font-black text-slate-900">Gestão de gestores</h1>
                 <p class="mt-2 text-sm text-slate-600">Esta página está disponível somente para administradores.</p>
             </div>
         </div>
@@ -43,9 +43,9 @@ $csrf = (string) $_SESSION['governanca_csrf'];
             <div class="flex items-start justify-between gap-4 flex-wrap mb-5">
                 <div>
                     <p class="text-[10px] font-black uppercase tracking-[.18em] text-blue-600">Governança</p>
-                    <h1 class="text-2xl font-black text-slate-900">Lideranças por área</h1>
+                    <h1 class="text-2xl font-black text-slate-900">Gestores por área</h1>
                     <p class="mt-1 text-sm text-slate-500">
-                        O líder vinculado recebe automaticamente o gerenciamento da área e de suas subáreas.
+                        O gestor responde pela área. Líderes operacionais podem ser cadastrados separadamente.
                     </p>
                 </div>
                 <button id="btnRefreshLeadership" type="button"
@@ -60,7 +60,7 @@ $csrf = (string) $_SESSION['governanca_csrf'];
                 <form id="leadershipForm" class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 space-y-4">
                     <div>
                         <p class="text-[10px] font-black uppercase tracking-wider text-blue-600">Novo vínculo</p>
-                        <h2 class="mt-1 text-lg font-black text-slate-900">Definir liderança</h2>
+                        <h2 class="mt-1 text-lg font-black text-slate-900">Definir gestor ou líder</h2>
                     </div>
 
                     <div>
@@ -81,16 +81,16 @@ $csrf = (string) $_SESSION['governanca_csrf'];
                     <div>
                         <label for="leaderType" class="gov-l-label">Tipo</label>
                         <select id="leaderType" class="gov-l-field">
-                            <option value="LIDER">Líder</option>
-                            <option value="DIRETOR">Diretor</option>
                             <option value="GESTOR">Gestor</option>
+                            <option value="LIDER">Líder operacional</option>
+                            <option value="DIRETOR">Diretor</option>
                             <option value="RESPONSAVEL">Responsável</option>
                         </select>
                     </div>
 
                     <button id="saveLeadership" type="submit"
                             class="w-full px-4 py-3 rounded-xl bg-blue-600 text-white text-sm font-black hover:bg-blue-700 disabled:opacity-50 transition">
-                        Salvar liderança
+                        Salvar vínculo
                     </button>
                 </form>
 
@@ -98,7 +98,7 @@ $csrf = (string) $_SESSION['governanca_csrf'];
                     <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between gap-3 flex-wrap">
                         <div>
                             <p class="text-[10px] font-black uppercase tracking-wider text-slate-400">Cadastros atuais</p>
-                            <h2 class="mt-1 text-base font-black text-slate-900">Líderes e escopos</h2>
+                            <h2 class="mt-1 text-base font-black text-slate-900">Gestores, líderes e escopos</h2>
                         </div>
                         <span id="leadershipCount" class="px-3 py-1.5 rounded-full bg-slate-100 text-[10px] font-black text-slate-600">0 ativos</span>
                     </div>
@@ -204,7 +204,7 @@ $csrf = (string) $_SESSION['governanca_csrf'];
                     <button type="button" class="leader-remove" data-remove-leader="${Number(row.id)}">Inativar</button>
                 </div>
             </div>
-        `).join('') : '<div class="p-8 text-center text-sm text-slate-500">Nenhuma liderança ativa.</div>';
+        `).join('') : '<div class="p-8 text-center text-sm text-slate-500">Nenhum gestor ou líder ativo.</div>';
     }
 
     async function load(){
@@ -227,7 +227,7 @@ $csrf = (string) $_SESSION['governanca_csrf'];
         const selected = state.users.find(row => row.label === userInput.value.trim());
         userHint.textContent = selected
             ? `Usuário localizado: ${selected.login}`
-            : 'Sem correspondência exata: a liderança será salva com vínculo de acesso pendente.';
+            : 'Sem correspondência exata: o responsável será salvo com vínculo de acesso pendente.';
         userHint.className = 'mt-1.5 text-[11px] leading-4 ' + (selected ? 'text-emerald-600' : 'text-orange-600');
     });
 
@@ -258,7 +258,7 @@ $csrf = (string) $_SESSION['governanca_csrf'];
             showAlert(result.message);
             userInput.value = '';
             state.editLeadership = null;
-            save.textContent = 'Salvar liderança';
+            save.textContent = 'Salvar vínculo';
             await load();
         }catch(error){
             showAlert(error.message, true);
@@ -266,7 +266,7 @@ $csrf = (string) $_SESSION['governanca_csrf'];
             save.disabled = false;
             save.textContent = state.editLeadership
                 ? 'Concluir vínculo'
-                : 'Salvar liderança';
+                : 'Salvar vínculo';
         }
     });
 
@@ -288,7 +288,7 @@ $csrf = (string) $_SESSION['governanca_csrf'];
         }
 
         const button = event.target.closest('[data-remove-leader]');
-        if (!button || !confirm('Deseja inativar esta liderança?')) return;
+        if (!button || !confirm('Deseja inativar este vínculo?')) return;
         button.disabled = true;
         try{
             const result = await request('deactivate', {

@@ -19,7 +19,7 @@ require_once __DIR__ . '/includes/sidebar.php';
             <div class="gov-orgcontrols">
                 <div class="gov-segmented" aria-label="Nível de visualização">
                     <button type="button" data-level="areas">Somente Áreas</button>
-                    <button type="button" data-level="leaders" class="active">Áreas + Líderes</button>
+                    <button type="button" data-level="leaders" class="active">Áreas + Gestores</button>
                     <button type="button" data-level="team">Equipe Completa</button>
                 </div>
 
@@ -1151,18 +1151,28 @@ require_once __DIR__ . '/includes/sidebar.php';
         return {byId,children};
     }
 
+    function isManagementLeadership(item){
+        const role = normalize(item?.tipo || '');
+        return role === 'gestor'
+            || role === 'diretor'
+            || role === 'responsavel'
+            || role.includes('gerente');
+    }
+
     function leadershipMap(){
         const grouped = new Map();
 
         (state.data?.liderancas || []).forEach(item => {
+            if (!isManagementLeadership(item)) return;
+
             const code = String(item.estrutura_codigo || '').trim();
             if (!code) return;
             if (!grouped.has(code)) grouped.set(code,[]);
 
             grouped.get(code).push({
-                name: item.pessoa_nome || 'Líder não definido',
+                name: item.pessoa_nome || 'Gestor não definido',
                 initials: initials(item.pessoa_nome || ''),
-                role: item.tipo || 'Liderança'
+                role: item.tipo || 'Gestor'
             });
         });
 
@@ -1311,7 +1321,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                 );
 
             const leader = leaders.get(code) || {
-                name:'Líder não definido',
+                name:'Gestor não definido',
                 initials:'—',
                 count:0,
                 names:[],
@@ -1548,7 +1558,7 @@ require_once __DIR__ . '/includes/sidebar.php';
         const h = cardHeight(node);
         const leaderNames = Array.isArray(node.leaderNames) && node.leaderNames.length
             ? node.leaderNames
-            : ['Líder não definido'];
+            : ['Gestor não definido'];
         const childClass = node.hasChildren ? ' has-children' : '';
         const expandIndicator = node.hasChildren
             ? `<span class="org-expand-indicator" aria-hidden="true">${node.isCollapsed ? '+' : '−'}</span>`
@@ -1640,8 +1650,8 @@ require_once __DIR__ . '/includes/sidebar.php';
                                     <div class="org-leader-meta">
                                         <span class="org-leader-caption">${
                                             Number(node.leaderCount || 0) > 1
-                                                ? `${Number(node.leaderCount)} lideranças`
-                                                : 'Liderança'
+                                                ? `${Number(node.leaderCount)} gestores`
+                                                : 'Gestor'
                                         }</span>
                                         <span class="org-leader-name">${leaderNames
                                             .map(name => `<span class="org-leader-person">${esc(name)}</span>`)
@@ -1937,15 +1947,24 @@ require_once __DIR__ . '/includes/sidebar.php';
         el.drawerTitle.textContent =
             detail.structure.NOME || code;
 
-        const leaderName = detail.leaderships.length
-            ? detail.leaderships.map(item => item.pessoa_nome).join(' · ')
-            : 'Líder ainda não definido';
+        const managers = detail.leaderships.filter(isManagementLeadership);
+        const operationalLeaders = detail.leaderships.filter(item => !isManagementLeadership(item));
+        const managerName = managers.length
+            ? managers.map(item => item.pessoa_nome).join(' · ')
+            : 'Gestor ainda não definido';
 
         el.drawerBody.innerHTML = `
             <div class="drawer-card">
-                <div class="drawer-label">Liderança</div>
-                <div class="drawer-value">${esc(leaderName)}</div>
+                <div class="drawer-label">Gestor da área</div>
+                <div class="drawer-value">${esc(managerName)}</div>
             </div>
+
+            ${operationalLeaders.length ? `
+                <div class="drawer-card">
+                    <div class="drawer-label">Lideranças operacionais</div>
+                    <div class="drawer-value">${esc(operationalLeaders.map(item => item.pessoa_nome).join(' · '))}</div>
+                </div>
+            ` : ''}
 
             <div class="drawer-card">
                 <div class="drawer-label">Resumo</div>

@@ -44,7 +44,7 @@ $csrf = $_SESSION['governanca_csrf'];
             <div id="govAlert" class="hidden mb-4 rounded-xl border px-4 py-3 text-sm font-semibold"></div>
             <div id="myAreaStatus" class="mb-4"></div>
 
-            <div id="myAreaGrid" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div id="myAreaGrid" class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
                 <div class="col-span-full rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
                     Carregando seu escopo...
                 </div>
@@ -278,7 +278,7 @@ $csrf = $_SESSION['governanca_csrf'];
 <style>
 #gov-my-area .gov-area-card{
     border:1px solid #e2e8f0;border-radius:16px;background:#fff;
-    padding:18px;box-shadow:0 2px 7px rgba(15,23,42,.035)
+    padding:16px;align-self:start;box-shadow:0 2px 7px rgba(15,23,42,.035)
 }
 #gov-my-area .gov-area-code{
     color:#94a3b8;font-size:9px;font-weight:900;
@@ -292,19 +292,49 @@ $csrf = $_SESSION['governanca_csrf'];
     color:#059669;font-size:8px;font-weight:900;text-transform:uppercase
 }
 #gov-my-area .gov-area-stats{
-    margin-top:14px;display:grid;
+    margin-top:11px;display:grid;
     grid-template-columns:repeat(3,minmax(0,1fr));gap:8px
 }
 #gov-my-area .gov-area-stat{
-    padding:12px 8px;border-radius:12px;background:#f8fafc;text-align:center
+    padding:9px 8px;border-radius:11px;background:#f8fafc;text-align:center
 }
 #gov-my-area .gov-area-stat strong{
-    display:block;color:#0f172a;font-size:18px;font-weight:900
+    display:block;color:#0f172a;font-size:16px;font-weight:900
 }
 #gov-my-area .gov-area-stat span{
     display:block;margin-top:3px;color:#94a3b8;font-size:8px;
     font-weight:900;text-transform:uppercase
 }
+#gov-my-area .gov-area-details{
+    margin-top:11px;border:1px solid #dbeafe;border-radius:12px;
+    background:#f8fbff;overflow:hidden
+}
+#gov-my-area .gov-area-details summary{
+    min-height:44px;padding:9px 11px;display:flex;align-items:center;
+    gap:10px;cursor:pointer;list-style:none;user-select:none
+}
+#gov-my-area .gov-area-details summary::-webkit-details-marker{display:none}
+#gov-my-area .gov-area-details summary:hover{background:#eff6ff}
+#gov-my-area .gov-area-detail-copy{min-width:0;margin-right:auto}
+#gov-my-area .gov-area-detail-copy strong{
+    display:block;color:#1d4ed8;font-size:10px;font-weight:900;
+    letter-spacing:.06em;text-transform:uppercase
+}
+#gov-my-area .gov-area-detail-copy small{
+    display:block;margin-top:2px;color:#64748b;font-size:9px
+}
+#gov-my-area .gov-area-detail-toggle{
+    width:25px;height:25px;display:grid;place-items:center;flex:0 0 auto;
+    border:1px solid #bfdbfe;border-radius:8px;background:#fff;
+    color:#2563eb;font-size:15px;font-weight:900;transition:.16s ease
+}
+#gov-my-area .gov-area-details[open] .gov-area-detail-toggle{
+    transform:rotate(180deg);background:#dbeafe
+}
+#gov-my-area .gov-area-details[open] summary{
+    border-bottom:1px solid #dbeafe;background:#eff6ff
+}
+#gov-my-area .gov-area-detail-body{padding:0 11px 11px}
 #gov-my-area .gov-area-actions{
     margin-top:14px;display:flex;align-items:center;gap:7px;flex-wrap:wrap
 }
@@ -613,7 +643,8 @@ $csrf = $_SESSION['governanca_csrf'];
         payload:null,
         manage:null,
         modalMode:null,
-        confirmAction:null
+        confirmAction:null,
+        expandedAreas:new Set()
     };
 
     const esc = v => String(v ?? '')
@@ -1401,43 +1432,70 @@ $csrf = $_SESSION['governanca_csrf'];
                         </div>
                     </div>
 
-                    ${
-                        canManageThis
-                            ? `
-                            <div class="gov-area-actions">
-                                <button type="button"
-                                        class="gov-card-btn primary"
-                                        data-add-function="${esc(code)}">
-                                    + Função
-                                </button>
+                    <details class="gov-area-details"
+                             data-area-details="${esc(code)}"
+                             ${state.expandedAreas.has(code) ? 'open' : ''}>
+                        <summary>
+                            <span class="gov-area-detail-copy">
+                                <strong>Cadastros da área</strong>
+                                <small>${st.functions} funções · ${st.people} pessoas · ${st.responsibilities} responsabilidades</small>
+                            </span>
+                            <span class="gov-area-detail-toggle" aria-hidden="true">⌄</span>
+                        </summary>
 
-                                <button type="button"
-                                        class="gov-card-btn secondary"
-                                        data-add-person="${esc(code)}">
-                                    + Pessoa
-                                </button>
+                        <div class="gov-area-detail-body">
+                            ${
+                                canManageThis
+                                    ? `
+                                    <div class="gov-area-actions">
+                                        <button type="button"
+                                                class="gov-card-btn primary"
+                                                data-add-function="${esc(code)}">
+                                            + Função
+                                        </button>
 
-                                <span class="gov-area-note">
-                                    Cadastro protegido por permissão
-                                </span>
-                            </div>
-                            `
-                            : ''
-                    }
+                                        <button type="button"
+                                                class="gov-card-btn secondary"
+                                                data-add-person="${esc(code)}">
+                                            + Pessoa
+                                        </button>
 
-                    ${renderCurrentRegistrations(
-                        code,
-                        data,
-                        canManageThis
-                    )}
+                                        <span class="gov-area-note">
+                                            Cadastro protegido por permissão
+                                        </span>
+                                    </div>
+                                    `
+                                    : ''
+                            }
 
-                    ${renderInactiveItems(
-                        code,
-                        canManageThis
-                    )}
+                            ${renderCurrentRegistrations(
+                                code,
+                                data,
+                                canManageThis
+                            )}
+
+                            ${renderInactiveItems(
+                                code,
+                                canManageThis
+                            )}
+                        </div>
+                    </details>
                 </article>
             `;
         }).join('');
+
+        grid.querySelectorAll('[data-area-details]').forEach(details => {
+            details.addEventListener('toggle',() => {
+                const code = String(details.dataset.areaDetails || '');
+                if (!code) return;
+
+                if (details.open) {
+                    state.expandedAreas.add(code);
+                } else {
+                    state.expandedAreas.delete(code);
+                }
+            });
+        });
 
         grid.querySelectorAll('[data-add-function]').forEach(btn => {
             btn.addEventListener('click',() => {

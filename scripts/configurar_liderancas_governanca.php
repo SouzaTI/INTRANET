@@ -39,16 +39,16 @@ $thirdPartyStructures = [
 ];
 
 $leaders = [
-    ['Adelson Silva', null, 'CS-GG-ADELSON', 'Gerente Geral'],
-    ['Alex Cunha', 40, 'CS-FAC', 'LIDER'],
-    ['Alex Cunha', 40, 'CS-TI', 'LIDER'],
+    ['Adelson Silva', 17, 'CS-GG-ADELSON', 'Gerente Geral'],
+    ['Alex Cunha', 40, 'CS-FAC', 'GESTOR'],
+    ['Alex Cunha', 40, 'CS-TI', 'GESTOR'],
     ['Anderson Souza', 19, 'CS-DIR', 'DIRETOR'],
-    ['Daniela Roza', 21, 'CS-FISC', 'LIDER'],
-    ['Dayane Correia', 71, 'CS-CAR', 'LIDER'],
-    ['Eloise Tancredi', 108, 'CS-RH', 'LIDER'],
+    ['Daniela Roza', 21, 'CS-FISC', 'GESTOR'],
+    ['Dayane Correia', 71, 'CS-CAR', 'GESTOR'],
+    ['Eloise Tancredi', 108, 'CS-RH', 'GESTOR'],
     ['Fabio Souza', 23, 'CS-DIR', 'DIRETOR'],
-    ['Leila Moreira', 28, 'CS-TES', 'LIDER'],
-    ['Milton Michels', null, 'CS-CAP', 'LIDER'],
+    ['Leila Moreira', 28, 'CS-TES', 'GESTOR'],
+    ['Milton Michels', 74, 'CS-CAP', 'GESTOR'],
     ['Wilson Soares', 100, 'CS-GG-WILSON', 'Gerente Geral'],
 ];
 

@@ -28,7 +28,7 @@ $govTabs = [
 if ($govEhAdmin) {
     $govTabs[] = [
         'file' => 'governanca_liderancas.php',
-        'label' => 'Lideranças',
+        'label' => 'Gestores',
         'icon' => '♛',
     ];
     $govTabs[] = [
