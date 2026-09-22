@@ -160,7 +160,10 @@ $csrf = (string) $_SESSION['governanca_csrf'];
 #gov-leadership .leader-person{display:flex;align-items:center;gap:8px;min-width:0}
 #gov-leadership .leader-avatar{
     width:34px;height:34px;flex:0 0 auto;border-radius:9px;display:grid;
-    place-items:center;background:#173b68;color:#bfdbfe;font-size:10px;font-weight:900
+    place-items:center;background:#142641;border:1px solid #2e4665;overflow:hidden
+}
+#gov-leadership .leader-avatar img{
+    width:30px;height:30px;display:block;object-fit:contain
 }
 #gov-leadership .leader-person strong{
     display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
@@ -217,13 +220,6 @@ $csrf = (string) $_SESSION['governanca_csrf'];
     const esc = value => String(value ?? '')
         .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
         .replaceAll('"','&quot;').replaceAll("'",'&#039;');
-    const initials = name => {
-        const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
-        return parts.length > 1
-            ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-            : (parts[0] || '—').slice(0,2).toUpperCase();
-    };
-
     function showAlert(message, error=false){
         alertBox.className = 'mb-4 rounded-xl border px-4 py-3 text-sm font-semibold ' +
             (error ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700');
@@ -248,7 +244,9 @@ $csrf = (string) $_SESSION['governanca_csrf'];
         list.innerHTML = active.length ? active.map(row => `
             <div class="leader-row">
                 <div class="leader-person">
-                    <span class="leader-avatar">${esc(initials(row.pessoa_nome))}</span>
+                    <span class="leader-avatar">
+                        <img src="assets/SOL.PNG" alt="" aria-hidden="true">
+                    </span>
                     <div class="min-w-0">
                         <strong>${esc(row.pessoa_nome)}</strong>
                         <span>${esc(row.estrutura_nome)} · ${esc(row.estrutura_codigo)}</span>
